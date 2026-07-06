@@ -20,11 +20,11 @@ function getToken() {
 }
 
 function formatMoney(n: number, currency: string) {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(n);
+  return new Intl.NumberFormat("fr-FR", { style: "currency", currency }).format(n);
 }
 
 function formatDateTime(iso: string) {
-  return new Date(iso).toLocaleString("en-US", {
+  return new Date(iso).toLocaleString("fr-FR", {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -34,22 +34,22 @@ function formatDateTime(iso: string) {
 }
 
 const CANCELLATION_REASONS = [
-  "Client unreachable",
-  "Client refused",
-  "Wrong address",
-  "Duplicate order",
-  "Out of stock",
-  "Price issue",
-  "Changed mind",
-  "Other",
+  "Client injoignable",
+  "Client a refuse",
+  "Mauvaise adresse",
+  "Commande en double",
+  "Rupture de stock",
+  "Probleme de prix",
+  "Changement d'avis",
+  "Autre",
 ];
 
 const CALL_RESULTS = [
-  { value: "ANSWERED_CONFIRMED", label: "✅ Answered — Confirmed" },
-  { value: "ANSWERED_REFUSED", label: "❌ Answered — Refused" },
-  { value: "NO_ANSWER", label: "📵 No answer" },
-  { value: "BUSY", label: "📵 Busy" },
-  { value: "WRONG_NUMBER", label: "❌ Wrong number" },
+  { value: "ANSWERED_CONFIRMED", label: "Answered — Confirmed" },
+  { value: "ANSWERED_REFUSED", label: "Answered — Refused" },
+  { value: "NO_ANSWER", label: "No answer" },
+  { value: "BUSY", label: "Busy" },
+  { value: "WRONG_NUMBER", label: "Wrong number" },
 ];
 
 const RESULT_COLORS: Record<string, string> = {
@@ -61,11 +61,11 @@ const RESULT_COLORS: Record<string, string> = {
 };
 
 const RESULT_LABELS: Record<string, string> = {
-  ANSWERED_CONFIRMED: "Confirmed",
-  ANSWERED_REFUSED: "Refused",
-  NO_ANSWER: "No answer",
-  BUSY: "Busy",
-  WRONG_NUMBER: "Wrong number",
+  ANSWERED_CONFIRMED: "Confirme",
+  ANSWERED_REFUSED: "Refuse",
+  NO_ANSWER: "Pas de reponse",
+  BUSY: "Occupe",
+  WRONG_NUMBER: "Mauvais numero",
 };
 
 function CancellationModal({
@@ -82,7 +82,7 @@ function CancellationModal({
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-foreground/30 backdrop-blur-[2px]">
       <div className="w-full max-w-md rounded-xl border border-border bg-surface shadow-2xl">
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
-          <h2 className="text-sm font-semibold">Cancel order — Select reason</h2>
+          <h2 className="text-sm font-semibold">Raison d'annulation</h2>
           <button onClick={onClose} className="rounded-md p-1 hover:bg-surface-sunken">
             <X className="h-4 w-4" />
           </button>
@@ -105,23 +105,23 @@ function CancellationModal({
             ))}
           </div>
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-muted">Additional note (optional)</label>
+            <label className="mb-1.5 block text-xs font-medium text-muted">Note (optionnel)</label>
             <Input
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="Add more details..."
+              placeholder="Details supplementaires..."
             />
           </div>
         </div>
         <div className="flex gap-2 border-t border-border px-5 py-4">
-          <Button variant="secondary" className="flex-1" onClick={onClose}>Back</Button>
+          <Button variant="secondary" className="flex-1" onClick={onClose}>Retour</Button>
           <Button
             variant="destructive"
             className="flex-1"
             disabled={!reason}
             onClick={() => onConfirm(reason, note)}
           >
-            Confirm cancellation
+            Confirmer l'annulation
           </Button>
         </div>
       </div>
@@ -169,7 +169,6 @@ function CallAttemptsPanel({
       setNote("");
       setResult("NO_ANSWER");
 
-      // Auto-trigger status change based on result
       if (result === "ANSWERED_CONFIRMED") {
         onChangeStatus(order.id, "CONFIRME");
       } else if (result === "ANSWERED_REFUSED") {
@@ -189,11 +188,11 @@ function CallAttemptsPanel({
       <div className="flex items-center justify-between border-b border-border px-3.5 py-2.5">
         <p className="text-xs font-medium uppercase tracking-wide text-muted flex items-center gap-1.5">
           <PhoneCall className="h-3.5 w-3.5" />
-          Confirmation calls ({attempts.length})
+          Appels de confirmation ({attempts.length})
         </p>
         {attempts.length > 0 && (
           <span className="text-[11px] text-muted">
-            {attempts.filter((a) => a.result === "NO_ANSWER" || a.result === "BUSY").length} unanswered
+            {attempts.filter((a) => a.result === "NO_ANSWER" || a.result === "BUSY").length} sans reponse
           </span>
         )}
       </div>
@@ -221,7 +220,7 @@ function CallAttemptsPanel({
 
       <div className="space-y-2.5 p-3.5">
         <div>
-          <label className="mb-1 block text-[11px] font-medium text-muted">Phone number</label>
+          <label className="mb-1 block text-[11px] font-medium text-muted">Numero de telephone</label>
           <Input
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
@@ -230,7 +229,7 @@ function CallAttemptsPanel({
           />
         </div>
         <div>
-          <label className="mb-1 block text-[11px] font-medium text-muted">Result</label>
+          <label className="mb-1 block text-[11px] font-medium text-muted">Resultat</label>
           <select
             value={result}
             onChange={(e) => setResult(e.target.value)}
@@ -242,11 +241,11 @@ function CallAttemptsPanel({
           </select>
         </div>
         <div>
-          <label className="mb-1 block text-[11px] font-medium text-muted">Note (optional)</label>
+          <label className="mb-1 block text-[11px] font-medium text-muted">Note (optionnel)</label>
           <Input
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder="e.g. Will call back tomorrow"
+            placeholder="ex: rappeler demain"
             className="h-8 text-xs"
           />
         </div>
@@ -257,7 +256,7 @@ function CallAttemptsPanel({
           onClick={addAttempt}
         >
           <Plus className="h-3.5 w-3.5" />
-          {loading ? "Saving..." : "Log call attempt"}
+          {loading ? "Enregistrement..." : "Logger tentative"}
         </Button>
       </div>
     </div>
@@ -292,7 +291,7 @@ export function OrderDetailDrawer({
   }
 
   function handleStatusChange(status: OrderStatus) {
-    if (status === "CANCELLED") {
+    if (status === "ANNULE") {
       setShowCancelModal(true);
     } else {
       onChangeStatus(order!.id, status);
@@ -300,15 +299,15 @@ export function OrderDetailDrawer({
   }
 
   function handleCancellationConfirm(reason: string, note: string) {
-    onChangeStatus(order!.id, "CANCELLED", { reason, note });
+    onChangeStatus(order!.id, "ANNULE", { reason, note });
     setShowCancelModal(false);
   }
 
   const showCallPanel =
-  order.orderStatus === "NOUVEAU" ||
-  order.orderStatus === "CONFIRMATION_EN_COURS" ||
-  order.orderStatus === "CONFIRME" ||
-  (Array.isArray(order.callAttempts) && order.callAttempts.length > 0);
+    order.orderStatus === "NOUVEAU" ||
+    order.orderStatus === "CONFIRMATION_EN_COURS" ||
+    order.orderStatus === "CONFIRME" ||
+    (Array.isArray(order.callAttempts) && order.callAttempts.length > 0);
 
   return (
     <>
@@ -334,17 +333,15 @@ export function OrderDetailDrawer({
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-4">
-          {/* Status row */}
           <div className="flex flex-wrap gap-2">
             <OrderStatusBadge status={order.orderStatus} />
             <FinancialStatusBadge status={order.financialStatus} />
             <FulfillmentStatusBadge status={order.fulfillmentStatus} />
           </div>
 
-          {/* Cancellation info */}
-          {order.orderStatus === "CANCELLED" && order.cancellationReason && (
+          {order.orderStatus === "ANNULE" && order.cancellationReason && (
             <div className="mt-3 rounded-lg border border-status-cancelled/30 bg-status-cancelled-bg p-3">
-              <p className="text-xs font-medium text-status-cancelled">Cancellation reason</p>
+              <p className="text-xs font-medium text-status-cancelled">Raison d'annulation</p>
               <p className="mt-0.5 text-sm font-medium">{order.cancellationReason}</p>
               {order.cancellationNote && (
                 <p className="mt-0.5 text-xs text-muted">{order.cancellationNote}</p>
@@ -352,7 +349,6 @@ export function OrderDetailDrawer({
             </div>
           )}
 
-          {/* Call attempts panel */}
           {showCallPanel && (
             <CallAttemptsPanel
               order={order}
@@ -362,9 +358,8 @@ export function OrderDetailDrawer({
             />
           )}
 
-          {/* Customer */}
           <div className="mt-4 rounded-lg border border-border p-3.5">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted">Customer</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-muted">Client</p>
             <p className="mt-1.5 text-sm font-medium">{order.customerName}</p>
             <div className="mt-2 space-y-1.5 text-xs text-muted">
               {order.customerEmail && (
@@ -380,10 +375,9 @@ export function OrderDetailDrawer({
             </div>
           </div>
 
-          {/* Tracking */}
           {order.trackingNumber && (
             <div className="mt-3 rounded-lg border border-border p-3.5">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted">Shipment</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-muted">Expedition</p>
               <p className="mt-1.5 flex items-center gap-1.5 font-mono text-sm">
                 <Truck className="h-3.5 w-3.5 text-muted" />
                 {order.trackingNumber}
@@ -392,10 +386,9 @@ export function OrderDetailDrawer({
             </div>
           )}
 
-          {/* Line items */}
           <div className="mt-3 rounded-lg border border-border">
             <p className="border-b border-border px-3.5 py-2.5 text-xs font-medium uppercase tracking-wide text-muted">
-              Items ({order.itemCount})
+              Articles ({order.itemCount})
             </p>
             <div className="divide-y divide-border">
               {order.lineItems.map((li) => (
@@ -406,9 +399,9 @@ export function OrderDetailDrawer({
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{li.title}</p>
                     <p className="font-mono text-xs text-muted">
-                      {li.sku} · Qty {li.quantity}
+                      {li.sku} · Qte {li.quantity}
                       {li.refundedQty > 0 && (
-                        <span className="text-status-refunded"> · {li.refundedQty} refunded</span>
+                        <span className="text-status-refunded"> · {li.refundedQty} rembourse</span>
                       )}
                     </p>
                   </div>
@@ -420,23 +413,22 @@ export function OrderDetailDrawer({
             </div>
           </div>
 
-          {/* Totals */}
           <div className="mt-3 space-y-1.5 rounded-lg border border-border p-3.5 text-sm">
             <div className="flex justify-between text-muted">
-              <span>Subtotal</span>
+              <span>Sous-total</span>
               <span className="font-mono">{formatMoney(order.subtotal, order.currency)}</span>
             </div>
             <div className="flex justify-between text-muted">
-              <span>Shipping</span>
+              <span>Livraison</span>
               <span className="font-mono">{formatMoney(order.shippingTotal, order.currency)}</span>
             </div>
             <div className="flex justify-between text-muted">
-              <span>Tax</span>
+              <span>Taxes</span>
               <span className="font-mono">{formatMoney(order.taxTotal, order.currency)}</span>
             </div>
             {order.totalRefunded > 0 && (
               <div className="flex justify-between text-status-refunded">
-                <span>Refunded</span>
+                <span>Rembourse</span>
                 <span className="font-mono">-{formatMoney(order.totalRefunded, order.currency)}</span>
               </div>
             )}
@@ -446,12 +438,11 @@ export function OrderDetailDrawer({
             </div>
           </div>
 
-          {/* Refund */}
           {remainingRefundable > 0 && (
             <div className="mt-3 rounded-lg border border-border p-3.5">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted">Issue Refund</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-muted">Remboursement</p>
               <p className="mt-1 text-xs text-muted">
-                Up to {formatMoney(remainingRefundable, order.currency)} refundable
+                Jusqu'a {formatMoney(remainingRefundable, order.currency)} remboursable
               </p>
               <div className="mt-2 flex gap-2">
                 <input
@@ -465,24 +456,24 @@ export function OrderDetailDrawer({
                   className="h-9 w-full rounded-md border border-border bg-surface px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 />
                 <Button size="sm" variant="secondary" onClick={handleRefund}>
-                  Refund
+                  Rembourser
                 </Button>
               </div>
             </div>
           )}
 
           <p className="mt-4 text-center text-xs text-muted-light">
-            Placed {formatDateTime(order.sourceCreatedAt)}
+            Commande du {formatDateTime(order.sourceCreatedAt)}
           </p>
         </div>
 
         <div className="flex gap-2 border-t border-border p-4">
           <Button variant="secondary" className="flex-1">
-            View on {order.storeName.includes("Shopify") ? "Shopify" : "source"}
+            Voir sur {order.storeName.includes("Shopify") ? "Shopify" : "source"}
           </Button>
-          <Button className="flex-1" onClick={() => handleStatusChange("SHIPPED")}>
+          <Button className="flex-1" onClick={() => handleStatusChange("EXPEDIE")}>
             <Truck className="h-3.5 w-3.5" />
-            Ship
+            Expedier
           </Button>
         </div>
       </div>
