@@ -16,8 +16,9 @@ import {
 import { OrderStatus } from "@/types/order";
 
 const STATUS_ORDER: OrderStatus[] = [
-  "NEW", "PROCESSING", "READY_TO_SHIP", "SHIPPED",
-  "OUT_FOR_DELIVERY", "DELIVERED", "CANCELLED", "RETURNED", "ON_HOLD",
+  "NOUVEAU", "CONFIRMATION_EN_COURS", "CONFIRME", "EN_PREPARATION",
+  "EXPEDIE", "EN_COURS_DE_LIVRAISON", "LIVRE", "PAYE", "RETOUR",
+  "RETOUR_DEPOT", "RETOUR_RECU", "ANNULE",
 ];
 
 function StatCard({ label, value, sub, icon: Icon, color }: {
