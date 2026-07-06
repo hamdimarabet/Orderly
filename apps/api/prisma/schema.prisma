@@ -1,0 +1,292 @@
+// ============================================
+// ORDER MANAGEMENT PLATFORM — CORE SCHEMA
+// ============================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ----------- ENUMS -----------
+
+enum StoreSourceType {
+  SHOPIFY
+  CUSTOM
+  MARKETPLACE
+}
+
+enum FinancialStatus {
+  PENDING
+  AUTHORIZED
+  PARTIALLY_PAID
+  PAID
+  PARTIALLY_REFUNDED
+  REFUNDED
+  VOIDED
+}
+
+enum FulfillmentStatus {
+  UNFULFILLED
+  PARTIAL
+  FULFILLED
+  RESTOCKED
+  CANCELLED
+}
+
+enum OrderStatus {
+  NOUVEAU
+  CONFIRMATION_EN_COURS
+  CONFIRME
+  EN_PREPARATION
+  EXPEDIE
+  EN_COURS_DE_LIVRAISON
+  LIVRE
+  PAYE
+  RETOUR
+  RETOUR_DEPOT
+  RETOUR_RECU
+  ANNULE
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  STORE_MANAGER
+  STAFF
+}
+
+// ----------- CORE -----------
+
+model Store {
+  id              String          @id @default(cuid())
+  name            String
+  sourceType      StoreSourceType
+  isActive        Boolean         @default(true)
+  credentials     Json?
+
+  orders          Order[]
+  products        Product[]
+  userAccess      UserStoreAccess[]
+  deliveryConfigs DeliveryIntegration[]
+
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([sourceType])
+}
+
+model Order {
+  id                String            @id @default(cuid())
+  storeId           String
+  store             Store             @relation(fields: [storeId], references: [id])
+
+  externalOrderId   String
+  orderNumber       String
+
+  financialStatus   FinancialStatus   @default(PENDING)
+  fulfillmentStatus FulfillmentStatus @default(UNFULFILLED)
+  orderStatus       OrderStatus       @default(NOUVEAU)
+
+  customerName      String?
+  customerEmail     String?
+  customerPhone     String?
+  shippingAddress   Json?
+  billingAddress    Json?
+
+  currency          String            @default("USD")
+  subtotal          Decimal           @db.Decimal(10, 2)
+  taxTotal          Decimal           @db.Decimal(10, 2) @default(0)
+  shippingTotal     Decimal           @db.Decimal(10, 2) @default(0)
+  total             Decimal           @db.Decimal(10, 2)
+  totalRefunded     Decimal           @db.Decimal(10, 2) @default(0)
+
+  tags              String[]
+  notes             String?
+
+  // Confirmation call fields
+  confirmationStatus  String?
+  cancellationReason  String?
+  cancellationNote    String?
+  callAttempts        Json?     // [{ date, phone, result, note }]
+
+  lineItems         OrderLineItem[]
+  fulfillments      Fulfillment[]
+  refunds           Refund[]
+  events            OrderEvent[]
+
+  sourceCreatedAt   DateTime
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@unique([storeId, externalOrderId])
+  @@index([storeId, orderStatus])
+  @@index([storeId, createdAt])
+  @@index([financialStatus])
+  @@index([fulfillmentStatus])
+  @@index([orderNumber])
+}
+
+model OrderLineItem {
+  id            String   @id @default(cuid())
+  orderId       String
+  order         Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  productId     String?
+  product       Product? @relation(fields: [productId], references: [id])
+
+  sku           String?
+  title         String
+  variantTitle  String?
+  quantity      Int
+  fulfilledQty  Int      @default(0)
+  refundedQty   Int      @default(0)
+  price         Decimal  @db.Decimal(10, 2)
+
+  @@index([orderId])
+  @@index([sku])
+}
+
+model OrderEvent {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  eventType String
+  payload   Json?
+  actor     String?
+
+  createdAt DateTime @default(now())
+
+  @@index([orderId, createdAt])
+}
+
+model Fulfillment {
+  id                 String   @id @default(cuid())
+  orderId            String
+  order              Order    @relation(fields: [orderId], references: [id])
+
+  carrier            String?
+  trackingNumber     String?
+  trackingUrl        String?
+  status             String
+  deliveryPartnerRef String?
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([orderId])
+  @@index([deliveryPartnerRef])
+}
+
+model Refund {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id])
+
+  amount    Decimal  @db.Decimal(10, 2)
+  reason    String?
+  lineItems Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([orderId])
+}
+
+// ----------- INVENTORY -----------
+
+model Product {
+  id                String   @id @default(cuid())
+  storeId           String
+  store             Store    @relation(fields: [storeId], references: [id])
+
+  sku               String
+  name              String
+  quantityAvailable Int      @default(0)
+  reservedQty       Int      @default(0)
+  lowStockThreshold Int      @default(5)
+
+  lineItems         OrderLineItem[]
+  stockAlerts       StockAlert[]
+  inventoryLogs     InventoryLog[]
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([storeId, sku])
+  @@index([storeId])
+}
+
+model StockAlert {
+  id                 String    @id @default(cuid())
+  productId          String
+  product            Product   @relation(fields: [productId], references: [id])
+
+  thresholdAtTrigger Int
+  triggeredAt        DateTime  @default(now())
+  resolvedAt         DateTime?
+
+  @@index([productId, resolvedAt])
+}
+
+model InventoryLog {
+  id             String   @id @default(cuid())
+  productId      String
+  product        Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  type           String
+  quantityChange Int
+  quantityBefore Int
+  quantityAfter  Int
+  note           String?
+  actor          String?
+
+  createdAt      DateTime @default(now())
+
+  @@index([productId, createdAt])
+}
+
+// ----------- DELIVERY -----------
+
+model DeliveryIntegration {
+  id            String   @id @default(cuid())
+  storeId       String
+  store         Store    @relation(fields: [storeId], references: [id])
+
+  provider      String
+  credentials   Json
+  statusMapping Json?
+  isActive      Boolean  @default(true)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([storeId])
+}
+
+// ----------- AUTH / ACCESS -----------
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  role         UserRole @default(STAFF)
+  passwordHash String
+
+  storeAccess  UserStoreAccess[]
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model UserStoreAccess {
+  id      String @id @default(cuid())
+  userId  String
+  user    User   @relation(fields: [userId], references: [id])
+  storeId String
+  store   Store  @relation(fields: [storeId], references: [id])
+
+  @@unique([userId, storeId])
+}

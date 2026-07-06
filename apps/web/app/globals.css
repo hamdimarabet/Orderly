@@ -1,0 +1,94 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+:root {
+  /* Base surface */
+  --background: #FAFAFA;
+  --surface: #FFFFFF;
+  --surface-sunken: #F4F4F5;
+  --border: #E4E4E7;
+  --border-strong: #D4D4D8;
+
+  /* Text */
+  --foreground: #18181B;
+  --muted: #71717A;
+  --muted-light: #A1A1AA;
+
+  /* Primary accent — used sparingly: primary actions, active nav, links */
+  --primary: #4F46E5;
+  --primary-hover: #4338CA;
+  --primary-foreground: #FFFFFF;
+  --primary-soft: #EEF2FF;
+
+  /* Status language — the signature system. Every order state maps to exactly one of these. */
+  --status-new: #2563EB;
+  --status-new-bg: #EFF6FF;
+  --status-processing: #D97706;
+  --status-processing-bg: #FFFBEB;
+  --status-shipped: #7C3AED;
+  --status-shipped-bg: #F5F3FF;
+  --status-delivered: #059669;
+  --status-delivered-bg: #ECFDF5;
+  --status-cancelled: #DC2626;
+  --status-cancelled-bg: #FEF2F2;
+  --status-refunded: #EA580C;
+  --status-refunded-bg: #FFF7ED;
+  --status-onhold: #52525B;
+  --status-onhold-bg: #F4F4F5;
+
+  --radius: 0.5rem;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-light: var(--muted-light);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-soft: var(--primary-soft);
+
+  --color-status-new: var(--status-new);
+  --color-status-new-bg: var(--status-new-bg);
+  --color-status-processing: var(--status-processing);
+  --color-status-processing-bg: var(--status-processing-bg);
+  --color-status-shipped: var(--status-shipped);
+  --color-status-shipped-bg: var(--status-shipped-bg);
+  --color-status-delivered: var(--status-delivered);
+  --color-status-delivered-bg: var(--status-delivered-bg);
+  --color-status-cancelled: var(--status-cancelled);
+  --color-status-cancelled-bg: var(--status-cancelled-bg);
+  --color-status-refunded: var(--status-refunded);
+  --color-status-refunded-bg: var(--status-refunded-bg);
+  --color-status-onhold: var(--status-onhold);
+  --color-status-onhold-bg: var(--status-onhold-bg);
+
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  font-feature-settings: "tnum" 1, "cv11" 1;
+}
+
+* {
+  border-color: var(--border);
+}
+
+::selection {
+  background: var(--primary-soft);
+  color: var(--primary);
+}

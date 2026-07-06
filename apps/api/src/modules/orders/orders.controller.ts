@@ -1,0 +1,89 @@
+import { Controller, Get, Patch, Post, Body, Param, Query, UseGuards, Request, Res, SetMetadata } from '@nestjs/common';
+import { OrdersService } from './orders.service';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { OrderStatus } from '@prisma/client';
+import type { Response } from 'express';
+import { BordereauService } from './bordereau.service';
+
+@UseGuards(JwtAuthGuard)
+@Controller('orders')
+export class OrdersController {
+  constructor(
+    private orders: OrdersService,
+    private bordereau: BordereauService,
+  ) {}
+
+  @Get()
+  findAll(
+    @Query('storeIds') storeIds?: string,
+    @Query('orderStatus') orderStatus?: string,
+    @Query('financialStatus') financialStatus?: string,
+    @Query('fulfillmentStatus') fulfillmentStatus?: string,
+    @Query('search') search?: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    return this.orders.findAll({
+      storeIds: storeIds ? storeIds.split(',') : undefined,
+      orderStatus: orderStatus ? (orderStatus.split(',') as any) : undefined,
+      financialStatus: financialStatus ? (financialStatus.split(',') as any) : undefined,
+      fulfillmentStatus: fulfillmentStatus ? (fulfillmentStatus.split(',') as any) : undefined,
+      search,
+      page: page ? parseInt(page) : 1,
+      pageSize: pageSize ? parseInt(pageSize) : 25,
+    });
+  }
+
+  @Get(':id/bordereau')
+  @SetMetadata('isPublic', true)
+  async getBordereau(
+    @Param('id') id: string,
+    @Res() res: Response,
+  ) {
+    const html = await this.bordereau.generateBordereau(id);
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+  }
+
+  @Get(':id')
+  findOne(@Param('id') id: string) {
+    return this.orders.findOne(id);
+  }
+
+  @Patch(':id/status')
+  updateStatus(
+    @Param('id') id: string,
+    @Body() body: { status: OrderStatus; reason?: string; note?: string },
+    @Request() req: any,
+  ) {
+    return this.orders.updateStatus(id, body.status, req.user.id, {
+      reason: body.reason,
+      note: body.note,
+    });
+  }
+
+  @Patch(':id/call-attempts')
+  updateCallAttempts(
+    @Param('id') id: string,
+    @Body() body: { callAttempts: any[] },
+  ) {
+    return this.orders.updateCallAttempts(id, body.callAttempts);
+  }
+
+  @Patch('bulk/status')
+  bulkStatus(
+    @Body() body: { orderIds: string[]; status: OrderStatus },
+    @Request() req: any,
+  ) {
+    return this.orders.bulkUpdateStatus(body.orderIds, body.status, req.user.id);
+  }
+
+  @Post(':id/refund')
+  refund(
+    @Param('id') id: string,
+    @Body() body: { amount: number; reason?: string },
+    @Request() req: any,
+  ) {
+    return this.orders.refund(id, body.amount, body.reason ?? '', req.user.id);
+  }
+}
