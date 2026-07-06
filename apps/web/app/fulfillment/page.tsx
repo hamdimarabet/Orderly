@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import { Search, ChevronLeft, ChevronRight, ChevronDown } from "lucide-react";
 import { Order, OrderStatus, ORDER_STATUS_LABELS } from "@/types/order";
 
-const API = "http://localhost:3001/api";
+const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api";
 
 function getToken() {
   return window.localStorage.getItem("orderly_token");

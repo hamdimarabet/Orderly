@@ -12,7 +12,7 @@ import {
   CheckCircle2, Package, Search, Bell, BellOff, RefreshCw,
 } from "lucide-react";
 
-const API = "http://localhost:3001/api";
+const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api";
 
 function getToken() {
   return window.localStorage.getItem("orderly_token");

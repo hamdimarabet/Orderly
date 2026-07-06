@@ -34,7 +34,7 @@ const SOURCE_ICONS: Record<StoreSourceType, React.ElementType> = {
   MARKETPLACE: Package,
 };
 
-const API = "http://localhost:3001/api";
+const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api";
 
 function getToken() {
   return window.localStorage.getItem("orderly_token");

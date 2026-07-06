@@ -22,7 +22,8 @@ export function StoresProvider({ children }: { children: ReactNode }) {
         setIsLoading(false);
         return;
       }
-      const res = await fetch("http://localhost:3001/api/stores", {
+      const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api";
+const res = await fetch(`${API}/stores`,{
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();

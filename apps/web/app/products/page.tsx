@@ -12,7 +12,7 @@ import {
   Plus, Package, Trash2, Edit2, Check, X, Search, AlertTriangle, History,
 } from "lucide-react";
 
-const API = "http://localhost:3001/api";
+const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api";
 
 function getToken() {
   return window.localStorage.getItem("orderly_token");

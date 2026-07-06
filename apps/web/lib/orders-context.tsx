@@ -3,7 +3,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { Order, OrderStatus, FinancialStatus } from "@/types/order";
 
-const API = "http://localhost:3001/api";
+const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api";
 
 function getToken() {
   if (typeof window === "undefined") return null;

@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import { Phone, Search, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { Order, OrderStatus, CallAttempt } from "@/types/order";
 
-const API = "http://localhost:3001/api";
+const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api";
 
 function getToken() {
   return window.localStorage.getItem("orderly_token");

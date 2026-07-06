@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { QrCode, CheckCircle2, XCircle, Camera } from "lucide-react";
 import { OrderStatus, ORDER_STATUS_LABELS } from "@/types/order";
 
-const API = "http://localhost:3001/api";
+const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api";
 
 function getToken() {
   return window.localStorage.getItem("orderly_token");

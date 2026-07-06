@@ -13,7 +13,7 @@ import { X, Mail, Phone, Truck, Package, Plus, PhoneCall } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
-const API = "http://localhost:3001/api";
+const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api";
 
 function getToken() {
   return window.localStorage.getItem("orderly_token");
