@@ -23,7 +23,7 @@ import {
   QrCode,
 } from "lucide-react";
 
-const NAV_ITEMS = [
+const NAV_ITEMS: { label: string; icon: React.ElementType; href: string; badge?: number }[] = [
   { label: "Vue d'ensemble", icon: LayoutGrid, href: "/" },
   { label: "Confirmation", icon: Phone, href: "/confirmation" },
   { label: "Préparation", icon: Package, href: "/preparation" },
