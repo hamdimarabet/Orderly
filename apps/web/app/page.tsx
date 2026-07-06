@@ -44,10 +44,18 @@ function StatCard({ label, value, sub, icon: Icon, color }: {
 function StatusBar({ status, count, total }: { status: OrderStatus; count: number; total: number }) {
   const pct = total > 0 ? (count / total) * 100 : 0;
   const COLOR: Partial<Record<OrderStatus, string>> = {
-    NEW: "bg-status-new", PROCESSING: "bg-status-processing",
-    READY_TO_SHIP: "bg-status-processing", SHIPPED: "bg-status-shipped",
-    OUT_FOR_DELIVERY: "bg-status-shipped", DELIVERED: "bg-status-delivered",
-    CANCELLED: "bg-status-cancelled", RETURNED: "bg-status-refunded", ON_HOLD: "bg-status-onhold",
+    NOUVEAU: "bg-status-new",
+    CONFIRMATION_EN_COURS: "bg-status-processing",
+    CONFIRME: "bg-status-new",
+    EN_PREPARATION: "bg-status-processing",
+    EXPEDIE: "bg-status-shipped",
+    EN_COURS_DE_LIVRAISON: "bg-status-shipped",
+    LIVRE: "bg-status-delivered",
+    PAYE: "bg-status-delivered",
+    RETOUR: "bg-status-refunded",
+    RETOUR_DEPOT: "bg-status-refunded",
+    RETOUR_RECU: "bg-status-refunded",
+    ANNULE: "bg-status-cancelled",
   };
 
   return (
@@ -105,7 +113,7 @@ function OverviewContent() {
   );
 
   const needsAttention = visibleOrders.filter(
-    (o) => o.orderStatus === "ON_HOLD" || o.orderStatus === "RETURNED" || o.financialStatus === "PARTIALLY_REFUNDED"
+    (o) => o.orderStatus === "RETOUR" || o.orderStatus === "RETOUR_DEPOT" || o.financialStatus === "PARTIALLY_REFUNDED"
   ).length;
 
   return (
@@ -118,38 +126,62 @@ function OverviewContent() {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-14 shrink-0 items-center border-b border-border bg-surface px-5">
-          <h1 className="text-base font-semibold">Overview</h1>
+          <h1 className="text-base font-semibold">Vue d'ensemble</h1>
         </header>
 
         <div className="flex-1 overflow-y-auto p-5 space-y-5">
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <StatCard label="Total orders" value={visibleOrders.length.toLocaleString()} sub="across selected stores" icon={Package} color="bg-primary-soft text-primary" />
-            <StatCard label="Revenue" value={`${totalRevenue.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`} sub="paid, minus refunds" icon={TrendingUp} color="bg-status-delivered-bg text-status-delivered" />
-            <StatCard label="Delivered" value={statusCounts["DELIVERED"] ?? 0} sub={`${visibleOrders.length > 0 ? Math.round(((statusCounts["DELIVERED"] ?? 0) / visibleOrders.length) * 100) : 0}% of total`} icon={CheckCircle2} color="bg-status-delivered-bg text-status-delivered" />
-            <StatCard label="Needs attention" value={needsAttention} sub="on hold, returned, partial refund" icon={AlertTriangle} color="bg-status-processing-bg text-status-processing" />
+            <StatCard
+              label="Total commandes"
+              value={visibleOrders.length.toLocaleString()}
+              sub="tous les magasins"
+              icon={Package}
+              color="bg-primary-soft text-primary"
+            />
+            <StatCard
+              label="Chiffre d'affaires"
+              value={totalRevenue.toLocaleString("fr-FR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+              sub="payé, moins remboursements"
+              icon={TrendingUp}
+              color="bg-status-delivered-bg text-status-delivered"
+            />
+            <StatCard
+              label="Livrés"
+              value={(statusCounts["LIVRE"] ?? 0) + (statusCounts["PAYE"] ?? 0)}
+              sub={`${visibleOrders.length > 0 ? Math.round((((statusCounts["LIVRE"] ?? 0) + (statusCounts["PAYE"] ?? 0)) / visibleOrders.length) * 100) : 0}% du total`}
+              icon={CheckCircle2}
+              color="bg-status-delivered-bg text-status-delivered"
+            />
+            <StatCard
+              label="Attention requise"
+              value={needsAttention}
+              sub="retours, remboursements partiels"
+              icon={AlertTriangle}
+              color="bg-status-processing-bg text-status-processing"
+            />
           </div>
 
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
             <div className="rounded-lg border border-border bg-surface p-5">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-sm font-semibold">Orders by status</h2>
-                <button onClick={() => router.push("/orders")} className="flex items-center gap-1 text-xs font-medium text-primary hover:underline">
-                  View all <ArrowRight className="h-3 w-3" />
+                <h2 className="text-sm font-semibold">Commandes par statut</h2>
+                <button onClick={() => router.push("/confirmation")} className="flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+                  Voir tout <ArrowRight className="h-3 w-3" />
                 </button>
               </div>
               <div className="space-y-2.5">
                 {STATUS_ORDER.filter((s) => (statusCounts[s] ?? 0) > 0).map((s) => (
                   <StatusBar key={s} status={s} count={statusCounts[s] ?? 0} total={visibleOrders.length} />
                 ))}
-                {visibleOrders.length === 0 && <p className="text-xs text-muted">No orders yet.</p>}
+                {visibleOrders.length === 0 && <p className="text-xs text-muted">Aucune commande.</p>}
               </div>
             </div>
 
             <div className="rounded-lg border border-border bg-surface p-5">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-sm font-semibold">Orders by store</h2>
+                <h2 className="text-sm font-semibold">Commandes par magasin</h2>
                 <button onClick={() => router.push("/stores")} className="flex items-center gap-1 text-xs font-medium text-primary hover:underline">
-                  View all <ArrowRight className="h-3 w-3" />
+                  Voir tout <ArrowRight className="h-3 w-3" />
                 </button>
               </div>
               <div className="space-y-3">
@@ -179,14 +211,14 @@ function OverviewContent() {
 
           <div className="rounded-lg border border-border bg-surface">
             <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
-              <h2 className="text-sm font-semibold">Recent orders</h2>
-              <button onClick={() => router.push("/orders")} className="flex items-center gap-1 text-xs font-medium text-primary hover:underline">
-                View all <ArrowRight className="h-3 w-3" />
+              <h2 className="text-sm font-semibold">Commandes récentes</h2>
+              <button onClick={() => router.push("/confirmation")} className="flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+                Voir tout <ArrowRight className="h-3 w-3" />
               </button>
             </div>
             <div className="divide-y divide-border">
               {recentOrders.map((order) => (
-                <div key={order.id} onClick={() => router.push("/orders")} className="flex cursor-pointer items-center justify-between px-5 py-3 hover:bg-surface-sunken transition-colors">
+                <div key={order.id} onClick={() => router.push("/confirmation")} className="flex cursor-pointer items-center justify-between px-5 py-3 hover:bg-surface-sunken transition-colors">
                   <div className="flex items-center gap-3">
                     <span className="font-mono text-sm font-medium">{order.orderNumber}</span>
                     <span className="text-xs text-muted">{order.customerName}</span>
@@ -199,7 +231,7 @@ function OverviewContent() {
                 </div>
               ))}
               {recentOrders.length === 0 && (
-                <div className="px-5 py-8 text-center text-xs text-muted">No orders yet.</div>
+                <div className="px-5 py-8 text-center text-xs text-muted">Aucune commande.</div>
               )}
             </div>
           </div>
@@ -207,18 +239,18 @@ function OverviewContent() {
           <div className="grid grid-cols-3 gap-4">
             <div className="rounded-lg border border-border bg-surface p-4 text-center">
               <Clock className="mx-auto h-5 w-5 text-status-processing" />
-              <p className="mt-2 text-xl font-bold">{(statusCounts["NEW"] ?? 0) + (statusCounts["PROCESSING"] ?? 0)}</p>
-              <p className="text-xs text-muted">Awaiting processing</p>
+              <p className="mt-2 text-xl font-bold">{(statusCounts["NOUVEAU"] ?? 0) + (statusCounts["CONFIRMATION_EN_COURS"] ?? 0)}</p>
+              <p className="text-xs text-muted">En attente de confirmation</p>
             </div>
             <div className="rounded-lg border border-border bg-surface p-4 text-center">
               <XCircle className="mx-auto h-5 w-5 text-status-cancelled" />
-              <p className="mt-2 text-xl font-bold">{statusCounts["CANCELLED"] ?? 0}</p>
-              <p className="text-xs text-muted">Cancelled</p>
+              <p className="mt-2 text-xl font-bold">{statusCounts["ANNULE"] ?? 0}</p>
+              <p className="text-xs text-muted">Annulées</p>
             </div>
             <div className="rounded-lg border border-border bg-surface p-4 text-center">
               <TrendingUp className="mx-auto h-5 w-5 text-status-refunded" />
-              <p className="mt-2 text-xl font-bold">{totalRefunded.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</p>
-              <p className="text-xs text-muted">Total refunded</p>
+              <p className="mt-2 text-xl font-bold">{totalRefunded.toLocaleString("fr-FR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</p>
+              <p className="text-xs text-muted">Total remboursé</p>
             </div>
           </div>
         </div>
