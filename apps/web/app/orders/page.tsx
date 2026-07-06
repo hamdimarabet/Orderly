@@ -118,8 +118,8 @@ function OrdersPageContent() {
         <BulkActionsBar
           count={selectedIds.size}
           onClear={() => setSelectedIds(new Set())}
-          onFulfill={() => handleBulkStatus("SHIPPED")}
-          onCancel={() => handleBulkStatus("CANCELLED")}
+          onFulfill={() => handleBulkStatus("EXPEDIE")}
+onCancel={() => handleBulkStatus("ANNULE")}
         />
 
         <OrderTable
