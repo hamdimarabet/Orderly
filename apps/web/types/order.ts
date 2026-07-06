@@ -76,6 +76,7 @@ export interface Order {
   customerName: string | null;
   customerEmail: string | null;
   customerPhone: string | null;
+  shippingAddress?: any;
 
   currency: string;
   subtotal: number;
