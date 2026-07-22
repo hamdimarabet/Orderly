@@ -8,8 +8,9 @@ import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { Search, ChevronLeft, ChevronRight, ChevronDown } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, ChevronDown, Upload, CheckCircle2, XCircle, X } from "lucide-react";
 import { Order, OrderStatus, ORDER_STATUS_LABELS } from "@/types/order";
+import * as XLSX from "xlsx";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api";
 
@@ -52,6 +53,208 @@ const STATUS_COLORS: Record<string, string> = {
   RETOUR_RECU: "bg-status-refunded-bg text-status-refunded",
   ANNULE: "bg-status-cancelled-bg text-status-cancelled",
 };
+
+interface ImportResult {
+  updated: number;
+  notFound: number;
+  alreadyUpToDate: number;
+  details: { barcode: string; status: "updated" | "not_found" | "already_up_to_date"; orderNumber?: string }[];
+}
+
+function ImportModal({
+  orders,
+  onClose,
+  onDone,
+}: {
+  orders: Order[];
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<ImportResult | null>(null);
+  const [dragOver, setDragOver] = useState(false);
+
+  async function processFile(file: File) {
+    setLoading(true);
+    try {
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: "array" });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet) as any[];
+
+      const importResult: ImportResult = {
+        updated: 0,
+        notFound: 0,
+        alreadyUpToDate: 0,
+        details: [],
+      };
+
+      for (const row of rows) {
+        // Try to find barcode/order ID column
+        const barcode = String(
+          row["Order ID"] ?? row["Barcode"] ?? row["barcode"] ?? row["order_id"] ?? 
+          row["Reference"] ?? row["reference"] ?? row["ID"] ?? ""
+        ).trim();
+
+        if (!barcode) continue;
+
+        const deliveredAt = row["Delivered At"] ?? row["delivered_at"] ?? row["Date livraison"] ?? null;
+        const isPaid = row["Paid At"] ?? row["paid_at"] ?? row["Date paiement"] ?? deliveredAt ?? null;
+
+        // Match by externalOrderId
+        const order = orders.find((o) =>
+          o.externalOrderId === barcode ||
+          o.externalOrderId === barcode.replace("#", "") ||
+          o.orderNumber === barcode ||
+          o.orderNumber === `#${barcode}`
+        );
+
+        if (!order) {
+          importResult.notFound++;
+          importResult.details.push({ barcode, status: "not_found" });
+          continue;
+        }
+
+        const newStatus: OrderStatus = isPaid ? "PAYE" : deliveredAt ? "LIVRE" : order.orderStatus;
+
+        if (newStatus === order.orderStatus) {
+          importResult.alreadyUpToDate++;
+          importResult.details.push({ barcode, status: "already_up_to_date", orderNumber: order.orderNumber });
+          continue;
+        }
+
+        // Update status
+        await fetch(`${API}/orders/${order.id}/status`, {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${getToken()}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ status: newStatus }),
+        });
+
+        importResult.updated++;
+        importResult.details.push({ barcode, status: "updated", orderNumber: order.orderNumber });
+      }
+
+      setResult(importResult);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handleFile(file: File) {
+    if (!file) return;
+    processFile(file);
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/30 backdrop-blur-[2px]">
+      <div className="w-full max-w-lg rounded-xl border border-border bg-surface shadow-2xl max-h-[80vh] flex flex-col">
+        <div className="flex items-center justify-between border-b border-border px-5 py-4">
+          <h2 className="text-sm font-semibold">Importer paiements Cosmos</h2>
+          <button onClick={onClose} className="rounded-md p-1 hover:bg-surface-sunken">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          {!result && !loading && (
+            <div
+              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragOver(false);
+                const file = e.dataTransfer.files[0];
+                if (file) handleFile(file);
+              }}
+              className={cn(
+                "flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-10 transition-colors cursor-pointer",
+                dragOver ? "border-primary bg-primary-soft" : "border-border hover:border-border-strong"
+              )}
+              onClick={() => document.getElementById("cosmos-file")?.click()}
+            >
+              <Upload className="h-10 w-10 text-muted-light mb-3" />
+              <p className="text-sm font-medium">Glisser le fichier Excel Cosmos ici</p>
+              <p className="text-xs text-muted mt-1">ou cliquer pour sélectionner</p>
+              <p className="text-xs text-muted mt-2">.xlsx, .xls, .csv acceptés</p>
+              <input
+                id="cosmos-file"
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleFile(file);
+                }}
+              />
+            </div>
+          )}
+
+          {loading && (
+            <div className="flex flex-col items-center justify-center py-12">
+              <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mb-3" />
+              <p className="text-sm text-muted">Traitement en cours...</p>
+            </div>
+          )}
+
+          {result && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-3 gap-3">
+                <div className="rounded-lg bg-status-delivered-bg p-3 text-center">
+                  <p className="text-2xl font-bold text-status-delivered">{result.updated}</p>
+                  <p className="text-xs text-status-delivered">Mis à jour</p>
+                </div>
+                <div className="rounded-lg bg-status-cancelled-bg p-3 text-center">
+                  <p className="text-2xl font-bold text-status-cancelled">{result.notFound}</p>
+                  <p className="text-xs text-status-cancelled">Non trouvés</p>
+                </div>
+                <div className="rounded-lg bg-surface-sunken p-3 text-center">
+                  <p className="text-2xl font-bold text-muted">{result.alreadyUpToDate}</p>
+                  <p className="text-xs text-muted">Déjà à jour</p>
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-border divide-y divide-border max-h-60 overflow-y-auto">
+                {result.details.map((d, i) => (
+                  <div key={i} className="flex items-center justify-between px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      {d.status === "updated" && <CheckCircle2 className="h-4 w-4 text-status-delivered" />}
+                      {d.status === "not_found" && <XCircle className="h-4 w-4 text-status-cancelled" />}
+                      {d.status === "already_up_to_date" && <CheckCircle2 className="h-4 w-4 text-muted" />}
+                      <span className="font-mono text-xs">{d.barcode}</span>
+                    </div>
+                    <span className="text-xs text-muted">
+                      {d.status === "updated" && `✓ ${d.orderNumber} mis à jour`}
+                      {d.status === "not_found" && "Non trouvé"}
+                      {d.status === "already_up_to_date" && `${d.orderNumber} déjà à jour`}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-2 border-t border-border px-5 py-4">
+          {result ? (
+            <>
+              <Button variant="secondary" className="flex-1" onClick={onClose}>Fermer</Button>
+              <Button className="flex-1" onClick={() => { onDone(); onClose(); }}>
+                Actualiser les commandes
+              </Button>
+            </>
+          ) : (
+            <Button variant="secondary" className="flex-1" onClick={onClose}>Annuler</Button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function StatusDropdown({
   order,
@@ -119,6 +322,7 @@ function FulfillmentContent() {
   const [selectedStoreIds, setSelectedStoreIds] = useState<string[]>([]);
   const [filter, setFilter] = useState<OrderStatus | "all">("all");
   const [page, setPage] = useState(1);
+  const [showImport, setShowImport] = useState(false);
 
   const accessibleStores = stores.filter((s) => canAccessStore(s.id));
 
@@ -137,7 +341,6 @@ function FulfillmentContent() {
       });
       const data = await res.json();
       const all: Order[] = data.orders ?? [];
-      // Only show confirmed+ orders
       setOrders(all.filter((o) => DELIVERY_STATUS_KEYS.includes(o.orderStatus)));
     } catch {
       setOrders([]);
@@ -178,11 +381,13 @@ function FulfillmentContent() {
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageOrders = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  // Count by status
   const counts: Record<string, number> = {};
   orders.forEach((o) => {
     counts[o.orderStatus] = (counts[o.orderStatus] ?? 0) + 1;
   });
+
+  const paidCount = orders.filter((o) => o.orderStatus === "PAYE").length;
+  const livrePaidCount = orders.filter((o) => o.orderStatus === "LIVRE" || o.orderStatus === "PAYE").length;
 
   return (
     <div className="flex h-screen bg-background">
@@ -195,8 +400,34 @@ function FulfillmentContent() {
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-surface px-5">
           <h1 className="text-base font-semibold">Livraison</h1>
-          <p className="text-xs text-muted">{orders.length} commandes</p>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="secondary" onClick={() => setShowImport(true)}>
+              <Upload className="h-3.5 w-3.5" />
+              Importer paiements
+            </Button>
+            <p className="text-xs text-muted">{orders.length} commandes</p>
+          </div>
         </header>
+
+        {/* Stats */}
+        <div className="grid grid-cols-4 gap-3 border-b border-border bg-surface px-5 py-3">
+          <div className="rounded-lg bg-surface-sunken px-3 py-2 text-center">
+            <p className="text-lg font-bold">{orders.length}</p>
+            <p className="text-[11px] text-muted">Total</p>
+          </div>
+          <div className="rounded-lg bg-status-delivered-bg px-3 py-2 text-center">
+            <p className="text-lg font-bold text-status-delivered">{livrePaidCount}</p>
+            <p className="text-[11px] text-status-delivered">Livrés</p>
+          </div>
+          <div className="rounded-lg bg-status-delivered-bg px-3 py-2 text-center">
+            <p className="text-lg font-bold text-status-delivered">{paidCount}</p>
+            <p className="text-[11px] text-status-delivered">Payés</p>
+          </div>
+          <div className="rounded-lg bg-status-refunded-bg px-3 py-2 text-center">
+            <p className="text-lg font-bold text-status-refunded">{counts["RETOUR"] ?? 0}</p>
+            <p className="text-[11px] text-status-refunded">Retours</p>
+          </div>
+        </div>
 
         {/* Status filter tabs */}
         <div className="flex gap-1 overflow-x-auto border-b border-border bg-surface px-5 py-2">
@@ -252,6 +483,7 @@ function FulfillmentContent() {
                   <th className="px-4 py-2.5">Téléphone</th>
                   <th className="px-4 py-2.5">Produits</th>
                   <th className="px-4 py-2.5">Total</th>
+                  <th className="px-4 py-2.5">Paiement</th>
                   <th className="px-4 py-2.5">Statut</th>
                 </tr>
               </thead>
@@ -279,6 +511,20 @@ function FulfillmentContent() {
                     </td>
                     <td className="px-4 py-3 font-mono text-sm font-medium">
                       {formatMoney(order.total, order.currency)}
+                    </td>
+                    <td className="px-4 py-3">
+                      {order.orderStatus === "PAYE" ? (
+                        <span className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium bg-status-delivered-bg text-status-delivered">
+                          <CheckCircle2 className="h-3 w-3" />
+                          Payé
+                        </span>
+                      ) : order.orderStatus === "LIVRE" ? (
+                        <span className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium bg-status-processing-bg text-status-processing">
+                          En attente
+                        </span>
+                      ) : (
+                        <span className="text-xs text-muted-light">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                       <StatusDropdown order={order} onChangeStatus={handleChangeStatus} />
@@ -310,6 +556,14 @@ function FulfillmentContent() {
           </div>
         </footer>
       </div>
+
+      {showImport && (
+        <ImportModal
+          orders={orders}
+          onClose={() => setShowImport(false)}
+          onDone={fetchOrders}
+        />
+      )}
     </div>
   );
 }
