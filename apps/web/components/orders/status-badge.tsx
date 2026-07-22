@@ -21,6 +21,7 @@ const ORDER_STATUS_STYLE: Record<OrderStatus, string> = {
   RETOUR_DEPOT: "text-status-refunded bg-status-refunded-bg",
   RETOUR_RECU: "text-status-refunded bg-status-refunded-bg",
   ANNULE: "text-status-cancelled bg-status-cancelled-bg",
+  A_VERIFIER: "text-status-cancelled bg-status-cancelled-bg",
 };
 
 const FINANCIAL_STATUS_STYLE: Record<FinancialStatus, string> = {

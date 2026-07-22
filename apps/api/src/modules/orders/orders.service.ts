@@ -116,6 +116,78 @@ export class OrdersService {
     return order;
   }
 
+  async updateOrder(
+    orderId: string,
+    data: {
+      customerName?: string;
+      customerPhone?: string;
+      customerPhone2?: string;
+      shippingAddress?: any;
+      internalNote?: string;
+      deliveryCompany?: string;
+      scheduledDeliveryDate?: string;
+      tags?: string[];
+      lineItems?: { id?: string; title: string; sku?: string; quantity: number; price: number; variantTitle?: string }[];
+    },
+    actorId: string,
+  ) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: { lineItems: true },
+    });
+    if (!order) throw new Error('Order not found');
+
+    // Recalculate total if line items changed
+    let subtotal = Number(order.subtotal);
+    if (data.lineItems) {
+      subtotal = data.lineItems.reduce((s, li) => s + li.price * li.quantity, 0);
+    }
+
+    const updated = await this.prisma.order.update({
+      where: { id: orderId },
+      data: {
+        ...(data.customerName && { customerName: data.customerName }),
+        ...(data.customerPhone && { customerPhone: data.customerPhone }),
+        ...(data.customerPhone2 !== undefined && { customerPhone2: data.customerPhone2 }),
+        ...(data.shippingAddress && { shippingAddress: data.shippingAddress }),
+        ...(data.internalNote !== undefined && { internalNote: data.internalNote }),
+        ...(data.deliveryCompany !== undefined && { deliveryCompany: data.deliveryCompany }),
+        ...(data.scheduledDeliveryDate !== undefined && {
+          scheduledDeliveryDate: data.scheduledDeliveryDate ? new Date(data.scheduledDeliveryDate) : null,
+        }),
+        ...(data.tags && { tags: data.tags }),
+        ...(data.lineItems && {
+          subtotal,
+          total: subtotal + Number(order.taxTotal) + Number(order.shippingTotal),
+          lineItems: {
+            deleteMany: {},
+            create: data.lineItems.map((li) => ({
+              title: li.title,
+              sku: li.sku ?? null,
+              variantTitle: li.variantTitle ?? null,
+              quantity: li.quantity,
+              price: li.price,
+              fulfilledQty: 0,
+              refundedQty: 0,
+            })),
+          },
+        }),
+      },
+      include: { lineItems: true },
+    });
+
+    await this.prisma.orderEvent.create({
+      data: {
+        orderId,
+        eventType: 'order_edited',
+        payload: { fields: Object.keys(data) },
+        actor: actorId,
+      },
+    });
+
+    return updated;
+  }
+
   async updateCallAttempts(orderId: string, callAttempts: any[]) {
     return this.prisma.order.update({
       where: { id: orderId },

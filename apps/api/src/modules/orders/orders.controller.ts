@@ -50,6 +50,15 @@ export class OrdersController {
     return this.orders.findOne(id);
   }
 
+  @Patch(':id')
+  updateOrder(
+    @Param('id') id: string,
+    @Body() body: any,
+    @Request() req: any,
+  ) {
+    return this.orders.updateOrder(id, body, req.user.id);
+  }
+
   @Patch(':id/status')
   updateStatus(
     @Param('id') id: string,

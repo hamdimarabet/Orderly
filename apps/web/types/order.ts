@@ -32,7 +32,8 @@ export type FulfillmentStatus =
   | "RETOUR"
   | "RETOUR_DEPOT"
   | "RETOUR_RECU"
-  | "ANNULE";
+  | "ANNULE"
+  | "A_VERIFIER";
 
   export interface Store {
     id: string;
@@ -76,7 +77,11 @@ export interface Order {
   customerName: string | null;
   customerEmail: string | null;
   customerPhone: string | null;
+  customerPhone2?: string | null;
   shippingAddress?: any;
+  scheduledDeliveryDate?: string | null;
+  deliveryCompany?: string | null;
+  internalNote?: string | null;
 
   currency: string;
   subtotal: number;
@@ -124,6 +129,7 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   RETOUR_DEPOT: "Retour dépôt",
   RETOUR_RECU: "Retour reçu",
   ANNULE: "Annulé",
+  A_VERIFIER: "À vérifier",
 };
 
 export const FINANCIAL_STATUS_LABELS: Record<FinancialStatus, string> = {
