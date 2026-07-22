@@ -50,6 +50,7 @@ enum OrderStatus {
   RETOUR_DEPOT
   RETOUR_RECU
   ANNULE
+  A_VERIFIER
 }
 
 enum UserRole {
@@ -93,6 +94,7 @@ model Order {
   customerName      String?
   customerEmail     String?
   customerPhone     String?
+  customerPhone2    String?
   shippingAddress   Json?
   billingAddress    Json?
 
@@ -105,12 +107,17 @@ model Order {
 
   tags              String[]
   notes             String?
+  internalNote      String?
 
   // Confirmation call fields
-  confirmationStatus  String?
-  cancellationReason  String?
-  cancellationNote    String?
-  callAttempts        Json?     // [{ date, phone, result, note }]
+  confirmationStatus    String?
+  cancellationReason    String?
+  cancellationNote      String?
+  callAttempts          Json?
+
+  // Delivery fields
+  deliveryCompany       String?
+  scheduledDeliveryDate DateTime?
 
   lineItems         OrderLineItem[]
   fulfillments      Fulfillment[]
