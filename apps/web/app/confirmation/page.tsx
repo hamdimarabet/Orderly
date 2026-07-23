@@ -8,8 +8,12 @@ import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { Phone, Search, X, ChevronLeft, ChevronRight } from "lucide-react";
-import { Order, OrderStatus, CallAttempt } from "@/types/order";
+import {
+  Phone, Search, X, ChevronLeft, ChevronRight,
+  Plus, Trash2, Edit2, Check, Building2, Calendar,
+} from "lucide-react";
+import { Order, OrderStatus, CallAttempt, ORDER_STATUS_LABELS } from "@/types/order";
+import { OrderStatusBadge } from "@/components/orders/status-badge";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api";
 
@@ -19,9 +23,7 @@ function getToken() {
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("fr-FR", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
+    day: "numeric", month: "short", year: "numeric",
   });
 }
 
@@ -36,6 +38,24 @@ const CALL_RESULTS = [
   { value: "BUSY", label: "📵 Occupé" },
   { value: "WRONG_NUMBER", label: "❌ Mauvais numéro" },
 ];
+
+const RESULT_COLORS: Record<string, string> = {
+  ANSWERED_CONFIRMED: "text-status-delivered",
+  ANSWERED_REFUSED: "text-status-cancelled",
+  NO_ANSWER: "text-status-processing",
+  BUSY: "text-status-processing",
+  WRONG_NUMBER: "text-status-cancelled",
+};
+
+const RESULT_LABELS: Record<string, string> = {
+  ANSWERED_CONFIRMED: "Confirmé",
+  ANSWERED_REFUSED: "Refusé",
+  NO_ANSWER: "Pas de réponse",
+  BUSY: "Occupé",
+  WRONG_NUMBER: "Mauvais numéro",
+};
+
+const DELIVERY_COMPANIES = ["Cosmos", "Aramex", "Tunisie Express", "Autre"];
 
 const CANCELLATION_REASONS = [
   "Client injoignable",
@@ -82,7 +102,7 @@ function CancellationModal({
   const [note, setNote] = useState("");
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-foreground/30 backdrop-blur-[2px]">
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-foreground/30 backdrop-blur-[2px]">
       <div className="w-full max-w-md rounded-xl border border-border bg-surface shadow-2xl">
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <h2 className="text-sm font-semibold">Raison d'annulation</h2>
@@ -109,7 +129,7 @@ function CancellationModal({
           </div>
           <div>
             <label className="mb-1.5 block text-xs font-medium text-muted">Note (optionnel)</label>
-            <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Détails supplémentaires..." />
+            <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Détails..." />
           </div>
         </div>
         <div className="flex gap-2 border-t border-border px-5 py-4">
@@ -123,33 +143,188 @@ function CancellationModal({
   );
 }
 
-function CallModal({
+function DeliveryModal({
+  onConfirm,
+  onClose,
+}: {
+  onConfirm: (company: string, date?: string) => void;
+  onClose: () => void;
+}) {
+  const [company, setCompany] = useState("");
+  const [date, setDate] = useState("");
+  const [isScheduled, setIsScheduled] = useState(false);
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-foreground/30 backdrop-blur-[2px]">
+      <div className="w-full max-w-md rounded-xl border border-border bg-surface shadow-2xl">
+        <div className="flex items-center justify-between border-b border-border px-5 py-4">
+          <h2 className="text-sm font-semibold">Choisir le livreur</h2>
+          <button onClick={onClose} className="rounded-md p-1 hover:bg-surface-sunken">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="space-y-4 p-5">
+          <div>
+            <label className="mb-2 block text-xs font-medium text-muted">Société de livraison</label>
+            <div className="grid grid-cols-2 gap-2">
+              {DELIVERY_COMPANIES.map((c) => (
+                <button
+                  key={c}
+                  onClick={() => setCompany(c)}
+                  className={cn(
+                    "flex items-center gap-2 rounded-lg border-2 px-3 py-2.5 text-xs font-medium transition-colors",
+                    company === c
+                      ? "border-primary bg-primary-soft text-primary"
+                      : "border-border text-muted hover:border-border-strong hover:text-foreground"
+                  )}
+                >
+                  <Building2 className="h-3.5 w-3.5" />
+                  {c}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-border p-3 space-y-3">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="scheduled"
+                checked={isScheduled}
+                onChange={(e) => setIsScheduled(e.target.checked)}
+                className="h-4 w-4 accent-primary"
+              />
+              <label htmlFor="scheduled" className="text-xs font-medium cursor-pointer">
+                Livraison à date programmée
+              </label>
+            </div>
+            {isScheduled && (
+              <div>
+                <label className="mb-1 block text-xs text-muted">Date de livraison souhaitée</label>
+                <Input
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  min={new Date().toISOString().split("T")[0]}
+                />
+                {date && (
+                  <p className="mt-1 text-[11px] text-muted">
+                    <Calendar className="inline h-3 w-3 mr-1" />
+                    Notification 1 jour avant la livraison
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="flex gap-2 border-t border-border px-5 py-4">
+          <Button variant="secondary" className="flex-1" onClick={onClose}>Annuler</Button>
+          <Button
+            className="flex-1"
+            disabled={!company}
+            onClick={() => onConfirm(company, isScheduled ? date : undefined)}
+          >
+            <Check className="h-3.5 w-3.5" />
+            Confirmer
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function OrderModal({
   order,
   onClose,
   onDone,
 }: {
   order: Order;
   onClose: () => void;
-  onDone: (updatedAttempts: CallAttempt[], newStatus?: OrderStatus, reason?: string, note?: string) => void;
+  onDone: (updatedOrder: Partial<Order>, newStatus?: OrderStatus) => void;
 }) {
   const attempts: CallAttempt[] = Array.isArray(order.callAttempts) ? order.callAttempts : [];
-  const [phone, setPhone] = useState(order.customerPhone ?? "");
-  const [result, setResult] = useState("NO_ANSWER");
-  const [note, setNote] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [showCancelModal, setShowCancelModal] = useState(false);
 
-  async function logAttempt(cancelReason?: string, cancelNote?: string) {
+  // Edit fields
+  const [customerName, setCustomerName] = useState(order.customerName ?? "");
+  const [phone1, setPhone1] = useState(order.customerPhone ?? "");
+  const [phone2, setPhone2] = useState(order.customerPhone2 ?? "");
+  const [city, setCity] = useState((order.shippingAddress as any)?.city ?? "");
+  const [address, setAddress] = useState((order.shippingAddress as any)?.address1 ?? "");
+  const [internalNote, setInternalNote] = useState(order.internalNote ?? "");
+  const [lineItems, setLineItems] = useState(
+    order.lineItems.map((li) => ({
+      id: li.id,
+      title: li.title,
+      sku: li.sku ?? "",
+      variantTitle: li.variantTitle ?? "",
+      quantity: li.quantity,
+      price: Number(li.price),
+    }))
+  );
+
+  // Call fields
+  const [callPhone, setCallPhone] = useState(order.customerPhone ?? "");
+  const [result, setResult] = useState("NO_ANSWER");
+  const [callNote, setCallNote] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  // Modals
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showDeliveryModal, setShowDeliveryModal] = useState(false);
+
+  const total = lineItems.reduce((s, li) => s + li.price * li.quantity, 0);
+
+  function updateLineItem(idx: number, field: string, value: any) {
+    setLineItems((prev) => prev.map((li, i) => i === idx ? { ...li, [field]: value } : li));
+  }
+
+  function removeLineItem(idx: number) {
+    setLineItems((prev) => prev.filter((_, i) => i !== idx));
+  }
+
+  function addLineItem() {
+    setLineItems((prev) => [...prev, { id: "", title: "", sku: "", variantTitle: "", quantity: 1, price: 0 }]);
+  }
+
+  async function saveOrder() {
+    await fetch(`${API}/orders/${order.id}`, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${getToken()}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        customerName,
+        customerPhone: phone1,
+        customerPhone2: phone2,
+        shippingAddress: { city, address1: address },
+        internalNote,
+        lineItems: lineItems.map((li) => ({
+          title: li.title,
+          sku: li.sku,
+          variantTitle: li.variantTitle,
+          quantity: li.quantity,
+          price: li.price,
+        })),
+      }),
+    });
+  }
+
+  async function logAttempt(cancelReason?: string, cancelNote?: string, deliveryCompany?: string, scheduledDate?: string) {
     setLoading(true);
     try {
+      // Save order edits first
+      await saveOrder();
+
       const newAttempt: CallAttempt = {
         id: Date.now().toString(),
         date: new Date().toISOString(),
-        phone,
+        phone: callPhone,
         result: result as CallAttempt["result"],
-        note: note || null,
+        note: callNote || null,
       };
       const updatedAttempts = [...attempts, newAttempt];
+
       await fetch(`${API}/orders/${order.id}/call-attempts`, {
         method: "PATCH",
         headers: {
@@ -159,16 +334,32 @@ function CallModal({
         body: JSON.stringify({ callAttempts: updatedAttempts }),
       });
 
-      if (result === "ANSWERED_CONFIRMED") {
+      let newStatus: OrderStatus | undefined;
+
+      if (result === "ANSWERED_CONFIRMED" && deliveryCompany) {
+        // Update delivery company and scheduled date
+        await fetch(`${API}/orders/${order.id}`, {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${getToken()}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            deliveryCompany,
+            scheduledDeliveryDate: scheduledDate || null,
+          }),
+        });
+
+        newStatus = scheduledDate ? "CONFIRME" : "EN_PREPARATION";
+
         await fetch(`${API}/orders/${order.id}/status`, {
           method: "PATCH",
           headers: {
             Authorization: `Bearer ${getToken()}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ status: "CONFIRME" }),
+          body: JSON.stringify({ status: newStatus }),
         });
-        onDone(updatedAttempts, "CONFIRME");
       } else if (result === "ANSWERED_REFUSED" && cancelReason) {
         await fetch(`${API}/orders/${order.id}/status`, {
           method: "PATCH",
@@ -178,7 +369,7 @@ function CallModal({
           },
           body: JSON.stringify({ status: "ANNULE", reason: cancelReason, note: cancelNote }),
         });
-        onDone(updatedAttempts, "ANNULE", cancelReason, cancelNote);
+        newStatus = "ANNULE";
       } else {
         await fetch(`${API}/orders/${order.id}/status`, {
           method: "PATCH",
@@ -188,8 +379,16 @@ function CallModal({
           },
           body: JSON.stringify({ status: "CONFIRMATION_EN_COURS" }),
         });
-        onDone(updatedAttempts, "CONFIRMATION_EN_COURS");
+        newStatus = "CONFIRMATION_EN_COURS";
       }
+
+      onDone({
+        customerName,
+        customerPhone: phone1,
+        customerPhone2: phone2,
+        callAttempts: updatedAttempts,
+        internalNote,
+      }, newStatus);
       onClose();
     } catch (e) {
       console.error(e);
@@ -201,75 +400,248 @@ function CallModal({
   function handleLog() {
     if (result === "ANSWERED_REFUSED") {
       setShowCancelModal(true);
+    } else if (result === "ANSWERED_CONFIRMED") {
+      setShowDeliveryModal(true);
     } else {
       logAttempt();
+    }
+  }
+
+  async function handleSaveOnly() {
+    setLoading(true);
+    try {
+      await saveOrder();
+      onDone({ customerName, customerPhone: phone1, customerPhone2: phone2, internalNote });
+      onClose();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
     }
   }
 
   return (
     <>
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/30 backdrop-blur-[2px]">
-        <div className="w-full max-w-md rounded-xl border border-border bg-surface shadow-2xl">
+        <div className="w-full max-w-4xl rounded-xl border border-border bg-surface shadow-2xl max-h-[90vh] flex flex-col">
           <div className="flex items-center justify-between border-b border-border px-5 py-4">
             <div>
-              <h2 className="text-sm font-semibold">Appel de confirmation — {order.orderNumber}</h2>
-              <p className="text-xs text-muted">{order.customerName}</p>
+              <h2 className="text-sm font-semibold">Commande {order.orderNumber}</h2>
+              <p className="text-xs text-muted">{order.storeName}</p>
             </div>
-            <button onClick={onClose} className="rounded-md p-1 hover:bg-surface-sunken">
-              <X className="h-4 w-4" />
-            </button>
+            <div className="flex items-center gap-2">
+              <OrderStatusBadge status={order.orderStatus} />
+              <button onClick={onClose} className="rounded-md p-1 hover:bg-surface-sunken">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
           </div>
 
-          <div className="p-5 space-y-4">
-            {attempts.length > 0 && (
-              <div className="rounded-lg border border-border divide-y divide-border">
-                {attempts.map((a, i) => (
-                  <div key={a.id} className="px-3 py-2">
-                    <div className="flex justify-between text-xs">
-                      <span className="font-medium text-muted">Tentative {i + 1} — {a.phone}</span>
-                      <span className={cn(
-                        "font-medium",
-                        a.result === "ANSWERED_CONFIRMED" ? "text-status-delivered" :
-                        a.result === "ANSWERED_REFUSED" ? "text-status-cancelled" :
-                        "text-status-processing"
-                      )}>
-                        {CALL_RESULTS.find((r) => r.value === a.result)?.label ?? a.result}
-                      </span>
+          <div className="flex-1 overflow-y-auto">
+            <div className="grid grid-cols-2 divide-x divide-border">
+
+              {/* LEFT — Edit order */}
+              <div className="p-5 space-y-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted">Modifier la commande</p>
+
+                {/* Client info */}
+                <div className="space-y-2.5">
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-muted">Nom client</label>
+                    <Input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Nom complet" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-muted">Téléphone 1</label>
+                      <Input value={phone1} onChange={(e) => setPhone1(e.target.value)} placeholder="+216 XX XXX XXX" />
                     </div>
-                    <p className="text-[11px] text-muted-light mt-0.5">
-                      {new Date(a.date).toLocaleString("fr-FR")}
-                      {a.note && ` — ${a.note}`}
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-muted">Téléphone 2</label>
+                      <Input value={phone2} onChange={(e) => setPhone2(e.target.value)} placeholder="+216 XX XXX XXX" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-muted">Ville</label>
+                      <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Tunis" />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-muted">Adresse</label>
+                      <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Rue..." />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Products */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-xs font-medium text-muted">Produits</label>
+                    <button onClick={addLineItem} className="flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+                      <Plus className="h-3 w-3" /> Ajouter
+                    </button>
+                  </div>
+                  <div className="space-y-2">
+                    {lineItems.map((li, idx) => (
+                      <div key={idx} className="rounded-lg border border-border p-2.5 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Input
+                            value={li.title}
+                            onChange={(e) => updateLineItem(idx, "title", e.target.value)}
+                            placeholder="Nom produit"
+                            className="flex-1 h-7 text-xs"
+                          />
+                          <button onClick={() => removeLineItem(idx)} className="text-muted hover:text-status-cancelled">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div>
+                            <label className="text-[10px] text-muted">Variante</label>
+                            <Input
+                              value={li.variantTitle}
+                              onChange={(e) => updateLineItem(idx, "variantTitle", e.target.value)}
+                              placeholder="Taille, couleur..."
+                              className="h-7 text-xs"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-muted">Qté</label>
+                            <Input
+                              type="number"
+                              value={li.quantity}
+                              onChange={(e) => updateLineItem(idx, "quantity", parseInt(e.target.value) || 1)}
+                              min={1}
+                              className="h-7 text-xs"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-muted">Prix unit.</label>
+                            <Input
+                              type="number"
+                              value={li.price}
+                              onChange={(e) => updateLineItem(idx, "price", parseFloat(e.target.value) || 0)}
+                              min={0}
+                              step="0.001"
+                              className="h-7 text-xs"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Total */}
+                <div className="flex justify-between items-center rounded-lg bg-surface-sunken px-3 py-2">
+                  <span className="text-xs font-medium text-muted">Total calculé</span>
+                  <span className="font-mono text-sm font-bold">{formatMoney(total, order.currency)}</span>
+                </div>
+
+                {/* Internal note */}
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-muted">Note interne</label>
+                  <Input value={internalNote} onChange={(e) => setInternalNote(e.target.value)} placeholder="Note pour l'équipe..." />
+                </div>
+              </div>
+
+              {/* RIGHT — Call log */}
+              <div className="p-5 space-y-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+                  Appel de confirmation ({attempts.length} tentative{attempts.length > 1 ? "s" : ""})
+                </p>
+
+                {/* Previous attempts */}
+                {attempts.length > 0 && (
+                  <div className="rounded-lg border border-border divide-y divide-border">
+                    {attempts.map((a, i) => (
+                      <div key={a.id} className="px-3 py-2">
+                        <div className="flex justify-between text-xs">
+                          <span className="font-medium text-muted">Tentative {i + 1} — {a.phone}</span>
+                          <span className={cn("font-medium", RESULT_COLORS[a.result] ?? "text-muted")}>
+                            {RESULT_LABELS[a.result] ?? a.result}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-muted-light mt-0.5">
+                          {new Date(a.date).toLocaleString("fr-FR")}
+                          {a.note && ` — ${a.note}`}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* New attempt */}
+                <div className="space-y-2.5">
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-muted">Numéro appelé</label>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setCallPhone(phone1)}
+                        className={cn("rounded-md border px-2 py-1 text-xs transition-colors", callPhone === phone1 ? "border-primary bg-primary-soft text-primary" : "border-border text-muted")}
+                      >
+                        Tel 1
+                      </button>
+                      {phone2 && (
+                        <button
+                          onClick={() => setCallPhone(phone2)}
+                          className={cn("rounded-md border px-2 py-1 text-xs transition-colors", callPhone === phone2 ? "border-primary bg-primary-soft text-primary" : "border-border text-muted")}
+                        >
+                          Tel 2
+                        </button>
+                      )}
+                    </div>
+                    <Input
+                      value={callPhone}
+                      onChange={(e) => setCallPhone(e.target.value)}
+                      placeholder="+216 XX XXX XXX"
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-muted">Résultat</label>
+                    <select
+                      value={result}
+                      onChange={(e) => setResult(e.target.value)}
+                      className="h-9 w-full rounded-md border border-border bg-surface px-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    >
+                      {CALL_RESULTS.map((r) => (
+                        <option key={r.value} value={r.value}>{r.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-muted">Note</label>
+                    <Input value={callNote} onChange={(e) => setCallNote(e.target.value)} placeholder="ex: rappeler demain matin" />
+                  </div>
+                </div>
+
+                {/* Scheduled delivery info */}
+                {order.scheduledDeliveryDate && (
+                  <div className="rounded-lg bg-primary-soft px-3 py-2">
+                    <p className="text-xs font-medium text-primary flex items-center gap-1.5">
+                      <Calendar className="h-3.5 w-3.5" />
+                      Livraison programmée: {new Date(order.scheduledDeliveryDate).toLocaleDateString("fr-FR")}
                     </p>
                   </div>
-                ))}
-              </div>
-            )}
+                )}
 
-            <div>
-              <label className="mb-1 block text-xs font-medium text-muted">Numéro appelé</label>
-              <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+216 XX XXX XXX" />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-muted">Résultat</label>
-              <select
-                value={result}
-                onChange={(e) => setResult(e.target.value)}
-                className="h-9 w-full rounded-md border border-border bg-surface px-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-              >
-                {CALL_RESULTS.map((r) => (
-                  <option key={r.value} value={r.value}>{r.label}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-muted">Note (optionnel)</label>
-              <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="ex: rappeler demain matin" />
+                {/* Delivery company */}
+                {order.deliveryCompany && (
+                  <div className="rounded-lg border border-border px-3 py-2">
+                    <p className="text-xs text-muted">Livreur: <span className="font-medium text-foreground">{order.deliveryCompany}</span></p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
           <div className="flex gap-2 border-t border-border px-5 py-4">
-            <Button variant="secondary" className="flex-1" onClick={onClose}>Annuler</Button>
-            <Button className="flex-1" disabled={loading || !phone} onClick={handleLog}>
+            <Button variant="secondary" onClick={onClose}>Annuler</Button>
+            <Button variant="outline" onClick={handleSaveOnly} disabled={loading}>
+              <Edit2 className="h-3.5 w-3.5" />
+              Sauvegarder
+            </Button>
+            <Button className="flex-1" disabled={loading || !callPhone} onClick={handleLog}>
               <Phone className="h-3.5 w-3.5" />
               {loading ? "Enregistrement..." : `Logger tentative ${attempts.length + 1}`}
             </Button>
@@ -286,6 +658,16 @@ function CallModal({
           }}
         />
       )}
+
+      {showDeliveryModal && (
+        <DeliveryModal
+          onClose={() => setShowDeliveryModal(false)}
+          onConfirm={(company, date) => {
+            setShowDeliveryModal(false);
+            logAttempt(undefined, undefined, company, date);
+          }}
+        />
+      )}
     </>
   );
 }
@@ -299,9 +681,9 @@ function ConfirmationContent() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedStoreIds, setSelectedStoreIds] = useState<string[]>([]);
-  const [callOrder, setCallOrder] = useState<Order | null>(null);
+  const [activeOrder, setActiveOrder] = useState<Order | null>(null);
   const [page, setPage] = useState(1);
-  const [filter, setFilter] = useState<"all" | "pending" | "confirmed" | "refused">("all");
+  const [filter, setFilter] = useState<"all" | "pending" | "confirmed" | "refused" | "a_verifier">("all");
 
   const accessibleStores = stores.filter((s) => canAccessStore(s.id));
 
@@ -331,25 +713,18 @@ function ConfirmationContent() {
     fetchOrders();
   }, [fetchOrders]);
 
-  function handleCallDone(
-    orderId: string,
-    updatedAttempts: CallAttempt[],
-    newStatus?: OrderStatus,
-    reason?: string,
-    note?: string,
-  ) {
+  function handleDone(orderId: string, updatedFields: Partial<Order>, newStatus?: OrderStatus) {
     setOrders((prev) =>
       prev.map((o) => {
         if (o.id !== orderId) return o;
         return {
           ...o,
-          callAttempts: updatedAttempts,
+          ...updatedFields,
           orderStatus: newStatus ?? o.orderStatus,
-          cancellationReason: reason ?? o.cancellationReason,
-          cancellationNote: note ?? o.cancellationNote,
         };
       })
     );
+    fetchOrders();
   }
 
   const filtered = orders.filter((o) => {
@@ -364,7 +739,8 @@ function ConfirmationContent() {
     const refused = attempts.some((a) => a.result === "ANSWERED_REFUSED");
     if (filter === "confirmed") return confirmed;
     if (filter === "refused") return refused || o.orderStatus === "ANNULE";
-    if (filter === "pending") return !confirmed && !refused;
+    if (filter === "pending") return !confirmed && !refused && o.orderStatus !== "ANNULE";
+    if (filter === "a_verifier") return o.orderStatus === "A_VERIFIER";
     return true;
   });
 
@@ -381,7 +757,8 @@ function ConfirmationContent() {
     return attempts.some((a) => a.result === "ANSWERED_REFUSED") || o.orderStatus === "ANNULE";
   }).length;
 
-  const pendingCount = orders.length - confirmedCount - refusedCount;
+  const aVerifierCount = orders.filter((o) => o.orderStatus === "A_VERIFIER").length;
+  const pendingCount = orders.length - confirmedCount - refusedCount - aVerifierCount;
 
   return (
     <div className="flex h-screen bg-background">
@@ -398,7 +775,7 @@ function ConfirmationContent() {
         </header>
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-4 border-b border-border bg-surface p-4">
+        <div className="grid grid-cols-4 gap-3 border-b border-border bg-surface p-4">
           <div className="rounded-lg bg-status-processing-bg px-4 py-3">
             <p className="text-xs font-medium text-status-processing">En attente</p>
             <p className="mt-1 text-2xl font-bold text-status-processing">{pendingCount}</p>
@@ -408,8 +785,12 @@ function ConfirmationContent() {
             <p className="mt-1 text-2xl font-bold text-status-delivered">{confirmedCount}</p>
           </div>
           <div className="rounded-lg bg-status-cancelled-bg px-4 py-3">
-            <p className="text-xs font-medium text-status-cancelled">Refusés / Annulés</p>
+            <p className="text-xs font-medium text-status-cancelled">Refusés</p>
             <p className="mt-1 text-2xl font-bold text-status-cancelled">{refusedCount}</p>
+          </div>
+          <div className="rounded-lg bg-status-cancelled-bg px-4 py-3">
+            <p className="text-xs font-medium text-status-cancelled">À vérifier</p>
+            <p className="mt-1 text-2xl font-bold text-status-cancelled">{aVerifierCount}</p>
           </div>
         </div>
 
@@ -430,6 +811,7 @@ function ConfirmationContent() {
               { key: "pending", label: "En attente", count: pendingCount },
               { key: "confirmed", label: "Confirmés", count: confirmedCount },
               { key: "refused", label: "Refusés", count: refusedCount },
+              { key: "a_verifier", label: "À vérifier", count: aVerifierCount },
             ].map((tab) => (
               <button
                 key={tab.key}
@@ -464,24 +846,29 @@ function ConfirmationContent() {
                   <th className="px-4 py-2.5">Téléphone</th>
                   <th className="px-4 py-2.5">Produits</th>
                   <th className="px-4 py-2.5">Total</th>
+                  <th className="px-4 py-2.5">Statut</th>
                   <th className="px-4 py-2.5">Appel</th>
+                  <th className="px-4 py-2.5">Livreur</th>
                   <th className="px-4 py-2.5">Action</th>
                 </tr>
               </thead>
               <tbody>
                 {pageOrders.map((order) => {
                   const attempts = Array.isArray(order.callAttempts) ? order.callAttempts as CallAttempt[] : [];
-                  const isConfirmed = attempts.some((a) => a.result === "ANSWERED_CONFIRMED");
                   const isRefused = attempts.some((a) => a.result === "ANSWERED_REFUSED") || order.orderStatus === "ANNULE";
+                  const isConfirmed = attempts.some((a) => a.result === "ANSWERED_CONFIRMED");
+                  const isAVerifier = order.orderStatus === "A_VERIFIER";
 
                   return (
                     <tr
                       key={order.id}
                       className={cn(
-                        "border-b border-border transition-colors hover:bg-surface-sunken",
+                        "border-b border-border transition-colors hover:bg-surface-sunken cursor-pointer",
                         isConfirmed && "bg-status-delivered-bg/20",
                         isRefused && "bg-status-cancelled-bg/20",
+                        isAVerifier && "bg-status-cancelled-bg/30",
                       )}
+                      onClick={() => setActiveOrder(order)}
                     >
                       <td className="px-4 py-3">
                         <span className="font-mono text-[13px] font-semibold">{order.orderNumber}</span>
@@ -491,13 +878,16 @@ function ConfirmationContent() {
                       </td>
                       <td className="px-4 py-3">
                         <p className="font-medium truncate max-w-[150px]">{order.customerName ?? "—"}</p>
+                        {(order as any).customerPhone2 && (
+                          <p className="text-[11px] text-muted font-mono">{(order as any).customerPhone2}</p>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         <span className="font-mono text-xs">{order.customerPhone ?? "—"}</span>
                       </td>
                       <td className="px-4 py-3 text-xs text-muted">
                         {order.lineItems?.map((li) => (
-                          <div key={li.id} className="truncate max-w-[200px]">
+                          <div key={li.id} className="truncate max-w-[180px]">
                             {li.title} × {li.quantity}
                           </div>
                         ))}
@@ -506,24 +896,29 @@ function ConfirmationContent() {
                         {formatMoney(order.total, order.currency)}
                       </td>
                       <td className="px-4 py-3">
-                        <CallStatusBadge attempts={attempts} />
+                        <OrderStatusBadge status={order.orderStatus} />
                       </td>
                       <td className="px-4 py-3">
-                        {!isRefused && (
-                          <Button
-                            size="sm"
-                            variant={isConfirmed ? "secondary" : "default"}
-                            onClick={() => setCallOrder(order)}
-                          >
-                            <Phone className="h-3.5 w-3.5" />
-                            {isConfirmed ? "Rappeler" : attempts.length === 0 ? "Appeler" : `Tentative ${attempts.length + 1}`}
-                          </Button>
+                        <CallStatusBadge attempts={attempts} />
+                      </td>
+                      <td className="px-4 py-3 text-xs text-muted">
+                        {order.deliveryCompany ?? "—"}
+                        {order.scheduledDeliveryDate && (
+                          <p className="text-[11px] text-primary">
+                            <Calendar className="inline h-3 w-3 mr-0.5" />
+                            {new Date(order.scheduledDeliveryDate).toLocaleDateString("fr-FR")}
+                          </p>
                         )}
-                        {isRefused && (
-                          <span className="text-xs text-muted">
-                            {order.cancellationReason ?? "Annulé"}
-                          </span>
-                        )}
+                      </td>
+                      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          size="sm"
+                          variant={isConfirmed ? "secondary" : isAVerifier ? "destructive" : "default"}
+                          onClick={() => setActiveOrder(order)}
+                        >
+                          <Phone className="h-3.5 w-3.5" />
+                          {isAVerifier ? "Vérifier" : isConfirmed ? "Modifier" : attempts.length === 0 ? "Appeler" : `T.${attempts.length + 1}`}
+                        </Button>
                       </td>
                     </tr>
                   );
@@ -536,16 +931,12 @@ function ConfirmationContent() {
             <div className="flex flex-col items-center justify-center py-24">
               <Phone className="h-8 w-8 text-muted-light" />
               <p className="mt-2 text-sm font-medium">Aucune commande</p>
-              <p className="mt-1 text-xs text-muted">Les nouvelles commandes apparaîtront ici.</p>
             </div>
           )}
         </div>
 
-        {/* Pagination */}
         <footer className="flex shrink-0 items-center justify-between border-t border-border bg-surface px-5 py-2.5">
-          <p className="text-xs text-muted">
-            {filtered.length} commandes
-          </p>
+          <p className="text-xs text-muted">{filtered.length} commandes</p>
           <div className="flex items-center gap-1">
             <Button size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
               <ChevronLeft className="h-3.5 w-3.5" />
@@ -558,13 +949,13 @@ function ConfirmationContent() {
         </footer>
       </div>
 
-      {callOrder && (
-        <CallModal
-          order={callOrder}
-          onClose={() => setCallOrder(null)}
-          onDone={(updatedAttempts, newStatus, reason, note) => {
-            handleCallDone(callOrder.id, updatedAttempts, newStatus, reason, note);
-            setCallOrder(null);
+      {activeOrder && (
+        <OrderModal
+          order={activeOrder}
+          onClose={() => setActiveOrder(null)}
+          onDone={(updatedFields, newStatus) => {
+            handleDone(activeOrder.id, updatedFields, newStatus);
+            setActiveOrder(null);
           }}
         />
       )}
