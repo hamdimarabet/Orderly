@@ -21,11 +21,13 @@ import {
   Phone,
   Truck,
   QrCode,
+  AlertCircle,
 } from "lucide-react";
 
 const NAV_ITEMS: { label: string; icon: React.ElementType; href: string; badge?: number }[] = [
   { label: "Vue d'ensemble", icon: LayoutGrid, href: "/" },
   { label: "Confirmation", icon: Phone, href: "/confirmation" },
+  { label: "Réclamations", icon: AlertCircle, href: "/reclamation" },
   { label: "Préparation", icon: Package, href: "/preparation" },
   { label: "Livraison", icon: Truck, href: "/fulfillment" },
   { label: "Scanner QR", icon: QrCode, href: "/scanner" },
