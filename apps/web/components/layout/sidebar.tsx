@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { Store } from "@/types/order";
 import { useAuth } from "@/lib/auth-context";
 import { usePathname, useRouter } from "next/navigation";
+import { NotificationCenter } from "@/components/layout/notification-center";
 import {
   LayoutGrid,
   Package,
@@ -177,31 +178,36 @@ export function Sidebar({
 
       {/* User menu */}
       <div className="relative border-t border-border p-3">
-        {userMenuOpen && (
-          <div className="absolute bottom-[calc(100%-4px)] left-3 right-3 z-20 rounded-md border border-border bg-surface py-1 shadow-lg">
+        <div className="flex items-center justify-between gap-2">
+          <div className="relative min-w-0 flex-1">
+            {userMenuOpen && (
+              <div className="absolute bottom-[calc(100%-4px)] left-0 right-0 z-20 rounded-md border border-border bg-surface py-1 shadow-lg">
+                <button
+                  onClick={logout}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-sm font-medium text-status-cancelled hover:bg-surface-sunken"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Log out
+                </button>
+              </div>
+            )}
             <button
-              onClick={logout}
-              className="flex w-full items-center gap-2 px-3 py-2 text-sm font-medium text-status-cancelled hover:bg-surface-sunken"
+              onClick={() => setUserMenuOpen((v) => !v)}
+              className="flex w-full items-center gap-2.5 rounded-md px-2 py-2 hover:bg-surface-sunken"
             >
-              <LogOut className="h-4 w-4" />
-              Log out
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary-soft text-xs font-semibold text-primary">
+                {user?.avatarInitials ?? "?"}
+              </div>
+              <div className="min-w-0 flex-1 text-left">
+                <p className="truncate text-xs font-medium">{user?.name ?? "Guest"}</p>
+                <p className="truncate text-[11px] text-muted">
+                  {user ? ROLE_LABEL[user.role] : ""}
+                </p>
+              </div>
             </button>
           </div>
-        )}
-        <button
-          onClick={() => setUserMenuOpen((v) => !v)}
-          className="flex w-full items-center gap-2.5 rounded-md px-2 py-2 hover:bg-surface-sunken"
-        >
-          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary-soft text-xs font-semibold text-primary">
-            {user?.avatarInitials ?? "?"}
-          </div>
-          <div className="min-w-0 flex-1 text-left">
-            <p className="truncate text-xs font-medium">{user?.name ?? "Guest"}</p>
-            <p className="truncate text-[11px] text-muted">
-              {user ? ROLE_LABEL[user.role] : ""}
-            </p>
-          </div>
-        </button>
+          <NotificationCenter />
+        </div>
       </div>
     </aside>
   );
