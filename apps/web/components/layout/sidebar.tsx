@@ -36,6 +36,7 @@ const NAV_ITEMS: { label: string; icon: React.ElementType; href: string; badge?:
   { label: "Alertes stock", icon: Bell, href: "/alerts" },
   { label: "Scanner QR", icon: QrCode, href: "/scanner" },
   { label: "Magasins", icon: StoreIcon, href: "/stores" },
+  { label: "Messagerie", icon: MessageSquare, href: "/inbox" },
   { label: "Utilisateurs", icon: Users, href: "/users" },
   { label: "Intégrations", icon: Plug, href: "/integrations" },
   { label: "Paramètres", icon: Settings, href: "/settings" },
