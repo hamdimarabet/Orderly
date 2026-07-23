@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { Order, OrderStatus, CallAttempt, ORDER_STATUS_LABELS } from "@/types/order";
 import { OrderStatusBadge } from "@/components/orders/status-badge";
+import { TagBadge, TagPicker } from "@/components/orders/tag-picker";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api";
 
@@ -682,6 +683,7 @@ function ConfirmationContent() {
   const [search, setSearch] = useState("");
   const [selectedStoreIds, setSelectedStoreIds] = useState<string[]>([]);
   const [activeOrder, setActiveOrder] = useState<Order | null>(null);
+  const [tagOrder, setTagOrder] = useState<Order | null>(null);
   const [page, setPage] = useState(1);
   const [filter, setFilter] = useState<"all" | "pending" | "confirmed" | "refused" | "a_verifier">("all");
 
@@ -701,7 +703,27 @@ function ConfirmationContent() {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
-      setOrders(data.orders ?? []);
+      const allOrders: Order[] = data.orders ?? [];
+
+      // Auto-tag Client fidèle
+      const phoneCounts: Record<string, number> = {};
+      allOrders.forEach((o) => {
+        if (o.customerPhone) {
+          phoneCounts[o.customerPhone] = (phoneCounts[o.customerPhone] ?? 0) + 1;
+        }
+      });
+
+      const tagged = allOrders.map((o) => {
+        if (o.customerPhone && phoneCounts[o.customerPhone] >= 3) {
+          const tags = o.tags ?? [];
+          if (!tags.includes("Client fidèle")) {
+            return { ...o, tags: [...tags, "Client fidèle"] };
+          }
+        }
+        return o;
+      });
+
+      setOrders(tagged);
     } catch {
       setOrders([]);
     } finally {
@@ -849,6 +871,7 @@ function ConfirmationContent() {
                   <th className="px-4 py-2.5">Statut</th>
                   <th className="px-4 py-2.5">Appel</th>
                   <th className="px-4 py-2.5">Livreur</th>
+                  <th className="px-4 py-2.5">Tags</th>
                   <th className="px-4 py-2.5">Action</th>
                 </tr>
               </thead>
@@ -911,6 +934,19 @@ function ConfirmationContent() {
                         )}
                       </td>
                       <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex flex-wrap gap-1 max-w-[150px]">
+                          {(order.tags ?? []).map((t) => (
+                            <TagBadge key={t} tag={t} />
+                          ))}
+                          <button
+                            onClick={() => setTagOrder(order)}
+                            className="rounded-full border border-dashed border-border px-2 py-0.5 text-[11px] text-muted hover:border-border-strong hover:text-foreground"
+                          >
+                            + Tag
+                          </button>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                         <Button
                           size="sm"
                           variant={isConfirmed ? "secondary" : isAVerifier ? "destructive" : "default"}
@@ -957,6 +993,20 @@ function ConfirmationContent() {
             handleDone(activeOrder.id, updatedFields, newStatus);
             setActiveOrder(null);
           }}
+        />
+      )}
+
+      {tagOrder && (
+        <TagPicker
+          orderId={tagOrder.id}
+          currentTags={tagOrder.tags ?? []}
+          onUpdate={(newTags) => {
+            setOrders((prev) =>
+              prev.map((o) => o.id === tagOrder.id ? { ...o, tags: newTags } : o)
+            );
+            setTagOrder(null);
+          }}
+          onClose={() => setTagOrder(null)}
         />
       )}
     </div>
