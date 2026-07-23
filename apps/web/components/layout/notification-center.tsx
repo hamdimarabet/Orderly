@@ -169,7 +169,7 @@ export function NotificationCenter() {
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="fixed top-14 right-4 z-50 w-80 rounded-xl border border-border bg-surface shadow-2xl">
+          <div className="absolute left-0 top-10 z-50 w-80 rounded-xl border border-border bg-surface shadow-2xl">
             <div className="flex items-center justify-between border-b border-border px-4 py-3">
               <h3 className="text-sm font-semibold">Notifications</h3>
               <div className="flex items-center gap-2">
