@@ -79,6 +79,15 @@ export class OrdersController {
     return this.orders.updateCallAttempts(id, body.callAttempts);
   }
 
+  @Patch(':id/tags')
+  updateTags(
+    @Param('id') id: string,
+    @Body() body: { tags: string[] },
+    @Request() req: any,
+  ) {
+    return this.orders.updateTags(id, body.tags, req.user.id);
+  }
+
   @Patch('bulk/status')
   bulkStatus(
     @Body() body: { orderIds: string[]; status: OrderStatus },

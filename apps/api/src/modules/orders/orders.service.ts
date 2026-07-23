@@ -195,6 +195,24 @@ export class OrdersService {
     });
   }
 
+  async updateTags(orderId: string, tags: string[], actorId: string) {
+    const updated = await this.prisma.order.update({
+      where: { id: orderId },
+      data: { tags },
+    });
+
+    await this.prisma.orderEvent.create({
+      data: {
+        orderId,
+        eventType: 'tags_updated',
+        payload: { tags },
+        actor: actorId,
+      },
+    });
+
+    return updated;
+  }
+
   async bulkUpdateStatus(orderIds: string[], status: OrderStatus, actorId: string) {
     await this.prisma.order.updateMany({
       where: { id: { in: orderIds } },
