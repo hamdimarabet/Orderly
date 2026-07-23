@@ -5,7 +5,6 @@ import { cn } from "@/lib/utils";
 import { Store } from "@/types/order";
 import { useAuth } from "@/lib/auth-context";
 import { usePathname, useRouter } from "next/navigation";
-import { NotificationCenter } from "@/components/layout/notification-center";
 import {
   LayoutGrid,
   Package,
@@ -23,54 +22,41 @@ import {
   Truck,
   QrCode,
   AlertCircle,
+  MessageSquare,
 } from "lucide-react";
+import { NotificationCenter } from "@/components/layout/notification-center";
 
 const NAV_ITEMS: { label: string; icon: React.ElementType; href: string; badge?: number }[] = [
   { label: "Vue d'ensemble", icon: LayoutGrid, href: "/" },
   { label: "Confirmation", icon: Phone, href: "/confirmation" },
-  { label: "Réclamations", icon: AlertCircle, href: "/reclamation" },
   { label: "Préparation", icon: Package, href: "/preparation" },
   { label: "Livraison", icon: Truck, href: "/fulfillment" },
-  { label: "Scanner QR", icon: QrCode, href: "/scanner" },
+  { label: "Réclamations", icon: AlertCircle, href: "/reclamation" },
   { label: "Produits", icon: ShoppingBag, href: "/products" },
   { label: "Alertes stock", icon: Bell, href: "/alerts" },
+  { label: "Scanner QR", icon: QrCode, href: "/scanner" },
   { label: "Magasins", icon: StoreIcon, href: "/stores" },
   { label: "Utilisateurs", icon: Users, href: "/users" },
   { label: "Intégrations", icon: Plug, href: "/integrations" },
   { label: "Paramètres", icon: Settings, href: "/settings" },
 ];
 
-const SOURCE_LABEL: Record<Store["sourceType"], string> = {
-  SHOPIFY: "Shopify",
-  CUSTOM: "Custom",
-  MARKETPLACE: "Marketplace",
-};
-
-const ROLE_LABEL: Record<string, string> = {
-  SUPER_ADMIN: "Super Admin",
-  STORE_MANAGER: "Store Manager",
-  STAFF: "Staff",
-};
-
-export function Sidebar({
-  stores,
-  selectedStoreIds,
-  onChangeSelectedStores,
-}: {
+interface SidebarProps {
   stores: Store[];
   selectedStoreIds: string[];
   onChangeSelectedStores: (ids: string[]) => void;
-}) {
-  const [storePickerOpen, setStorePickerOpen] = useState(false);
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const { user, logout } = useAuth();
+}
+
+export function Sidebar({ stores, selectedStoreIds, onChangeSelectedStores }: SidebarProps) {
+  const { user, logout, canAccessStore } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
-
-  const allSelected = selectedStoreIds.length === stores.length;
+  const [storeOpen, setStoreOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   function toggleStore(id: string) {
     if (selectedStoreIds.includes(id)) {
+      if (selectedStoreIds.length === 1) return;
       onChangeSelectedStores(selectedStoreIds.filter((s) => s !== id));
     } else {
       onChangeSelectedStores([...selectedStoreIds, id]);
@@ -79,95 +65,129 @@ export function Sidebar({
 
   function selectAll() {
     onChangeSelectedStores(stores.map((s) => s.id));
+    setStoreOpen(false);
   }
 
-  const label = allSelected
-    ? "All stores"
-    : selectedStoreIds.length === 1
-    ? stores.find((s) => s.id === selectedStoreIds[0])?.name ?? "1 store"
-    : `${selectedStoreIds.length} stores`;
-
   return (
-    <aside className="flex h-screen w-64 shrink-0 flex-col border-r border-border bg-surface">
-      <div className="flex h-14 items-center gap-2 border-b border-border px-4">
-        <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-sm font-bold text-primary-foreground">
-          O
+    <aside className="flex h-screen w-56 shrink-0 flex-col border-r border-border bg-surface">
+
+      {/* Top — Logo + Notifications + Account */}
+      <div className="flex items-center justify-between border-b border-border px-3 py-3">
+        <div className="flex items-center gap-2">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-xs font-bold text-white">
+            O
+          </div>
+          <span className="text-sm font-semibold">Orderly</span>
         </div>
-        <span className="text-sm font-semibold tracking-tight">Orderly</span>
+        <div className="flex items-center gap-1">
+          <NotificationCenter />
+          <div className="relative">
+            <button
+              onClick={() => setUserMenuOpen((v) => !v)}
+              className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-xs font-bold text-white hover:opacity-90"
+              title={user?.name}
+            >
+              {user?.name?.[0]?.toUpperCase() ?? "U"}
+            </button>
+            {userMenuOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setUserMenuOpen(false)} />
+                <div className="absolute right-0 top-9 z-50 w-48 rounded-xl border border-border bg-surface shadow-xl">
+                  <div className="border-b border-border px-3 py-2.5">
+                    <p className="text-xs font-semibold truncate">{user?.name}</p>
+                    <p className="text-[11px] text-muted truncate">{user?.email}</p>
+                    <span className="mt-1 inline-block rounded bg-primary-soft px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                      {user?.role === "SUPER_ADMIN" ? "Super Admin" : user?.role === "STORE_MANAGER" ? "Manager" : "Staff"}
+                    </span>
+                  </div>
+                  <div className="p-1">
+                    <button
+                      onClick={() => { router.push("/settings"); setUserMenuOpen(false); }}
+                      className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs text-muted hover:bg-surface-sunken hover:text-foreground"
+                    >
+                      <Settings className="h-3.5 w-3.5" />
+                      Paramètres
+                    </button>
+                    <button
+                      onClick={() => { logout(); setUserMenuOpen(false); }}
+                      className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs text-status-cancelled hover:bg-status-cancelled-bg"
+                    >
+                      <LogOut className="h-3.5 w-3.5" />
+                      Déconnexion
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* Store switcher */}
-      <div className="relative border-b border-border p-3">
+      {/* Store selector */}
+      <div className="border-b border-border px-3 py-2">
         <button
-          onClick={() => setStorePickerOpen((v) => !v)}
-          className="flex w-full items-center justify-between rounded-md border border-border bg-surface-sunken px-3 py-2 text-left text-sm font-medium hover:bg-border/40 transition-colors"
+          onClick={() => setStoreOpen((v) => !v)}
+          className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium hover:bg-surface-sunken"
         >
-          <span className="truncate">{label}</span>
-          <ChevronDown className="h-4 w-4 shrink-0 text-muted" />
+          <span className="truncate text-muted">
+            {selectedStoreIds.length === stores.length
+              ? "All stores"
+              : selectedStoreIds.length === 1
+              ? stores.find((s) => s.id === selectedStoreIds[0])?.name ?? "1 store"
+              : `${selectedStoreIds.length} stores`}
+          </span>
+          <ChevronDown className={cn("h-3.5 w-3.5 text-muted transition-transform", storeOpen && "rotate-180")} />
         </button>
 
-        {storePickerOpen && (
-          <div className="absolute left-3 right-3 top-[calc(100%-4px)] z-20 max-h-80 overflow-y-auto rounded-md border border-border bg-surface shadow-lg">
+        {storeOpen && (
+          <div className="mt-1 rounded-md border border-border bg-surface shadow-md">
             <button
-              onClick={() => selectAll()}
-              className="flex w-full items-center justify-between px-3 py-2 text-sm hover:bg-surface-sunken"
+              onClick={selectAll}
+              className="flex w-full items-center justify-between px-3 py-2 text-xs hover:bg-surface-sunken"
             >
-              <span className="font-medium">All stores</span>
-              {allSelected && <Check className="h-4 w-4 text-primary" />}
+              <span>All stores</span>
+              {selectedStoreIds.length === stores.length && <Check className="h-3 w-3 text-primary" />}
             </button>
-            <div className="my-1 border-t border-border" />
-            {stores.map((store) => {
-              const isSelected = selectedStoreIds.includes(store.id);
-              return (
-                <button
-                  key={store.id}
-                  onClick={() => toggleStore(store.id)}
-                  className="flex w-full items-center justify-between gap-2 px-3 py-2 text-sm hover:bg-surface-sunken"
-                >
-                  <span className="flex min-w-0 items-center gap-2">
-                    <Circle
-                      className={cn(
-                        "h-2 w-2 shrink-0",
-                        store.isActive
-                          ? "fill-status-delivered text-status-delivered"
-                          : "fill-muted-light text-muted-light"
-                      )}
-                    />
-                    <span className="truncate">{store.name}</span>
-                  </span>
-                  <span className="flex shrink-0 items-center gap-2">
-                    <span className="rounded bg-surface-sunken px-1.5 py-0.5 text-[10px] font-medium text-muted">
-                      {SOURCE_LABEL[store.sourceType]}
-                    </span>
-                    {isSelected && <Check className="h-4 w-4 text-primary" />}
-                  </span>
-                </button>
-              );
-            })}
+            {stores.map((store) => (
+              <button
+                key={store.id}
+                onClick={() => toggleStore(store.id)}
+                className="flex w-full items-center justify-between px-3 py-2 text-xs hover:bg-surface-sunken"
+              >
+                <span className="flex items-center gap-2">
+                  <Circle className={cn("h-2 w-2 fill-current", store.isActive ? "text-status-delivered" : "text-muted")} />
+                  <span className="truncate">{store.name}</span>
+                </span>
+                <span className="shrink-0 text-[10px] text-muted">
+                  {store.sourceType === "SHOPIFY" ? "Shopify" : store.sourceType === "MARKETPLACE" ? "Marketplace" : "Custom"}
+                </span>
+                {selectedStoreIds.includes(store.id) && <Check className="h-3 w-3 text-primary" />}
+              </button>
+            ))}
           </div>
         )}
       </div>
 
-      <nav className="flex-1 space-y-0.5 p-3">
+      {/* Nav */}
+      <nav className="flex-1 overflow-y-auto px-2 py-2">
         {NAV_ITEMS.map((item) => {
-          const isActive = pathname === item.href;
+          const Icon = item.icon;
+          const active = pathname === item.href;
           return (
             <button
-              key={item.label}
+              key={item.href}
               onClick={() => router.push(item.href)}
               className={cn(
-                "flex w-full items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                isActive
+                "flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-xs font-medium transition-colors",
+                active
                   ? "bg-primary-soft text-primary"
                   : "text-muted hover:bg-surface-sunken hover:text-foreground"
               )}
             >
-              <span className="flex items-center gap-2.5">
-                <item.icon className="h-4 w-4" />
-                {item.label}
-              </span>
-              {item.badge && (
-                <span className="rounded-full bg-status-cancelled px-1.5 py-0.5 text-[10px] font-semibold text-white">
+              <Icon className="h-4 w-4 shrink-0" />
+              <span className="truncate">{item.label}</span>
+              {item.badge !== undefined && item.badge > 0 && (
+                <span className="ml-auto rounded-full bg-status-cancelled px-1.5 py-0.5 text-[10px] font-bold text-white">
                   {item.badge}
                 </span>
               )}
@@ -176,38 +196,10 @@ export function Sidebar({
         })}
       </nav>
 
-      {/* User menu */}
-      <div className="relative border-t border-border p-3">
-        <div className="flex items-center justify-between gap-2">
-          <div className="relative min-w-0 flex-1">
-            {userMenuOpen && (
-              <div className="absolute bottom-[calc(100%-4px)] left-0 right-0 z-20 rounded-md border border-border bg-surface py-1 shadow-lg">
-                <button
-                  onClick={logout}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-sm font-medium text-status-cancelled hover:bg-surface-sunken"
-                >
-                  <LogOut className="h-4 w-4" />
-                  Log out
-                </button>
-              </div>
-            )}
-            <button
-              onClick={() => setUserMenuOpen((v) => !v)}
-              className="flex w-full items-center gap-2.5 rounded-md px-2 py-2 hover:bg-surface-sunken"
-            >
-              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary-soft text-xs font-semibold text-primary">
-                {user?.avatarInitials ?? "?"}
-              </div>
-              <div className="min-w-0 flex-1 text-left">
-                <p className="truncate text-xs font-medium">{user?.name ?? "Guest"}</p>
-                <p className="truncate text-[11px] text-muted">
-                  {user ? ROLE_LABEL[user.role] : ""}
-                </p>
-              </div>
-            </button>
-          </div>
-          <NotificationCenter />
-        </div>
+      {/* Bottom — user name only */}
+      <div className="border-t border-border px-3 py-2.5">
+        <p className="text-xs font-medium truncate">{user?.name}</p>
+        <p className="text-[11px] text-muted truncate">{user?.email}</p>
       </div>
     </aside>
   );
