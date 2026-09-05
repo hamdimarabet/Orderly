@@ -2017,11 +2017,12 @@ function ConfirmationContent() {
                                     <Package className="h-3 w-3 text-muted-light" />
                                   </div>
                                 )}
-                                {li.quantity > 1 && (
-                                  <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold text-white">
-                                    {li.quantity}
-                                  </span>
-                                )}
+                                                           <span className={cn(
+                                  "absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-bold text-white",
+                                  li.quantity > 1 ? "bg-primary" : "bg-muted"
+                                )}>
+                                  {li.quantity}
+                                </span>
                               </div>
                             );
                           })}
