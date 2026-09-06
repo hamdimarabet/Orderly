@@ -493,6 +493,7 @@ export class OrdersService {
               price: li.price,
               fulfilledQty: 0,
               refundedQty: 0,
+              ...(li.productId && { productId: li.productId }),
             })),
           },
         }),

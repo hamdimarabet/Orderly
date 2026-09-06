@@ -916,6 +916,7 @@ function OrderModal({
         discountValue: discountValue ? parseFloat(discountValue) : null,
         discountNote: discountNote || null,
         lineItems: lineItems.map((li) => ({
+          productId: (li as any).productId ?? null,
           title: li.title,
           sku: li.sku,
           variantTitle: li.variantTitle,
