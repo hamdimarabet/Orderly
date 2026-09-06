@@ -1910,7 +1910,7 @@ function ConfirmationContent() {
                 const isRefused = attempts.some((a) => a.result === "ANSWERED_REFUSED") || order.orderStatus === "ANNULE";
                 const isConfirmed = attempts.some((a) => a.result === "ANSWERED_CONFIRMED");
                 const isAVerifier = order.orderStatus === "A_VERIFIER";
-                const firstImg = (order.lineItems?.[0] as any)?.product?.imageUrl ?? null;
+                
 
                 const statusStyle = isAVerifier
                   ? "bg-purple-100 text-purple-800"
@@ -1936,7 +1936,7 @@ function ConfirmationContent() {
                     onClick={() => setActiveOrder(order)}
                     className="overflow-hidden rounded-2xl border border-sky-100 bg-white shadow-sm active:scale-[0.99] transition-transform"
                   >
-                                        <div className="p-3">
+                                                           <div className="px-3 py-2.5">
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex min-w-0 items-center gap-2">
                           <span className="font-mono text-lg font-bold text-primary">
@@ -1963,24 +1963,44 @@ function ConfirmationContent() {
 
                       <div className="mt-2 flex items-center justify-between gap-3">
                         <div className="min-w-0 flex-1">
-                          <p dir="auto" className="truncate text-lg font-bold text-slate-900">
+                        <p dir="auto" className="truncate text-base font-bold text-slate-900">
                             {order.customerName ?? "—"}
                           </p>
                           <p className="font-mono text-sm text-slate-400">
                             {order.customerPhone ?? "—"}
                           </p>
                         </div>
-                        {firstImg ? (
-                                                   <img
-                                                   src={firstImg}
-                                                   alt=""
-                                                   className="h-12 w-12 shrink-0 rounded-lg border border-border object-cover"
-                                                 />
-                        ) : (
-                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-border bg-surface-sunken">
-                            <Package className="h-5 w-5 text-muted-light" />
-                          </div>
-                        )}
+                        <div className="flex shrink-0 gap-1">
+                          {order.lineItems?.slice(0, 3).map((li) => {
+                            const img = (li as any).product?.imageUrl ?? null;
+                            return (
+                              <div key={li.id} className="relative">
+                                {img ? (
+                                  <img
+                                    src={img}
+                                    alt=""
+                                    className="h-11 w-11 rounded-lg border border-border object-cover"
+                                  />
+                                ) : (
+                                  <div className="flex h-11 w-11 items-center justify-center rounded-lg border border-border bg-surface-sunken">
+                                    <Package className="h-4 w-4 text-muted-light" />
+                                  </div>
+                                )}
+                                <span className={cn(
+                                  "absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-bold text-white",
+                                  li.quantity > 1 ? "bg-primary" : "bg-muted"
+                                )}>
+                                  {li.quantity}
+                                </span>
+                              </div>
+                            );
+                          })}
+                          {(order.lineItems?.length ?? 0) > 3 && (
+                            <span className="flex h-11 w-11 items-center justify-center rounded-lg border border-dashed border-border text-[10px] text-muted">
+                              +{(order.lineItems?.length ?? 0) - 3}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
 
