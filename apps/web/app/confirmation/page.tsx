@@ -2058,12 +2058,13 @@ function ConfirmationContent() {
                   <th className="px-4 py-2.5">Commande</th>
                   <th className="px-4 py-2.5">Date</th>
                   <th className="px-4 py-2.5">Client</th>
-                  <th className="px-4 py-2.5">Téléphone</th>
+                  
                   <th className="px-4 py-2.5">Produits</th>
                   <th className="px-4 py-2.5">Total</th>
                   <th className="px-4 py-2.5">Statut</th>
                   <th className="px-4 py-2.5">Appel</th>
                   <th className="px-4 py-2.5">Tags</th>
+                  <th className="px-4 py-2.5">Agent</th>
                   <th className="sticky right-0 z-20 bg-surface px-4 py-2.5 shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.1)]">Actions</th>
                 </tr>
               </thead>
@@ -2105,9 +2106,7 @@ function ConfirmationContent() {
                             </span>
                           )}
                       </td>
-                      <td className="px-4 py-3">
-                        <span className="font-mono text-xs">{order.customerPhone ?? "—"}</span>
-                      </td>
+                  
                                           <td className="px-4 py-3">
                         <div className="flex gap-1">
                           {order.lineItems?.slice(0, 4).map((li) => {
@@ -2140,6 +2139,18 @@ function ConfirmationContent() {
                             </span>
                           )}
                         </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        {order.assignedAgentName ? (
+                          <div className="flex items-center gap-1.5">
+                            <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-[9px] font-bold text-white">
+                              {order.assignedAgentName[0]?.toUpperCase()}
+                            </div>
+                            <span className="truncate max-w-[80px] text-xs">{order.assignedAgentName}</span>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-light">—</span>
+                        )}
                       </td>
                       <td className="px-4 py-3 font-mono text-sm font-medium">
                         {formatMoney(order.total, order.currency)}
