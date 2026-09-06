@@ -1579,15 +1579,35 @@ function OrderModal({
             </div>
           )}
 
-          <div className="flex gap-2 border-t border-border px-5 py-4">
-            <Button variant="secondary" onClick={onClose}>Fermer</Button>
-            <Button variant="outline" onClick={handleSaveOnly} disabled={loading || isLocked}>
+<div className="flex shrink-0 flex-wrap gap-2 border-t border-border px-4 py-3 md:flex-nowrap md:px-5 md:py-4">
+            <Button
+              className="order-3 flex-1 md:order-1 md:flex-none"
+              disabled={loading || !callPhone || isLocked}
+              onClick={handleLog}
+            >
+              <Phone className="h-3.5 w-3.5" />
+              <span className="md:hidden">
+                {loading ? "..." : `Tentative ${attempts.length + 1}`}
+              </span>
+              <span className="hidden md:inline">
+                {loading ? "Enregistrement..." : `Logger tentative ${attempts.length + 1}`}
+              </span>
+            </Button>
+            <Button
+              variant="outline"
+              className="order-2 flex-1 md:order-2 md:flex-none"
+              onClick={handleSaveOnly}
+              disabled={loading || isLocked}
+            >
               <Edit2 className="h-3.5 w-3.5" />
               Sauvegarder
             </Button>
-            <Button className="flex-1" disabled={loading || !callPhone || isLocked} onClick={handleLog}>
-              <Phone className="h-3.5 w-3.5" />
-              {loading ? "Enregistrement..." : `Logger tentative ${attempts.length + 1}`}
+            <Button
+              variant="secondary"
+              className="order-1 md:order-3"
+              onClick={onClose}
+            >
+              Fermer
             </Button>
           </div>
         </div>
