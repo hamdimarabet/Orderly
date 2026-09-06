@@ -1092,6 +1092,20 @@ function OrderModal({
               {customerStats && <CustomerBadges stats={customerStats} />}
             </div>
             <div className="flex items-center gap-2">
+              {order.assignedAgentName && (
+                <div className="flex items-center gap-1.5 rounded-md border border-border px-2 py-1">
+                  <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-[9px] font-bold text-white">
+                    {order.assignedAgentName[0]?.toUpperCase()}
+                  </div>
+                  <span className="text-[11px] text-muted">{order.assignedAgentName}</span>
+                </div>
+              )}
+              {order.deliveryCompany && (
+                <span className="flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[11px] text-muted">
+                  <Truck className="h-3 w-3" />
+                  {order.deliveryCompany}
+                </span>
+              )}
               <OrderStatusBadge status={order.orderStatus} />
               <button onClick={onClose} className="rounded-md p-1 hover:bg-surface-sunken">
                 <X className="h-4 w-4" />
