@@ -40,9 +40,8 @@ function getToken() {
 }
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("fr-FR", {
-    day: "numeric", month: "short", year: "numeric",
-  });
+  const d = new Date(iso);
+  return `${d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })} ${d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`;
 }
 
 function formatMoney(n: number, currency: string) {
