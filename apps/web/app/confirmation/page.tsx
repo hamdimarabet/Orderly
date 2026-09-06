@@ -1083,8 +1083,8 @@ function OrderModal({
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/30 backdrop-blur-[2px]">
-        <div className="w-full max-w-4xl rounded-xl border border-border bg-surface shadow-2xl max-h-[90vh] flex flex-col">
+           <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/30 backdrop-blur-[2px] md:p-4">
+           <div className="flex h-full w-full flex-col border-border bg-surface shadow-2xl md:h-auto md:max-h-[90vh] md:max-w-4xl md:rounded-xl md:border">
           <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <div>
               <h2 className="text-sm font-semibold">Commande {order.orderNumber}</h2>
@@ -1140,7 +1140,7 @@ function OrderModal({
               </div>
             )}
 
-            <div className="grid grid-cols-2 divide-x divide-border">
+<div className="flex flex-col-reverse md:grid md:grid-cols-2 md:flex-row md:divide-x md:divide-border">
 
               {/* LEFT — Edit order */}
               <div className="p-5 space-y-4">
