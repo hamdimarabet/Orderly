@@ -1581,17 +1581,11 @@ function OrderModal({
 
 <div className="flex shrink-0 flex-wrap gap-2 border-t border-border px-4 py-3 md:flex-nowrap md:px-5 md:py-4">
             <Button
-              className="order-3 flex-1 md:order-1 md:flex-none"
-              disabled={loading || !callPhone || isLocked}
-              onClick={handleLog}
+              variant="secondary"
+              className="order-1 md:order-1"
+              onClick={onClose}
             >
-              <Phone className="h-3.5 w-3.5" />
-              <span className="md:hidden">
-                {loading ? "..." : `Tentative ${attempts.length + 1}`}
-              </span>
-              <span className="hidden md:inline">
-                {loading ? "Enregistrement..." : `Logger tentative ${attempts.length + 1}`}
-              </span>
+              Fermer
             </Button>
             <Button
               variant="outline"
@@ -1603,11 +1597,17 @@ function OrderModal({
               Sauvegarder
             </Button>
             <Button
-              variant="secondary"
-              className="order-1 md:order-3"
-              onClick={onClose}
+              className="order-3 w-full md:order-3 md:w-auto md:flex-1"
+              disabled={loading || !callPhone || isLocked}
+              onClick={handleLog}
             >
-              Fermer
+              <Phone className="h-3.5 w-3.5" />
+              <span className="md:hidden">
+                {loading ? "..." : `Tentative ${attempts.length + 1}`}
+              </span>
+              <span className="hidden md:inline">
+                {loading ? "Enregistrement..." : `Logger tentative ${attempts.length + 1}`}
+              </span>
             </Button>
           </div>
         </div>
