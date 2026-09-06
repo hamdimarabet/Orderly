@@ -1579,7 +1579,7 @@ function OrderModal({
             </div>
           )}
 
-<div className="flex shrink-0 flex-wrap gap-2 border-t border-border px-4 py-3 md:flex-nowrap md:px-5 md:py-4">
+<div className="flex shrink-0 flex-wrap gap-2 border-t border-border px-4 py-3 md:flex-nowrap md:justify-end md:px-5 md:py-4">
             <Button
               variant="secondary"
               className="order-1 md:order-1"
@@ -1597,7 +1597,7 @@ function OrderModal({
               Sauvegarder
             </Button>
             <Button
-              className="order-3 w-full md:order-3 md:w-auto md:flex-1"
+                           className="order-3 w-full md:order-3 md:w-auto"
               disabled={loading || !callPhone || isLocked}
               onClick={handleLog}
             >
