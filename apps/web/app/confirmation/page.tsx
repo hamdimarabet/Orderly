@@ -2064,7 +2064,7 @@ function ConfirmationContent() {
                   <th className="px-4 py-2.5">Statut</th>
                   <th className="px-4 py-2.5">Appel</th>
                   <th className="px-4 py-2.5">Tags</th>
-                  <th className="px-4 py-2.5">Actions</th>
+                  <th className="sticky right-0 z-20 bg-surface px-4 py-2.5 shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.1)]">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -2163,7 +2163,10 @@ function ConfirmationContent() {
                           </button>
                         </div>
                       </td>
-                      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                      <td
+                        className="sticky right-0 z-10 bg-surface px-4 py-3 shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.1)]"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <div className="flex items-center gap-1.5">
                           <Button
                             size="sm"
