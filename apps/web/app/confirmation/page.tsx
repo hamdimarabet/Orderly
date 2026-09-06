@@ -2140,18 +2140,6 @@ function ConfirmationContent() {
                           )}
                         </div>
                       </td>
-                      <td className="px-4 py-3">
-                        {order.assignedAgentName ? (
-                          <div className="flex items-center gap-1.5">
-                            <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-[9px] font-bold text-white">
-                              {order.assignedAgentName[0]?.toUpperCase()}
-                            </div>
-                            <span className="truncate max-w-[80px] text-xs">{order.assignedAgentName}</span>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-muted-light">—</span>
-                        )}
-                      </td>
                       <td className="px-4 py-3 font-mono text-sm font-medium">
                         {formatMoney(order.total, order.currency)}
                       </td>
@@ -2173,6 +2161,18 @@ function ConfirmationContent() {
                             + Tag
                           </button>
                         </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        {order.assignedAgentName ? (
+                          <div className="flex items-center gap-1.5">
+                            <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-[9px] font-bold text-white">
+                              {order.assignedAgentName[0]?.toUpperCase()}
+                            </div>
+                            <span className="truncate max-w-[80px] text-xs">{order.assignedAgentName}</span>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-light">—</span>
+                        )}
                       </td>
                       <td
                         className="sticky right-0 z-10 bg-surface px-4 py-3 shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.1)]"
