@@ -1857,7 +1857,7 @@ function ConfirmationContent() {
 
        {/* Filters */}
        <div className="border-b border-border bg-surface px-5 py-3 space-y-2">
-          <div className="flex items-center gap-3">
+                   <div className="flex w-full min-w-0 items-center gap-3">
           <div className="relative w-64">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-light" />
             <Input
@@ -1868,7 +1868,7 @@ function ConfirmationContent() {
             />
           </div>
           <AdvancedFilters filters={advFilters} onChange={setAdvFilters} orders={orders} />
-          <div className="flex gap-1 overflow-x-auto">
+          <div className="-mx-3 flex gap-1 overflow-x-auto px-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:mx-0 md:px-0">
             {[
               { key: "all", label: "Tous", count: orders.length },
               { key: "pending", label: "En attente", count: pendingCount },
@@ -1903,59 +1903,113 @@ function ConfirmationContent() {
             </div>
                     ) : (
                       <>
-                      {/* Mobile cards */}
-                      <div className="space-y-2 p-3 md:hidden">
-                        {pageOrders.map((order) => {
-                          const attempts = Array.isArray(order.callAttempts) ? order.callAttempts as CallAttempt[] : [];
-                          const isRefused = attempts.some((a) => a.result === "ANSWERED_REFUSED") || order.orderStatus === "ANNULE";
-                          const isConfirmed = attempts.some((a) => a.result === "ANSWERED_CONFIRMED");
-                          const isAVerifier = order.orderStatus === "A_VERIFIER";
-          
-                          return (
-                            <div
-                              key={order.id}
-                              onClick={() => setActiveOrder(order)}
-                              className={cn(
-                                "rounded-xl border bg-surface p-3 transition-colors active:bg-surface-sunken",
-                                isConfirmed ? "border-status-delivered/40 bg-status-delivered-bg/20" :
-                                isRefused ? "border-status-cancelled/40 bg-status-cancelled-bg/20" :
-                                isAVerifier ? "border-status-cancelled/50 bg-status-cancelled-bg/30" :
-                                "border-border"
-                              )}
-                            >
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="min-w-0">
-                                  <p className="font-mono text-sm font-bold">{order.orderNumber}</p>
-                                  <p className="truncate text-xs text-muted">{order.customerName ?? "—"}</p>
-                                  <p className="font-mono text-[11px] text-muted-light">{order.customerPhone ?? "—"}</p>
-                                </div>
-                                <div className="shrink-0 text-right">
-                                  <p className="font-mono text-base font-bold">
-                                    {Number(order.total).toFixed(0)}
-                                  </p>
-                                  <p className="text-[10px] text-muted">{order.currency}</p>
-                                </div>
-                              </div>
-          
-                              <div className="mt-2 flex items-center justify-between gap-2">
-                                <CallStatusBadge attempts={attempts} />
-                                <span className="text-[10px] text-muted-light">
-                                  {attempts.length > 0 ? `${attempts.length} appel${attempts.length > 1 ? "s" : ""}` : "jamais appelé"}
-                                </span>
-                              </div>
-          
-                              <Button
-                                size="sm"
-                                className="mt-2.5 w-full"
-                                onClick={(e) => { e.stopPropagation(); setActiveOrder(order); }}
-                              >
-                                <Phone className="h-3.5 w-3.5" />
-                                {isConfirmed ? "Voir la commande" : "Confirmer"}
-                              </Button>
-                            </div>
-                          );
-                        })}
+                                  {/* Mobile cards */}
+            <div className="space-y-3 px-3 pb-24 pt-3 md:hidden">
+              {pageOrders.map((order) => {
+                const attempts = Array.isArray(order.callAttempts) ? order.callAttempts as CallAttempt[] : [];
+                const isRefused = attempts.some((a) => a.result === "ANSWERED_REFUSED") || order.orderStatus === "ANNULE";
+                const isConfirmed = attempts.some((a) => a.result === "ANSWERED_CONFIRMED");
+                const isAVerifier = order.orderStatus === "A_VERIFIER";
+                const firstImg = (order.lineItems?.[0] as any)?.product?.imageUrl ?? null;
+
+                const statusStyle = isAVerifier
+                  ? "bg-purple-100 text-purple-800"
+                  : isRefused
+                  ? "bg-rose-200 text-rose-900"
+                  : isConfirmed
+                  ? "bg-sky-100 text-sky-800"
+                  : "bg-amber-100 text-amber-800";
+
+                const statusLabel = isAVerifier
+                  ? "À vérifier"
+                  : isRefused
+                  ? "Refusé"
+                  : isConfirmed
+                  ? "Confirmé"
+                  : attempts.length > 0
+                  ? `Tentative ${attempts.length}`
+                  : "En attente";
+
+                return (
+                  <div
+                    key={order.id}
+                    onClick={() => setActiveOrder(order)}
+                    className="overflow-hidden rounded-2xl border border-sky-100 bg-white shadow-sm active:scale-[0.99] transition-transform"
+                  >
+                    <div className="p-4">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <span className="font-mono text-lg font-bold text-primary">
+                            {order.orderNumber}
+                          </span>
+                          {order.deliveryCompany && (
+                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-100">
+                              <Truck className="h-3.5 w-3.5 text-emerald-700" />
+                            </span>
+                          )}
+                          {attempts.length > 0 && (
+                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-100">
+                              <Phone className="h-3.5 w-3.5 text-emerald-700" />
+                            </span>
+                          )}
+                        </div>
+                        <span className={cn(
+                          "shrink-0 rounded-full px-3 py-1.5 text-xs font-medium",
+                          statusStyle
+                        )}>
+                          {statusLabel}
+                        </span>
                       </div>
+
+                      <div className="mt-2.5 flex items-center justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <p dir="auto" className="truncate text-lg font-bold text-slate-900">
+                            {order.customerName ?? "—"}
+                          </p>
+                          <p className="font-mono text-sm text-slate-400">
+                            {order.customerPhone ?? "—"}
+                          </p>
+                        </div>
+                        {firstImg ? (
+                          <img
+                            src={firstImg}
+                            alt=""
+                            className="h-16 w-16 shrink-0 rounded-xl border border-border object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border border-border bg-surface-sunken">
+                            <Package className="h-5 w-5 text-muted-light" />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-2 bg-sky-50 px-4 py-3">
+                      <span className="flex items-center gap-1.5 text-sm text-slate-700">
+                        <Calendar className="h-3.5 w-3.5" />
+                        {formatDate(order.sourceCreatedAt)}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-xl font-bold text-primary">
+                          {Number(order.total).toFixed(0)}
+                          <span className="ml-0.5 text-sm font-normal text-primary/60">
+                            {order.currency}
+                          </span>
+                        </span>
+                        {!isConfirmed && !isRefused && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setActiveOrder(order); }}
+                            className="min-h-11 shrink-0 rounded-full bg-primary px-4 text-xs font-semibold text-white"
+                          >
+                            Confirmer
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           
                       {/* Desktop table */}
                       <table className="hidden w-full border-collapse text-sm md:table">
