@@ -1809,7 +1809,7 @@ function ConfirmationContent() {
         onChangeSelectedStores={setSelectedStoreIds}
       />
 
-      <div className="flex min-w-0 max-w-full flex-1 flex-col overflow-x-hidden pt-14 md:pt-0">
+<div className="flex min-w-0 max-w-full flex-1 flex-col overflow-y-auto overflow-x-hidden pt-14 md:overflow-y-hidden md:pt-0">
         <header className="flex min-h-14 w-full max-w-full shrink-0 flex-wrap items-center justify-between gap-2 overflow-hidden border-b border-border bg-surface px-3 py-2 md:h-14 md:flex-nowrap md:px-5 md:py-0">
           <h1 className="text-base font-semibold">Confirmation</h1>
           <div className="flex items-center gap-2">
@@ -1896,7 +1896,7 @@ function ConfirmationContent() {
           </div>
 
         {/* Table */}
-        <div className="flex-1 overflow-auto md:overflow-auto">
+        <div className="flex-1 md:overflow-auto">
           {loading ? (
             <div className="flex items-center justify-center py-24">
               <p className="text-sm text-muted">Chargement...</p>
