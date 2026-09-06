@@ -1896,7 +1896,7 @@ function ConfirmationContent() {
           </div>
 
         {/* Table */}
-        <div className="flex-1 overflow-auto">
+        <div className="flex-1 overflow-auto md:overflow-auto">
           {loading ? (
             <div className="flex items-center justify-center py-24">
               <p className="text-sm text-muted">Chargement...</p>
@@ -1936,7 +1936,7 @@ function ConfirmationContent() {
                     onClick={() => setActiveOrder(order)}
                     className="overflow-hidden rounded-2xl border border-sky-100 bg-white shadow-sm active:scale-[0.99] transition-transform"
                   >
-                    <div className="p-4">
+                                        <div className="p-3">
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex min-w-0 items-center gap-2">
                           <span className="font-mono text-lg font-bold text-primary">
@@ -1961,7 +1961,7 @@ function ConfirmationContent() {
                         </span>
                       </div>
 
-                      <div className="mt-2.5 flex items-center justify-between gap-3">
+                      <div className="mt-2 flex items-center justify-between gap-3">
                         <div className="min-w-0 flex-1">
                           <p dir="auto" className="truncate text-lg font-bold text-slate-900">
                             {order.customerName ?? "—"}
@@ -1971,20 +1971,20 @@ function ConfirmationContent() {
                           </p>
                         </div>
                         {firstImg ? (
-                          <img
-                            src={firstImg}
-                            alt=""
-                            className="h-16 w-16 shrink-0 rounded-xl border border-border object-cover"
-                          />
+                                                   <img
+                                                   src={firstImg}
+                                                   alt=""
+                                                   className="h-12 w-12 shrink-0 rounded-lg border border-border object-cover"
+                                                 />
                         ) : (
-                          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border border-border bg-surface-sunken">
+                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-border bg-surface-sunken">
                             <Package className="h-5 w-5 text-muted-light" />
                           </div>
                         )}
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between gap-2 bg-sky-50 px-4 py-3">
+                    <div className="flex items-center justify-between gap-2 bg-sky-50 px-3 py-2">
                       <span className="flex items-center gap-1.5 text-sm text-slate-700">
                         <Calendar className="h-3.5 w-3.5" />
                         {formatDate(order.sourceCreatedAt)}
