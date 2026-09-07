@@ -1933,12 +1933,14 @@ function ConfirmationContent() {
                 
 
                 const statusStyle = isAVerifier
-                  ? "bg-purple-100 text-purple-800"
-                  : isRefused
-                  ? "bg-rose-200 text-rose-900"
-                  : isConfirmed
-                  ? "bg-sky-100 text-sky-800"
-                  : "bg-amber-100 text-amber-800";
+                ? "bg-purple-100 text-purple-800"
+                : isRefused
+                ? "bg-rose-200 text-rose-900"
+                : isConfirmed
+                ? "bg-emerald-100 text-emerald-800"
+                : attempts.length > 0
+                ? "bg-orange-100 text-orange-800"
+                : "bg-slate-100 text-slate-600";
 
                 const statusLabel = isAVerifier
                   ? "À vérifier"
