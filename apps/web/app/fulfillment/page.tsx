@@ -75,6 +75,7 @@ const DELIVERY_STATUS_KEYS: OrderStatus[] = [
   "RETOUR_RECU",
   "A_VERIFIER",
 ];
+const PAGE_SIZE = 25;
 const STATUS_COLORS: Record<string, string> = {
   CONFIRME: "bg-status-new-bg text-status-new",
   EN_PREPARATION: "bg-status-processing-bg text-status-processing",
