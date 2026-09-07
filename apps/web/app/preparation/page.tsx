@@ -6,6 +6,7 @@ import {
   EMPTY_FILTERS,
   type AdvancedFilterState,
 } from "@/components/stats/advanced-filters";
+import { CityPicker, isValidCity } from "@/components/orders/city-picker";
 
 import {
   PeriodFilter,
@@ -27,7 +28,7 @@ import { TagBadge } from "@/components/orders/tag-picker";
 import {
   Search, ChevronLeft, ChevronRight, Package,
   CheckCircle2, X, Printer, Archive, Plus, Truck,
-  Calendar, Phone, MapPin, History,Lock,
+  Calendar, Phone, MapPin, History,Lock,Trash2,AlertTriangle,
 } from "lucide-react";
 import { Order, OrderStatus } from "@/types/order";
 
@@ -104,10 +105,50 @@ function CreateOrderModal({
     { title: "", sku: "", quantity: 1, price: 0 },
   ]);
   const [loading, setLoading] = useState(false);
+  const [cityError, setCityError] = useState(false);
+  const [upsellPrices, setUpsellPrices] = useState<Record<string, any>>({});
+  const [shippingCost, setShippingCost] = useState(0);
+  const [shippingFree, setShippingFree] = useState(false);
 
   const { products: storeProducts, loading: loadingProducts } = useStoreProducts(storeId);
 
-  const total = products.reduce((s, p) => s + p.price * p.quantity, 0);
+  useEffect(() => {
+    (async () => {
+      const skus = products.map((p) => p.sku).filter(Boolean);
+      if (skus.length < 2) { setUpsellPrices({}); return; }
+      try {
+        const res = await fetch(`${API}/upsells/compute/${storeId}`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ skus }),
+        });
+        const data = await res.json();
+        setUpsellPrices(data.prices ?? {});
+      } catch { setUpsellPrices({}); }
+    })();
+  }, [products, storeId]);
+
+  const productsTotal = products.reduce((s, p) => {
+    const unit = p.sku && upsellPrices[p.sku] ? upsellPrices[p.sku].price : p.price;
+    return s + unit * p.quantity;
+  }, 0);
+
+  useEffect(() => {
+    if (productsTotal <= 0) { setShippingCost(0); setShippingFree(false); return; }
+    (async () => {
+      try {
+        const res = await fetch(
+          `${API}/shipping/calculate/${storeId}?subtotal=${productsTotal}&city=${encodeURIComponent(city)}`,
+          { headers: { Authorization: `Bearer ${getToken()}` } }
+        );
+        const data = await res.json();
+        setShippingCost(data.cost ?? 0);
+        setShippingFree(data.isFree ?? false);
+      } catch { setShippingCost(0); }
+    })();
+  }, [productsTotal, city, storeId]);
+
+  const total = productsTotal + shippingCost;
 
   function updateProduct(idx: number, patch: Partial<typeof products[0]>) {
     setProducts((prev) => prev.map((p, i) => i === idx ? { ...p, ...patch } : p));
@@ -134,6 +175,8 @@ function CreateOrderModal({
   }
 
   async function create() {
+    if (!isValidCity(city)) { setCityError(true); return; }
+    setCityError(false);
     setLoading(true);
     try {
       await fetch(`${API}/orders/manual`, {
@@ -200,7 +243,7 @@ function CreateOrderModal({
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-muted">Ville</label>
-              <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Tunis" />
+              <CityPicker value={city} onChange={setCity} address={address} />
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-muted">Adresse</label>
@@ -253,47 +296,70 @@ function CreateOrderModal({
             )}
 
             <div className="space-y-2">
-              {products.map((p, idx) => (
-                <div key={idx} className="rounded-lg border border-border p-2 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <ProductPicker
-                      value={p.title}
-                      onSelect={(prod, raw) => handleProductSelect(idx, prod, raw)}
-                      products={storeProducts}
-                      loading={loadingProducts}
-                      className="flex-1"
-                    />
-                    {products.length > 1 && (
-                      <button onClick={() => removeProduct(idx)} className="text-muted hover:text-status-cancelled">
-                        <X className="h-3.5 w-3.5" />
-                      </button>
+            {products.map((p, idx) => {
+                const prod = storeProducts.find((sp: any) => sp.sku === p.sku);
+                const unitPrice = p.sku && upsellPrices[p.sku] ? upsellPrices[p.sku].price : p.price;
+
+                return (
+                  <div key={idx} className="flex items-center gap-2.5 rounded-lg border border-border px-2.5 py-2">
+                    {(prod as any)?.imageUrl ? (
+                      <img src={(prod as any).imageUrl} alt="" className="h-9 w-9 shrink-0 rounded object-cover border border-border" />
+                    ) : (
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded border border-border bg-surface-sunken">
+                        <Package className="h-3.5 w-3.5 text-muted-light" />
+                      </div>
                     )}
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="text-[10px] text-muted">Quantité</label>
+                    <div className="min-w-0 flex-1">
+                      <ProductPicker
+                        value={p.title}
+                        onSelect={(prod2, raw) => handleProductSelect(idx, prod2, raw)}
+                        products={storeProducts}
+                        loading={loadingProducts}
+                        className="w-full"
+                      />
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <span className="text-[10px] text-muted">Qté</span>
                       <Input
                         type="number"
                         value={p.quantity}
                         onChange={(e) => updateProduct(idx, { quantity: parseInt(e.target.value) || 1 })}
                         min={1}
-                        className="h-8 text-xs"
+                        className="h-7 w-14 text-xs"
                       />
                     </div>
-                    <div>
-                      <label className="text-[10px] text-muted">Prix unitaire</label>
-                      <Input
-                        type="number"
-                        value={p.price}
-                        onChange={(e) => updateProduct(idx, { price: parseFloat(e.target.value) || 0 })}
-                        min={0}
-                        step="0.001"
-                        className="h-8 text-xs"
-                      />
+                    <div className="w-20 shrink-0 text-right">
+                      <span className="font-mono text-xs font-semibold">{unitPrice.toFixed(3)}</span>
+                      {p.sku && upsellPrices[p.sku] && (
+                        <p className="text-[9px] font-medium text-status-delivered">upsell</p>
+                      )}
                     </div>
+                    {products.length > 1 && (
+                      <button onClick={() => removeProduct(idx)} className="shrink-0 text-muted hover:text-status-cancelled">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="space-y-1 px-1">
+            <div className="flex justify-between">
+              <span className="text-xs text-muted">Produits</span>
+              <span className="font-mono text-xs">{productsTotal.toFixed(3)} TND</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-xs text-muted">
+                Livraison
+                {shippingFree && (
+                  <span className="ml-1 rounded bg-status-delivered-bg px-1.5 py-0.5 text-[10px] font-medium text-status-delivered">
+                    gratuite
+                  </span>
+                )}
+              </span>
+              <span className="font-mono text-xs">{shippingCost.toFixed(3)} TND</span>
             </div>
           </div>
 
@@ -302,7 +368,17 @@ function CreateOrderModal({
             <span className="font-mono text-sm font-bold">{total.toFixed(3)} TND</span>
           </div>
         </div>
+        {cityError && (
+          <div className="flex items-start gap-2.5 border-t border-status-cancelled/30 bg-status-cancelled-bg px-5 py-3">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-status-cancelled" />
+            <div className="text-xs text-status-cancelled">
+              <p className="font-semibold">Gouvernorat obligatoire</p>
+              <p className="mt-0.5">Sélectionnez un gouvernorat pour créer la commande.</p>
+            </div>
+          </div>
+        )}
 
+        <div className="flex gap-2 border-t border-border px-5 py-4"></div>
         <div className="flex gap-2 border-t border-border px-5 py-4">
           <Button variant="secondary" className="flex-1" onClick={onClose}>Annuler</Button>
           <Button className="flex-1" disabled={loading || !canCreate} onClick={create}>
