@@ -295,9 +295,7 @@ function StatusDropdown({
     "A_VERIFIER",
   ];
 
-  const isLocked =
-    order.deliveryCompany === "Cosmos" &&
-    COURIER_CONTROLLED.includes(order.orderStatus);
+  const isLocked = COURIER_CONTROLLED.includes(order.orderStatus);
 
   if (isLocked) {
     return (
