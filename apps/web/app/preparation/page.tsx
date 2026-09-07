@@ -209,7 +209,7 @@ function CreateOrderModal({
   }
 
   const canCreate =
-    storeId && name.trim() && phone.trim() && deliveryCompany &&
+  storeId && name.trim() && phone.trim() &&
     products.some((p) => p.title.trim());
 
   return (
@@ -252,26 +252,7 @@ function CreateOrderModal({
           </div>
 
           {/* Delivery company */}
-          <div>
-            <label className="mb-2 block text-xs font-medium text-muted">Société de livraison</label>
-            <div className="grid grid-cols-4 gap-2">
-              {DELIVERY_COMPANIES.map((c) => (
-                <button
-                  key={c}
-                  onClick={() => setDeliveryCompany(c)}
-                  className={cn(
-                    "flex items-center justify-center gap-1.5 rounded-lg border-2 px-2 py-2 text-xs font-medium transition-colors",
-                    deliveryCompany === c
-                      ? "border-primary bg-primary-soft text-primary"
-                      : "border-border text-muted hover:border-border-strong hover:text-foreground"
-                  )}
-                >
-                  <Truck className="h-3.5 w-3.5 shrink-0" />
-                  {c}
-                </button>
-              ))}
-            </div>
-          </div>
+         
 
           {/* Products */}
           <div>
