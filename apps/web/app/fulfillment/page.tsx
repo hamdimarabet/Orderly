@@ -277,94 +277,23 @@ function ImportModal({
 
 function StatusDropdown({
   order,
-  onChangeStatus,
 }: {
   order: Order;
-  onChangeStatus: (orderId: string, status: OrderStatus) => void;
+  onChangeStatus?: (orderId: string, status: OrderStatus) => void;
 }) {
-  const [open, setOpen] = useState(false);
-
-  // Statuses controlled by the carrier — read-only
-  const COURIER_CONTROLLED: OrderStatus[] = [
-    "AU_DEPOT_LIVREUR",
-    "EN_COURS_DE_LIVRAISON",
-    "LIVRE",
-    "PAYE",
-    "RETOUR",
-    "RETOUR_DEPOT",
-    "A_VERIFIER",
-  ];
-
-  const isLocked = COURIER_CONTROLLED.includes(order.orderStatus);
-
-  if (isLocked) {
-    return (
-      <span
-        className={cn(
-          "flex items-center gap-1.5 rounded px-2.5 py-1.5 text-xs font-medium",
-          STATUS_COLORS[order.orderStatus] ?? "bg-surface-sunken text-muted"
-        )}
-        title="Statut géré automatiquement par le transporteur"
-      >
-        {ORDER_STATUS_LABELS[order.orderStatus] ?? order.orderStatus}
-        <Lock className="h-3 w-3 opacity-60" />
-      </span>
-    );
-  }
-
   return (
-    <div className="relative">
-      <button
-        onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
-        className={cn(
-          "flex items-center gap-1.5 rounded px-2.5 py-1.5 text-xs font-medium transition-colors",
-          STATUS_COLORS[order.orderStatus] ?? "bg-surface-sunken text-muted"
-        )}
-      >
-        {ORDER_STATUS_LABELS[order.orderStatus] ?? order.orderStatus}
-        <ChevronDown className="h-3 w-3" />
-      </button>
-
-      {open && (
-        <>
-          <div className="fixed inset-0 z-20" onClick={(e) => { e.stopPropagation(); setOpen(false); }} />
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="absolute left-0 top-[calc(100%+4px)] z-30 w-52 rounded-md border border-border bg-surface py-1 shadow-lg"
-          >
-            {DELIVERY_STATUSES.map((s) => (
-              <button
-                key={s.status}
-                disabled={s.status === order.orderStatus}
-                onClick={() => {
-                  onChangeStatus(order.id, s.status);
-                  setOpen(false);
-                }}
-                className={cn(
-                  "flex w-full items-center gap-2 px-3 py-2 text-left text-xs transition-colors",
-                  s.status === order.orderStatus
-                    ? "cursor-default opacity-40"
-                    : "hover:bg-surface-sunken"
-                )}
-              >
-                <span className={cn("h-2 w-2 rounded-full", s.color)} />
-                {s.label}
-              </button>
-            ))}
-          </div>
-        </>
+    <span
+      className={cn(
+        "flex items-center gap-1.5 rounded px-2.5 py-1.5 text-xs font-medium",
+        STATUS_COLORS[order.orderStatus] ?? "bg-surface-sunken text-muted"
       )}
-    </div>
+      title="Statut géré automatiquement par le transporteur"
+    >
+      {ORDER_STATUS_LABELS[order.orderStatus] ?? order.orderStatus}
+      <Lock className="h-3 w-3 opacity-50" />
+    </span>
   );
 }
-
-const PAGE_SIZE = 25;
-
-const DELIVERY_STATUS_KEYS: OrderStatus[] = [
-  "CONFIRME", "EN_PREPARATION", "A_EXPEDIER", "AU_DEPOT_LIVREUR",
-  "EN_COURS_DE_LIVRAISON", "LIVRE", "PAYE", "RETOUR", "RETOUR_DEPOT",
-  "RETOUR_RECU", "ANNULE","IMPRIME", "EMBALLE",
-];
 
 function FulfillmentContent() {
   const { canAccessStore, hasPermission } = useAuth();
