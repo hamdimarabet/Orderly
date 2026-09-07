@@ -791,7 +791,13 @@ function PreparationContent() {
       const data = await res.json();
 
       if (data.source === "cosmos" && data.labelUrl) {
-        window.open(data.labelUrl, "_blank");
+        // Mobile browsers often block window.open in async callbacks
+        const isMobile = window.innerWidth < 768;
+        if (isMobile) {
+          window.location.href = data.labelUrl;
+        } else {
+          window.open(data.labelUrl, "_blank");
+        }
       } else {
         if (data.cosmosError) {
           alert(
