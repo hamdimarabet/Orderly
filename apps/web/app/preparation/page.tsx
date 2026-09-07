@@ -883,7 +883,7 @@ function PreparationContent() {
         onChangeSelectedStores={setSelectedStoreIds}
       />
 
-      <div className="flex min-w-0 max-w-full flex-1 flex-col overflow-x-hidden pt-14 md:pt-0">
+<div className="flex min-w-0 max-w-full flex-1 flex-col overflow-y-auto overflow-x-hidden pt-14 md:overflow-y-hidden md:pt-0">
         <header className="flex min-h-14 w-full max-w-full shrink-0 flex-wrap items-center justify-between gap-2 overflow-hidden border-b border-border bg-surface px-3 py-2 md:h-14 md:flex-nowrap md:px-5 md:py-0">
           <h1 className="text-base font-semibold">Préparation</h1>
           <div className="flex items-center gap-2">
@@ -933,7 +933,7 @@ function PreparationContent() {
         )}
        {/* Filters */}
        <div className="border-b border-border bg-surface px-5 py-3 space-y-2">
-       <div className="flex items-center gap-3">
+       <div className="flex w-full min-w-0 items-center gap-3">
           <div className="relative w-64 shrink-0">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-light" />
             <Input
@@ -944,7 +944,7 @@ function PreparationContent() {
               />
               </div>
               <AdvancedFilters filters={advFilters} onChange={setAdvFilters} orders={orders} />
-              <div className="flex gap-1 overflow-x-auto">
+              <div className="-mx-3 flex gap-1 overflow-x-auto px-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:mx-0 md:px-0">
                 {[
                   { key: "all", label: "Tous", count: orders.length },
                   { key: "A_PREPARER", label: "À préparer", count: counts["A_PREPARER"] ?? 0 },
@@ -975,13 +975,109 @@ function PreparationContent() {
         </div>
 
         {/* Table */}
-        <div className="flex-1 overflow-auto">
+        <div className="flex-1 md:overflow-auto">
           {loading ? (
             <div className="flex items-center justify-center py-24">
               <p className="text-sm text-muted">Chargement...</p>
             </div>
           ) : (
-            <table className="w-full border-collapse text-sm">
+            <>
+            {/* Mobile cards */}
+            <div className="space-y-3 px-3 pb-24 pt-3 md:hidden">
+              {pageOrders.map((order) => {
+                const isEmballe = order.orderStatus === "EMBALLE";
+                const isEnPrep = order.orderStatus === "EN_PREPARATION";
+                const isAPreparer = order.orderStatus === "A_PREPARER" || order.orderStatus === "ECHANGE";
+
+                return (
+                  <div
+                    key={order.id}
+                    onClick={() => setDetailOrder(order)}
+                    className="overflow-hidden rounded-2xl border border-sky-100 bg-white shadow-sm active:scale-[0.99] transition-transform"
+                  >
+                    <div className="px-3 py-2.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-mono text-lg font-bold text-primary">
+                          {order.orderNumber}
+                        </span>
+                        <span className={cn(
+                          "shrink-0 rounded-full px-3 py-1.5 text-xs font-medium",
+                          STATUS_STYLE[order.orderStatus] ?? "bg-surface-sunken text-muted"
+                        )}>
+                          {STATUS_LABEL[order.orderStatus] ?? order.orderStatus}
+                        </span>
+                      </div>
+
+                      <div className="mt-2 flex items-center justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <p dir="auto" className="truncate text-base font-bold text-slate-900">
+                            {order.customerName ?? "—"}
+                          </p>
+                          <p className="text-sm text-slate-400">
+                            {order.deliveryCompany ?? "Aucun livreur"}
+                          </p>
+                        </div>
+                        <div className="flex shrink-0 gap-1">
+                          {order.lineItems?.slice(0, 3).map((li) => {
+                            const img = (li as any).product?.imageUrl ?? null;
+                            return (
+                              <div key={li.id} className="relative">
+                                {img ? (
+                                  <img src={img} alt="" className="h-11 w-11 rounded-lg border border-border object-cover" />
+                                ) : (
+                                  <div className="flex h-11 w-11 items-center justify-center rounded-lg border border-border bg-surface-sunken">
+                                    <Package className="h-4 w-4 text-muted-light" />
+                                  </div>
+                                )}
+                                <span className={cn(
+                                  "absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-bold text-white",
+                                  li.quantity > 1 ? "bg-primary" : "bg-muted"
+                                )}>
+                                  {li.quantity}
+                                </span>
+                              </div>
+                            );
+                          })}
+                          {(order.lineItems?.length ?? 0) > 3 && (
+                            <span className="flex h-11 w-11 items-center justify-center rounded-lg border border-dashed border-border text-[10px] text-muted">
+                              +{(order.lineItems?.length ?? 0) - 3}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-2 bg-sky-50 px-3 py-2">
+                      <span className="font-mono text-xl font-bold text-primary">
+                        {Number(order.total).toFixed(0)}
+                        <span className="ml-0.5 text-sm font-normal text-primary/60">
+                          {order.currency}
+                        </span>
+                      </span>
+                      {isAPreparer ? (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handlePrint(order); }}
+                          disabled={printing === order.id}
+                          className="min-h-11 shrink-0 rounded-full bg-primary px-4 text-xs font-semibold text-white disabled:opacity-50"
+                        >
+                          {printing === order.id ? "..." : "Imprimer"}
+                        </button>
+                      ) : isEnPrep ? (
+                        <span className="text-xs text-muted">en attente du scan</span>
+                      ) : isEmballe ? (
+                        <span className="flex items-center gap-1 text-xs text-status-shipped">
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          prêt
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop table */}
+            <table className="hidden w-full border-collapse text-sm md:table">
               <thead className="sticky top-0 z-10 bg-surface">
                 <tr className="border-b border-border text-left text-xs font-medium text-muted">
                   <th className="w-10 px-4 py-2.5">
@@ -1130,7 +1226,8 @@ function PreparationContent() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+              </table>
+              </>
           )}
 
           {!loading && pageOrders.length === 0 && (
