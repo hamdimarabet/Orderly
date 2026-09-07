@@ -59,6 +59,22 @@ const DELIVERY_STATUSES: { status: OrderStatus; label: string; color: string }[]
 { status: "EMBALLE", label: "Emballé", color: "text-status-shipped" },
 ];
 
+
+const DELIVERY_STATUS_KEYS: OrderStatus[] = [
+  "CONFIRME",
+  "EN_PREPARATION",
+  "A_EXPEDIER",
+  "IMPRIME",
+  "EMBALLE",
+  "AU_DEPOT_LIVREUR",
+  "EN_COURS_DE_LIVRAISON",
+  "LIVRE",
+  "PAYE",
+  "RETOUR",
+  "RETOUR_DEPOT",
+  "RETOUR_RECU",
+  "A_VERIFIER",
+];
 const STATUS_COLORS: Record<string, string> = {
   CONFIRME: "bg-status-new-bg text-status-new",
   EN_PREPARATION: "bg-status-processing-bg text-status-processing",
