@@ -116,7 +116,7 @@ export function AdvancedFilters({
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-[calc(100%+6px)] z-50 w-[380px] max-h-[70vh] overflow-y-auto rounded-xl border border-border bg-surface p-4 shadow-2xl space-y-4">
+          <div className="fixed inset-x-3 top-20 z-50 max-h-[70vh] overflow-y-auto rounded-xl border border-border bg-surface p-4 shadow-2xl space-y-4 md:absolute md:inset-x-auto md:right-0 md:top-[calc(100%+6px)] md:w-[380px]">
             <div className="flex items-center justify-between">
               <p className="text-xs font-semibold">Filtres avancés</p>
               {activeCount > 0 && (
