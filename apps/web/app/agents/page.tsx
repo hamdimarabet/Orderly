@@ -93,7 +93,7 @@ function AgentsContent() {
         onChangeSelectedStores={setSelectedStoreIds}
       />
 
-      <div className="flex min-w-0 max-w-full flex-1 flex-col overflow-x-hidden pt-14 md:pt-0">
+<div className="flex min-w-0 max-w-full flex-1 flex-col overflow-y-auto overflow-x-hidden pt-14 md:overflow-y-hidden md:pt-0">
         <header className="flex min-h-14 w-full max-w-full shrink-0 flex-wrap items-center justify-between gap-2 overflow-hidden border-b border-border bg-surface px-3 py-2 md:h-14 md:flex-nowrap md:px-5 md:py-0">
           <h1 className="text-base font-semibold">Performance agents</h1>
           <p className="text-xs text-muted">{agents.length} agents actifs</p>
@@ -105,7 +105,7 @@ function AgentsContent() {
         </div>
 
         {/* Global stats */}
-        <div className="grid grid-cols-4 gap-3 border-b border-border bg-surface p-4">
+        <div className="grid grid-cols-2 gap-1.5 border-b border-border bg-surface p-2 md:grid-cols-4 md:gap-3 md:p-4">
           <div className="rounded-lg bg-surface-sunken px-4 py-3">
             <p className="text-[11px] font-medium text-muted">Commandes traitées</p>
             <p className="mt-1 text-2xl font-bold">{totalOrders}</p>
@@ -134,7 +134,7 @@ function AgentsContent() {
         </div>
 
         {/* Table */}
-        <div className="flex-1 overflow-auto p-5">
+        <div className="flex-1 p-3 md:overflow-auto md:p-5">
           {loading ? (
             <p className="py-16 text-center text-sm text-muted">Chargement...</p>
           ) : agents.length === 0 ? (
@@ -146,7 +146,65 @@ function AgentsContent() {
               </p>
             </div>
           ) : (
-            <div className="rounded-xl border border-border bg-surface overflow-hidden">
+            <>
+            {/* Mobile cards */}
+            <div className="space-y-2.5 pb-24 md:hidden">
+              {agents.map((a, i) => (
+                <div key={a.agentId} className="overflow-hidden rounded-2xl border border-sky-100 bg-white shadow-sm">
+                  <div className="flex items-center gap-3 px-3 py-2.5">
+                    <div className={cn(
+                      "flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white",
+                      i === 0 ? "bg-purple-500" : "bg-primary"
+                    )}>
+                      {a.agentName[0]?.toUpperCase()}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-bold text-slate-900">{a.agentName}</p>
+                      {i === 0 && (
+                        <p className="flex items-center gap-1 text-[10px] font-medium text-purple-600">
+                          <Trophy className="h-2.5 w-2.5" /> Top performer
+                        </p>
+                      )}
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className={cn(
+                        "text-lg font-bold",
+                        a.confirmationRate >= 70 ? "text-status-delivered" :
+                        a.confirmationRate >= 40 ? "text-status-processing" :
+                        "text-status-cancelled"
+                      )}>
+                        {a.confirmationRate}%
+                      </p>
+                      <p className="text-[10px] text-muted">confirmation</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-4 gap-1 bg-sky-50 px-3 py-2 text-center">
+                    <div>
+                      <p className="font-mono text-sm font-bold">{a.total}</p>
+                      <p className="text-[9px] text-slate-500">traitées</p>
+                    </div>
+                    <div>
+                      <p className="font-mono text-sm font-bold text-status-delivered">{a.confirmed}</p>
+                      <p className="text-[9px] text-slate-500">confirmées</p>
+                    </div>
+                    <div>
+                      <p className="font-mono text-sm font-bold text-status-cancelled">{a.refused}</p>
+                      <p className="text-[9px] text-slate-500">refusées</p>
+                    </div>
+                    <div>
+                      <p className="font-mono text-sm font-bold text-primary">
+                        {Math.round(a.revenue)}
+                      </p>
+                      <p className="text-[9px] text-slate-500">CA</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden rounded-xl border border-border bg-surface overflow-hidden md:block">
               <table className="w-full border-collapse text-sm">
                 <thead>
                   <tr className="border-b border-border bg-surface-sunken text-left text-xs font-medium text-muted">
@@ -244,8 +302,9 @@ function AgentsContent() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+                </table>
             </div>
+            </>
           )}
         </div>
       </div>
