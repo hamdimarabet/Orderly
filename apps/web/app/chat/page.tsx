@@ -8,11 +8,12 @@ import { useStores } from "@/lib/stores-context";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Hash, Send, Users, Search } from "lucide-react";
+import { Hash, Send, Users, Search,ChevronLeft, } from "lucide-react";
 import { MentionInput } from "@/components/ui/mention-input";
 import { NewChannelModal, type AppUserLite } from "@/components/chat/new-channel-modal";
 import { ChannelSidebar, type Channel } from "@/components/chat/channel-sidebar";
 import { MessageList, type Message } from "@/components/chat/message-list";
+import { cn } from "@/lib/utils";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api";
 
@@ -161,22 +162,32 @@ function ChatContent() {
         onChangeSelectedStores={setSelectedStoreIds}
       />
 
-      <div className="flex min-w-0 flex-1">
-        <ChannelSidebar
-          channels={channels}
-          users={users}
-          activeId={active?.id}
-          loading={loading}
-          onSelect={setActive}
-          onNewChannel={() => setShowNewChannel(true)}
-          onSeed={seedChannels}
-          onOpenDm={openDm}
-        />
-
+<div className="flex min-w-0 flex-1 pt-14 md:pt-0">
+        <div className={cn(
+          "w-full md:block md:w-auto",
+          active ? "hidden" : "block"
+        )}>
+          <ChannelSidebar
+            channels={channels}
+            users={users}
+            activeId={active?.id}
+            loading={loading}
+            onSelect={setActive}
+            onNewChannel={() => setShowNewChannel(true)}
+            onSeed={seedChannels}
+            onOpenDm={openDm}
+          />
+        </div>
         {active ? (
           <div className="flex flex-1 flex-col">
             <div className="flex items-center justify-between border-b border-border bg-surface px-5 py-3">
-              <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setActive(null)}
+                  className="rounded-md p-1 text-muted hover:bg-surface-sunken md:hidden"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
                 {active.type === "CHANNEL" ? (
                   <Hash className="h-4 w-4 text-muted" />
                 ) : (
