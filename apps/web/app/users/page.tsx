@@ -140,7 +140,7 @@ function InviteModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/30 backdrop-blur-[2px]">
-      <div className="w-full max-w-2xl rounded-xl border border-border bg-surface shadow-2xl max-h-[90vh] flex flex-col">
+          <div className="flex h-full w-full flex-col border-border bg-surface shadow-2xl md:h-auto md:max-h-[90vh] md:max-w-2xl md:rounded-xl md:border">
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <h2 className="text-sm font-semibold flex items-center gap-2">
             <Mail className="h-4 w-4" />
@@ -153,7 +153,7 @@ function InviteModal({
 
         <div className="flex-1 overflow-y-auto p-5 space-y-5">
           {/* Basic info */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             <div>
               <label className="mb-1 block text-xs font-medium text-muted">Nom complet</label>
               <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Yassine Amri" autoFocus />
@@ -305,7 +305,7 @@ function PermissionsModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/30 backdrop-blur-[2px]">
-      <div className="w-full max-w-lg rounded-xl border border-border bg-surface shadow-2xl max-h-[90vh] flex flex-col">
+          <div className="flex h-full w-full flex-col border-border bg-surface shadow-2xl md:h-auto md:max-h-[90vh] md:max-w-lg md:rounded-xl md:border">
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <div>
             <h2 className="text-sm font-semibold">Permissions — {user.name}</h2>
@@ -372,7 +372,7 @@ function InviteLinkModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/30 backdrop-blur-[2px]">
-      <div className="w-full max-w-md rounded-xl border border-border bg-surface shadow-2xl">
+            <div className="mx-3 w-full max-w-md rounded-xl border border-border bg-surface shadow-2xl">
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <h2 className="text-sm font-semibold">Invitation envoyée</h2>
           <button onClick={onClose} className="rounded-md p-1 hover:bg-surface-sunken">
@@ -488,7 +488,7 @@ function UsersContent() {
         onChangeSelectedStores={setSelectedStoreIds}
       />
 
-      <div className="flex min-w-0 max-w-full flex-1 flex-col overflow-x-hidden pt-14 md:pt-0">
+<div className="flex min-w-0 max-w-full flex-1 flex-col overflow-y-auto overflow-x-hidden pt-14 md:overflow-y-hidden md:pt-0">
         <header className="flex min-h-14 w-full max-w-full shrink-0 flex-wrap items-center justify-between gap-2 overflow-hidden border-b border-border bg-surface px-3 py-2 md:h-14 md:flex-nowrap md:px-5 md:py-0">
           <h1 className="text-base font-semibold">Utilisateurs</h1>
           {currentUser?.role === "SUPER_ADMIN" && (
@@ -499,7 +499,7 @@ function UsersContent() {
           )}
         </header>
 
-        <div className="flex-1 overflow-auto p-5">
+        <div className="flex-1 p-3 md:overflow-auto md:p-5">
           {loading ? (
             <div className="flex items-center justify-center py-24">
               <p className="text-sm text-muted">Chargement...</p>
