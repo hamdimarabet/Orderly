@@ -292,18 +292,18 @@ function SettingsContent() {
         selectedStoreIds={selectedStoreIds}
         onChangeSelectedStores={setSelectedStoreIds}
       />
-      <div className="flex min-w-0 max-w-full flex-1 flex-col overflow-x-hidden pt-14 md:pt-0">
+          <div className="flex min-w-0 max-w-full flex-1 flex-col overflow-y-auto overflow-x-hidden pt-14 md:overflow-y-hidden md:pt-0">
         <header className="flex h-14 shrink-0 items-center border-b border-border bg-surface px-5">
           <h1 className="text-base font-semibold">Settings</h1>
         </header>
-        <div className="flex flex-1 overflow-hidden">
-          <nav className="w-48 shrink-0 border-r border-border bg-surface p-3 space-y-0.5">
+        <div className="flex flex-1 flex-col md:flex-row md:overflow-hidden">
+        <nav className="flex gap-1 overflow-x-auto border-b border-border bg-surface p-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:w-48 md:shrink-0 md:flex-col md:space-y-0.5 md:overflow-visible md:border-b-0 md:border-r md:p-3">
             {TABS.map((t) => (
               <button
                 key={t.key}
                 onClick={() => setTab(t.key)}
                 className={cn(
-                  "flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                  "flex shrink-0 items-center gap-2 rounded-md px-3 py-2 text-xs font-medium transition-colors md:w-full md:gap-2.5 md:text-sm",
                   tab === t.key ? "bg-primary-soft text-primary" : "text-muted hover:bg-surface-sunken hover:text-foreground"
                 )}
               >
@@ -312,7 +312,7 @@ function SettingsContent() {
               </button>
             ))}
           </nav>
-          <div className="flex-1 overflow-y-auto p-8 max-w-2xl">
+          <div className="flex-1 p-4 md:max-w-2xl md:overflow-y-auto md:p-8">
             {tab === "profile" && <ProfileTab user={user} />}
             {tab === "notifications" && <NotificationsTab />}
             {tab === "security" && <SecurityTab />}
