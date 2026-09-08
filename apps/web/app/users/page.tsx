@@ -532,16 +532,36 @@ function UsersContent() {
                         {u.role === "SUPER_ADMIN" ? "Super Admin" : u.role === "STORE_MANAGER" ? "Manager" : "Staff"}
                       </span>
                       <span className="ml-2 text-[10px] text-slate-500">
-                        {u.permissions?.length ?? 0} permissions
+                        {u.permissions?.length ?? 0} perms
                       </span>
                     </div>
-                    <button
-                                            onClick={() => setPermissionsUser(u)}
-                      className="flex min-h-9 shrink-0 items-center gap-1 rounded-full bg-primary px-3 text-xs font-semibold text-white"
-                    >
-                      <Shield className="h-3.5 w-3.5" />
-                      Permissions
-                    </button>
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      <button
+                        onClick={() => toggleActive(u.id)}
+                        disabled={u.id === currentUser?.id}
+                        className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-white disabled:opacity-40"
+                        title={u.isActive ? "Désactiver" : "Activer"}
+                      >
+                        {u.isActive
+                          ? <ToggleRight className="h-4 w-4 text-status-delivered" />
+                          : <ToggleLeft className="h-4 w-4 text-muted" />
+                        }
+                      </button>
+                      <button
+                        onClick={() => removeUser(u.id)}
+                        disabled={u.id === currentUser?.id}
+                        className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-white text-muted disabled:opacity-40"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={() => setPermissionsUser(u)}
+                        className="flex min-h-9 items-center gap-1 rounded-full bg-primary px-3 text-xs font-semibold text-white"
+                      >
+                        <Shield className="h-3.5 w-3.5" />
+                        Perms
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
