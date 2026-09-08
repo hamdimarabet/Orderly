@@ -505,7 +505,50 @@ function UsersContent() {
               <p className="text-sm text-muted">Chargement...</p>
             </div>
           ) : (
-            <div className="rounded-xl border border-border bg-surface overflow-hidden">
+            <>
+            {/* Mobile cards */}
+            <div className="space-y-2.5 pb-24 md:hidden">
+              {users.map((u) => (
+                <div key={u.id} className="overflow-hidden rounded-2xl border border-sky-100 bg-white shadow-sm">
+                  <div className="flex items-center gap-3 px-3 py-2.5">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-white">
+                      {u.name?.[0]?.toUpperCase() ?? "?"}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-bold text-slate-900">{u.name}</p>
+                      <p className="truncate text-xs text-slate-400">{u.email}</p>
+                    </div>
+                    <span className={cn(
+                      "shrink-0 rounded-full px-2.5 py-1 text-[10px] font-medium",
+                      u.isActive ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"
+                    )}>
+                      {u.isActive ? "Actif" : "Inactif"}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-2 bg-sky-50 px-3 py-2">
+                    <div className="min-w-0">
+                      <span className="rounded bg-primary-soft px-2 py-0.5 text-[10px] font-medium text-primary">
+                        {u.role === "SUPER_ADMIN" ? "Super Admin" : u.role === "STORE_MANAGER" ? "Manager" : "Staff"}
+                      </span>
+                      <span className="ml-2 text-[10px] text-slate-500">
+                        {u.permissions?.length ?? 0} permissions
+                      </span>
+                    </div>
+                    <button
+                                            onClick={() => setPermissionsUser(u)}
+                      className="flex min-h-9 shrink-0 items-center gap-1 rounded-full bg-primary px-3 text-xs font-semibold text-white"
+                    >
+                      <Shield className="h-3.5 w-3.5" />
+                      Permissions
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden rounded-xl border border-border bg-surface overflow-hidden md:block">
               <table className="w-full border-collapse text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-xs font-medium text-muted bg-surface-sunken">
@@ -606,7 +649,8 @@ function UsersContent() {
                   <p className="mt-1 text-xs text-muted">Invitez des membres de votre équipe.</p>
                 </div>
               )}
-            </div>
+                       </div>
+            </>
           )}
         </div>
       </div>
