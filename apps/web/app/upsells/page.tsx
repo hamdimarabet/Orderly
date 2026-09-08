@@ -113,7 +113,7 @@ function UpsellModal({
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-foreground/30 backdrop-blur-[2px]">
-      <div className="flex max-h-[92vh] w-full max-w-lg flex-col rounded-xl border border-border bg-surface shadow-2xl">
+            <div className="flex h-full w-full flex-col border-border bg-surface shadow-2xl md:h-auto md:max-h-[92vh] md:max-w-lg md:rounded-xl md:border">
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <h2 className="text-sm font-semibold">
             {upsell ? "Modifier l'upsell" : "Nouvel upsell"}
@@ -420,7 +420,7 @@ function UpsellsContent() {
         onChangeSelectedStores={setSelectedStoreIds}
       />
 
-      <div className="flex min-w-0 max-w-full flex-1 flex-col overflow-x-hidden pt-14 md:pt-0">
+<div className="flex min-w-0 max-w-full flex-1 flex-col overflow-y-auto overflow-x-hidden pt-14 md:overflow-y-hidden md:pt-0">
         <header className="flex min-h-14 w-full max-w-full shrink-0 flex-wrap items-center justify-between gap-2 overflow-hidden border-b border-border bg-surface px-3 py-2 md:h-14 md:flex-nowrap md:px-5 md:py-0">
           <div>
             <h1 className="text-base font-semibold">Upsells</h1>
@@ -437,7 +437,7 @@ function UpsellsContent() {
             </Button>
           </div>
         </header>
-        <div className="flex gap-1 border-b border-border bg-surface px-5 py-2">
+        <div className="flex gap-1 overflow-x-auto border-b border-border bg-surface px-3 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:px-5">
           {accessibleStores.map((s) => (
             <button
               key={s.id}
@@ -461,7 +461,7 @@ function UpsellsContent() {
             </button>
           ))}
         </div>
-        <div className="flex-1 overflow-y-auto p-5">
+        <div className="flex-1 p-3 md:overflow-y-auto md:p-5">
           {loading ? (
             <p className="py-16 text-center text-sm text-muted">Chargement...</p>
           ) : upsells.length === 0 ? (
@@ -521,7 +521,7 @@ function UpsellsContent() {
                     </div>
                   </div>
 
-                  <div className="mt-3 flex items-center gap-3">
+                  <div className="mt-3 flex flex-col gap-2 md:flex-row md:items-center md:gap-3">
                     {/* Trigger */}
                     <div className="flex items-center gap-2 rounded-lg border-2 border-primary bg-primary-soft px-3 py-2">
                       {u.triggerProduct?.imageUrl ? (
@@ -537,7 +537,7 @@ function UpsellsContent() {
                       </div>
                     </div>
 
-                    <ArrowRight className="h-4 w-4 shrink-0 text-muted" />
+                    <ArrowRight className="h-4 w-4 shrink-0 rotate-90 self-center text-muted md:rotate-0 md:self-auto" />
 
                     {/* Items */}
                     <div className="flex flex-1 flex-wrap gap-2">
