@@ -10,8 +10,9 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import {
   Search, Send, ShoppingBag, X, Check,
-  Sparkles, Edit2, Package, Phone, MapPin, User,
+  Sparkles, Edit2, Package, Phone, MapPin, User,ChevronLeft,
 } from "lucide-react";
+
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api";
 
@@ -452,9 +453,13 @@ function InboxContent() {
         onChangeSelectedStores={setSelectedStoreIds}
       />
 
-      <div className="flex min-w-0 flex-1">
+<div className="flex min-w-0 flex-1 pt-14 md:pt-0">
         {/* Conversation list */}
-        <div className="flex w-72 shrink-0 flex-col border-r border-border bg-surface">
+        <div className={cn(
+          "flex flex-col border-r border-border bg-surface",
+          "w-full md:w-72 md:shrink-0",
+                  activeConv ? "hidden md:flex" : "flex"
+        )}>
           <div className="border-b border-border px-4 py-3">
             <div className="flex items-center justify-between mb-2">
               <h1 className="text-sm font-semibold">Messagerie</h1>
@@ -536,10 +541,16 @@ function InboxContent() {
 
         {/* Chat area */}
         {activeConv ? (
-          <div className="flex flex-1 flex-col">
+                   <div className="flex flex-1 flex-col">
             {/* Chat header */}
             <div className="flex items-center justify-between border-b border-border bg-surface px-5 py-3">
-              <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setActiveConv(null)}
+                  className="rounded-md p-1 text-muted hover:bg-surface-sunken md:hidden"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
                 <div className="flex h-9 w-9 items-center justify-center rounded-full bg-surface-sunken text-sm font-semibold">
                   {activeConv.customerName[0]}
                 </div>
