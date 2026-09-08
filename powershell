@@ -1,0 +1,8 @@
+Select-Object : Impossible de lier le paramŠtre ®First¯. Impossible de convertir la valeur ®50powershell¯ en type ®
+System.Int32¯. Erreur: ®Le format de la chaŒne d'entr‚e est incorrect.¯
+Au caractŠre Ligne:1 : 80
++ ... mation\page.tsx | Select-Object -Skip 368 -First 50powershell Get-Con ...
++                                                      ~~~~~~~~~~~~
+    + CategoryInfo          : InvalidArgument : (:) [Select-Object], ParameterBindingException
+    + FullyQualifiedErrorId : CannotConvertArgumentNoMessage,Microsoft.PowerShell.Commands.SelectObjectCommand
+ 
