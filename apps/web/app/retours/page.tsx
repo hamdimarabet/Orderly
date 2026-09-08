@@ -12,7 +12,7 @@ import {
   Search, ChevronLeft, ChevronRight, Package,
   QrCode, CheckCircle2, X, RotateCcw,
 } from "lucide-react";
-import { Order, OrderStatus } from "@/types/order";
+import { Order, OrderStatus, ORDER_STATUS_LABELS } from "@/types/order";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api";
 
@@ -232,7 +232,7 @@ function RetoursContent() {
         onChangeSelectedStores={setSelectedStoreIds}
       />
 
-      <div className="flex min-w-0 max-w-full flex-1 flex-col overflow-x-hidden pt-14 md:pt-0">
+<div className="flex min-w-0 max-w-full flex-1 flex-col overflow-y-auto overflow-x-hidden pt-14 md:overflow-y-hidden md:pt-0">
         <header className="flex min-h-14 w-full max-w-full shrink-0 flex-wrap items-center justify-between gap-2 overflow-hidden border-b border-border bg-surface px-3 py-2 md:h-14 md:flex-nowrap md:px-5 md:py-0">
           <h1 className="text-base font-semibold">Retours</h1>
           <Button size="sm" onClick={() => setShowScanner(true)}>
@@ -252,7 +252,7 @@ function RetoursContent() {
         )}
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-4 border-b border-border bg-surface p-4">
+        <div className="grid grid-cols-3 gap-1.5 border-b border-border bg-surface p-2 md:gap-4 md:p-4">
           <div className="rounded-lg bg-status-refunded-bg px-4 py-3">
             <p className="text-xs font-medium text-status-refunded">En retour</p>
             <p className="mt-1 text-2xl font-bold text-status-refunded">{retourCount}</p>
@@ -303,13 +303,86 @@ function RetoursContent() {
         </div>
 
         {/* Table */}
-        <div className="flex-1 overflow-auto">
+        <div className="flex-1 md:overflow-auto">
           {loading ? (
             <div className="flex items-center justify-center py-24">
               <p className="text-sm text-muted">Chargement...</p>
             </div>
           ) : (
-            <table className="w-full border-collapse text-sm">
+            <>
+            {/* Mobile cards */}
+            <div className="space-y-2.5 px-3 pb-24 pt-3 md:hidden">
+              {pageOrders.map((order) => (
+                <div
+                  key={order.id}
+                  className={cn(
+                    "overflow-hidden rounded-2xl border border-sky-100 bg-white shadow-sm",
+                    order.orderStatus === "RETOUR_RECU" && "opacity-60"
+                  )}
+                >
+                  <div className="px-3 py-2.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-mono text-base font-bold text-primary">
+                          {order.orderNumber}
+                        </p>
+                        <p dir="auto" className="truncate text-sm font-semibold text-slate-900">
+                          {order.customerName ?? "—"}
+                        </p>
+                        <p className="font-mono text-xs text-slate-400">
+                          {order.customerPhone ?? "—"}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 gap-1">
+                        {order.lineItems?.slice(0, 3).map((li) => {
+                          const img = (li as any).product?.imageUrl ?? null;
+                          return (
+                            <div key={li.id} className="relative">
+                              {img ? (
+                                <img src={img} alt="" className="h-11 w-11 rounded-lg border border-border object-cover" />
+                              ) : (
+                                <div className="flex h-11 w-11 items-center justify-center rounded-lg border border-border bg-surface-sunken">
+                                  <Package className="h-4 w-4 text-muted-light" />
+                                </div>
+                              )}
+                              <span className={cn(
+                                "absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-bold text-white",
+                                li.quantity > 1 ? "bg-primary" : "bg-muted"
+                              )}>
+                                {li.quantity}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <p className="mt-1.5 text-[11px] text-muted">
+                      {order.deliveryCompany ?? "aucun livreur"} · {formatDate(order.sourceCreatedAt)}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-2 bg-sky-50 px-3 py-2">
+                    <span className="font-mono text-lg font-bold text-primary">
+                      {Number(order.total).toFixed(0)}
+                      <span className="ml-0.5 text-xs font-normal text-primary/60">
+                        {order.currency}
+                      </span>
+                    </span>
+                    <span className={cn(
+                      "rounded-full px-2.5 py-1 text-[10px] font-medium",
+                      order.orderStatus === "RETOUR_RECU"
+                        ? "bg-status-delivered-bg text-status-delivered"
+                        : "bg-status-refunded-bg text-status-refunded"
+                    )}>
+                      {ORDER_STATUS_LABELS[order.orderStatus] ?? order.orderStatus}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop table */}
+            <table className="hidden w-full border-collapse text-sm md:table">s
               <thead className="sticky top-0 z-10 bg-surface">
                 <tr className="border-b border-border text-left text-xs font-medium text-muted">
                   <th className="px-4 py-2.5">Commande</th>
@@ -386,7 +459,8 @@ function RetoursContent() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+              </table>
+              </>
           )}
 
           {!loading && pageOrders.length === 0 && (
