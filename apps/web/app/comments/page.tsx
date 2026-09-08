@@ -246,7 +246,7 @@ function CommentsContent() {
         onChangeSelectedStores={setSelectedStoreIds}
       />
 
-      <div className="flex min-w-0 max-w-full flex-1 flex-col overflow-x-hidden pt-14 md:pt-0">
+<div className="flex min-w-0 max-w-full flex-1 flex-col overflow-y-auto overflow-x-hidden pt-14 md:overflow-y-hidden md:pt-0">
         <header className="flex min-h-14 w-full max-w-full shrink-0 flex-wrap items-center justify-between gap-2 overflow-hidden border-b border-border bg-surface px-3 py-2 md:h-14 md:flex-nowrap md:px-5 md:py-0">
           <h1 className="text-base font-semibold">Commentaires</h1>
           <Button size="sm" disabled={busy === "connect" || !configured} onClick={connect}>
@@ -340,8 +340,7 @@ function CommentsContent() {
 
         {/* Summary */}
         {summary && (
-          <div className="grid grid-cols-5 gap-3 border-b border-border bg-surface p-4">
-            <div className="rounded-lg bg-surface-sunken px-3 py-2.5">
+          <div className="grid grid-cols-3 gap-1.5 border-b border-border bg-surface p-2 md:grid-cols-5 md:gap-3 md:p-4">            <div className="rounded-lg bg-surface-sunken px-3 py-2.5">
               <p className="text-[10px] text-muted">Total</p>
               <p className="mt-0.5 text-xl font-bold">{summary.total}</p>
             </div>
@@ -431,7 +430,7 @@ function CommentsContent() {
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto p-5">
+<div className="flex-1 p-3 md:overflow-y-auto md:p-5">
           {loading ? (
             <p className="py-16 text-center text-sm text-muted">Chargement...</p>
           ) : tab === "posts" ? (
