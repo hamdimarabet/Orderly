@@ -219,7 +219,7 @@ function ProductsContent() {
         onChangeSelectedStores={setSelectedStoreIds}
       />
 
-<div className="flex min-w-0 max-w-full flex-1 flex-col overflow-x-hidden pt-14 md:pt-0">
+<div className="flex min-w-0 max-w-full flex-1 flex-col overflow-y-auto overflow-x-hidden pt-14 md:overflow-y-hidden md:pt-0">
         <header className="flex min-h-14 w-full max-w-full shrink-0 flex-wrap items-center justify-between gap-2 overflow-hidden border-b border-border bg-surface px-3 py-2 md:h-14 md:flex-nowrap md:px-5 md:py-0">
           <h1 className="text-base font-semibold">Produits & Stock</h1>
           <div className="flex items-center gap-2">
@@ -236,7 +236,7 @@ function ProductsContent() {
 
         {/* Summary */}
         {summary && (
-          <div className="grid grid-cols-6 gap-3 border-b border-border bg-surface p-4">
+                    <div className="grid grid-cols-3 gap-1.5 border-b border-border bg-surface p-2 md:grid-cols-6 md:gap-3 md:p-4">
             <div className="rounded-lg bg-surface-sunken px-3 py-2.5">
               <p className="text-[10px] text-muted">Produits</p>
               <p className="mt-0.5 text-xl font-bold">{summary.total}</p>
@@ -266,7 +266,7 @@ function ProductsContent() {
 
         {/* Filters */}
         <div className="flex flex-col gap-2 border-b border-border bg-surface px-5 py-3 md:flex-row md:items-center md:gap-3">
-          <div className="relative w-64">
+        <div className="relative w-full md:w-64">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-light" />
             <Input
               value={search}
@@ -275,7 +275,7 @@ function ProductsContent() {
               className="pl-8"
             />
           </div>
-          <div className="flex gap-1 overflow-x-auto">
+          <div className="-mx-5 flex gap-1 overflow-x-auto px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:mx-0 md:px-0">
           {[
               { key: "all", label: "Tous", count: products.length },
               { key: "ACTIVE", label: "Actifs", count: products.filter((p) => p.isActive).length },
@@ -314,11 +314,78 @@ function ProductsContent() {
         </div>
 
         {/* Table */}
-        <div className="flex-1 overflow-auto">
+        <div className="flex-1 md:overflow-auto">
           {loading ? (
             <p className="py-24 text-center text-sm text-muted">Chargement...</p>
           ) : (
-            <table className="w-full border-collapse text-sm">
+            <>
+            {/* Mobile cards */}
+            <div className="space-y-2.5 px-3 pb-28 pt-3 md:hidden">
+              {pageItems.map((p) => (
+                <div
+                  key={p.id}
+                  onClick={() => setOpenId(p.id)}
+                  className="overflow-hidden rounded-2xl border border-sky-100 bg-white shadow-sm active:scale-[0.99] transition-transform"
+                >
+                  <div className="flex items-center gap-3 px-3 py-2.5">
+                    {p.imageUrl ? (
+                      <img src={p.imageUrl} alt="" className="h-12 w-12 shrink-0 rounded-lg border border-border object-cover" />
+                    ) : (
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-border bg-surface-sunken">
+                        <Package className="h-4 w-4 text-muted-light" />
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-bold text-slate-900">{p.name}</p>
+                      <p className="truncate font-mono text-[11px] text-slate-400">{p.sku}</p>
+                    </div>
+                    <span className={cn(
+                      "shrink-0 rounded-full px-2.5 py-1 text-[10px] font-medium",
+                      STATUS_STYLE[p.status]
+                    )}>
+                      {STATUS_LABEL[p.status]}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-2 bg-sky-50 px-3 py-2">
+                    <div className="flex gap-3 text-xs">
+                      <span>
+                        <span className="text-slate-400">Stock </span>
+                        <span className={cn(
+                          "font-mono font-bold",
+                          p.status === "OUT" ? "text-status-cancelled" :
+                          p.status === "LOW" || p.status === "SOON" ? "text-status-processing" :
+                          "text-status-delivered"
+                        )}>
+                          {p.quantityAvailable}
+                        </span>
+                      </span>
+                      <span>
+                        <span className="text-slate-400">30j </span>
+                        <span className="font-mono font-bold">{p.stats.sold30}</span>
+                      </span>
+                      {p.stats.daysLeft !== null && (
+                        <span className={cn(
+                          "font-mono",
+                          p.stats.daysLeft <= 7 ? "font-bold text-status-cancelled" : "text-slate-500"
+                        )}>
+                          {p.stats.daysLeft}j
+                        </span>
+                      )}
+                    </div>
+                    <span className={cn(
+                      "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium",
+                      p.isActive ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"
+                    )}>
+                      {p.isActive ? "Actif" : "Inactif"}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop table */}
+            <table className="hidden w-full border-collapse text-sm md:table">
               <thead className="sticky top-0 z-10 bg-surface">
                 <tr className="border-b border-border text-left text-xs font-medium text-muted">
                 <th className="px-4 py-2.5 w-10">
@@ -477,7 +544,8 @@ function ProductsContent() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+              </table>
+              </>
           )}
 
           {!loading && pageItems.length === 0 && (
