@@ -85,7 +85,7 @@ function CustomerDetail({ customer, onClose }: { customer: Customer; onClose: ()
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-foreground/30 backdrop-blur-[2px]">
-      <div className="w-full max-w-3xl rounded-xl border border-border bg-surface shadow-2xl max-h-[90vh] flex flex-col">
+           <div className="flex h-full w-full flex-col border-border bg-surface shadow-2xl md:h-auto md:max-h-[90vh] md:max-w-3xl md:rounded-xl md:border">
         <div className="flex items-start justify-between border-b border-border px-5 py-4">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-full bg-primary text-base font-bold text-white">
@@ -115,7 +115,7 @@ function CustomerDetail({ customer, onClose }: { customer: Customer; onClose: ()
 
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
           {/* KPIs */}
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             <div className="rounded-lg bg-primary-soft px-3 py-2.5">
               <p className="text-[10px] font-medium text-primary">Valeur totale</p>
               <p className="mt-0.5 font-mono text-lg font-bold text-primary">{money(customer.lifetimeValue)}</p>
@@ -138,7 +138,7 @@ function CustomerDetail({ customer, onClose }: { customer: Customer; onClose: ()
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {/* Info */}
             <div className="rounded-lg border border-border p-3.5 space-y-2 text-xs">
               <p className="text-[11px] font-medium uppercase tracking-wide text-muted">Coordonnées</p>
@@ -327,14 +327,14 @@ function ClientsContent() {
         onChangeSelectedStores={setSelectedStoreIds}
       />
 
-      <div className="flex min-w-0 max-w-full flex-1 flex-col overflow-x-hidden pt-14 md:pt-0">
+<div className="flex min-w-0 max-w-full flex-1 flex-col overflow-y-auto overflow-x-hidden pt-14 md:overflow-y-hidden md:pt-0">
         <header className="flex min-h-14 w-full max-w-full shrink-0 flex-wrap items-center justify-between gap-2 overflow-hidden border-b border-border bg-surface px-3 py-2 md:h-14 md:flex-nowrap md:px-5 md:py-0">
           <h1 className="text-base font-semibold">Clients</h1>
           <p className="text-xs text-muted">{customers.length} clients</p>
         </header>
 
         {/* Stats */}
-        <div className="grid grid-cols-4 gap-3 border-b border-border bg-surface p-4">
+        <div className="grid grid-cols-2 gap-1.5 border-b border-border bg-surface p-2 md:grid-cols-4 md:gap-3 md:p-4">
           <div className="rounded-lg bg-surface-sunken px-4 py-3">
             <p className="text-[11px] font-medium text-muted">Total clients</p>
             <p className="mt-1 text-2xl font-bold">{customers.length}</p>
@@ -386,11 +386,83 @@ function ClientsContent() {
         </div>
 
         {/* Table */}
-        <div className="flex-1 overflow-auto">
+        <div className="flex-1 md:overflow-auto">
           {loading ? (
             <p className="py-24 text-center text-sm text-muted">Chargement...</p>
           ) : (
-            <table className="w-full border-collapse text-sm">
+            <>
+            {/* Mobile cards */}
+            <div className="space-y-2.5 px-3 pb-24 pt-3 md:hidden">
+              {pageCustomers.map((c) => {
+                const isVip = c.lifetimeValue >= 500;
+                const isRisky = c.returnRate > 40;
+                return (
+                  <div
+                    key={c.phone}
+                    onClick={() => setDetail(c)}
+                    className="overflow-hidden rounded-2xl border border-sky-100 bg-white shadow-sm active:scale-[0.99] transition-transform"
+                  >
+                    <div className="flex items-center gap-3 px-3 py-2.5">
+                      <div className={cn(
+                        "flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white",
+                        isVip ? "bg-yellow-500" : isRisky ? "bg-status-cancelled" : "bg-primary"
+                      )}>
+                        {c.name[0]?.toUpperCase()}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <p dir="auto" className="truncate text-sm font-bold text-slate-900">{c.name}</p>
+                          {isVip && <Star className="h-3 w-3 shrink-0 text-yellow-500" />}
+                          {isRisky && <AlertTriangle className="h-3 w-3 shrink-0 text-status-cancelled" />}
+                        </div>
+                        <p className="font-mono text-xs text-slate-400">{c.displayPhone}</p>
+                        <p className="text-[11px] text-slate-400">{c.city ?? "—"}</p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="font-mono text-base font-bold text-primary">
+                          {Math.round(c.lifetimeValue)}
+                        </p>
+                        <p className="text-[10px] text-muted">TND</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-4 gap-1 bg-sky-50 px-3 py-2 text-center">
+                      <div>
+                        <p className="font-mono text-sm font-bold">{c.totalOrders}</p>
+                        <p className="text-[9px] text-slate-500">commandes</p>
+                      </div>
+                      <div>
+                        <p className={cn(
+                          "font-mono text-sm font-bold",
+                          c.confirmationRate >= 70 ? "text-status-delivered" :
+                          c.confirmationRate >= 40 ? "text-status-processing" :
+                          "text-status-cancelled"
+                        )}>
+                          {c.confirmationRate}%
+                        </p>
+                        <p className="text-[9px] text-slate-500">confirm.</p>
+                      </div>
+                      <div>
+                        <p className="font-mono text-sm font-bold text-status-delivered">{c.delivered}</p>
+                        <p className="text-[9px] text-slate-500">livrées</p>
+                      </div>
+                      <div>
+                        <p className={cn(
+                          "font-mono text-sm font-bold",
+                          c.returnRate > 40 ? "text-status-cancelled" : "text-slate-600"
+                        )}>
+                          {c.returnRate}%
+                        </p>
+                        <p className="text-[9px] text-slate-500">retours</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop table */}
+            <table className="hidden w-full border-collapse text-sm md:table">
               <thead className="sticky top-0 z-10 bg-surface">
                 <tr className="border-b border-border text-left text-xs font-medium text-muted">
                   <th className="px-4 py-2.5">Client</th>
@@ -484,7 +556,8 @@ function ClientsContent() {
                   );
                 })}
               </tbody>
-            </table>
+              </table>
+              </>
           )}
 
           {!loading && pageCustomers.length === 0 && (
