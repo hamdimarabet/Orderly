@@ -39,7 +39,7 @@ export function CameraScanner({
 
         await scanner.start(
           { facingMode: "environment" },
-          { fps: 15, qrbox: { width: 300, height: 120 }, aspectRatio: 1.777, disableFlip: false },
+          { fps: 15, qrbox: { width: 260, height: 90 }, aspectRatio: 1.777, disableFlip: false },
           (decoded: string) => {
             const now = Date.now();
             // Debounce: same code within 2.5s is ignored
@@ -92,7 +92,7 @@ export function CameraScanner({
 
       <div
         id={containerId}
-        className={active ? "overflow-hidden rounded-xl border border-border" : "hidden"}
+        className={active ? "max-h-[240px] overflow-hidden rounded-xl border border-border [&_video]:max-h-[240px] [&_video]:object-cover" : "hidden"}
       />
 
       {error && (
