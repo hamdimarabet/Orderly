@@ -90,7 +90,7 @@ function RuleModal({
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-foreground/30 backdrop-blur-[2px]">
-      <div className="flex max-h-[92vh] w-full max-w-md flex-col rounded-xl border border-border bg-surface shadow-2xl">
+            <div className="flex h-full w-full flex-col border-border bg-surface shadow-2xl md:h-auto md:max-h-[92vh] md:max-w-md md:rounded-xl md:border">
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <h2 className="text-sm font-semibold">
             {rule ? "Modifier la règle" : "Nouvelle règle de livraison"}
@@ -247,7 +247,7 @@ function ShippingContent() {
         onChangeSelectedStores={setSelectedStoreIds}
       />
 
-      <div className="flex min-w-0 max-w-full flex-1 flex-col overflow-x-hidden pt-14 md:pt-0">
+<div className="flex min-w-0 max-w-full flex-1 flex-col overflow-y-auto overflow-x-hidden pt-14 md:overflow-y-hidden md:pt-0">
         <header className="flex min-h-14 w-full max-w-full shrink-0 flex-wrap items-center justify-between gap-2 overflow-hidden border-b border-border bg-surface px-3 py-2 md:h-14 md:flex-nowrap md:px-5 md:py-0">
           <div>
             <h1 className="text-base font-semibold">Règles de livraison</h1>
@@ -259,7 +259,7 @@ function ShippingContent() {
           </Button>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-5">
+        <div className="flex-1 p-3 md:overflow-y-auto md:p-5">
           {loading ? (
             <p className="py-16 text-center text-sm text-muted">Chargement...</p>
           ) : rules.length === 0 ? (
@@ -275,7 +275,7 @@ function ShippingContent() {
               </Button>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4">
               {rules.map((r) => {
                 const overrideCount = Object.keys(r.cityOverrides ?? {}).length;
                 return (
