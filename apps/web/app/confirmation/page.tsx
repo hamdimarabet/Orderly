@@ -1717,18 +1717,25 @@ function ConfirmationContent() {
     fetchCustomerStats();
   }, [fetchOrders, fetchCustomerStats]);
 
-  function handleDone(orderId: string, updatedFields: Partial<Order>, newStatus?: OrderStatus) {
+  async function handleDone(orderId: string, updatedFields: Partial<Order>, newStatus?: OrderStatus) {
+    // Optimistic update
     setOrders((prev) =>
-      prev.map((o) => {
-        if (o.id !== orderId) return o;
-        return {
-          ...o,
-          ...updatedFields,
-          orderStatus: newStatus ?? o.orderStatus,
-        };
-      })
+      prev.map((o) =>
+        o.id === orderId
+          ? { ...o, ...updatedFields, orderStatus: newStatus ?? o.orderStatus }
+          : o
+      )
     );
-    fetchOrders();
+
+    // Refresh only the modified order
+    try {
+      const res = await fetch(`${API}/orders/${orderId}`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      if (!res.ok) return;
+      const fresh = await res.json();
+      setOrders((prev) => prev.map((o) => (o.id === orderId ? fresh : o)));
+    } catch {}
   }
   async function detectLoyalCustomers() {
     setDetectingLoyal(true);

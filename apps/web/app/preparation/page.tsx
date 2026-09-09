@@ -811,12 +811,21 @@ function PreparationContent() {
         openBordereau(order.id);
       }
 
-      fetchOrders();
-    } catch {
-      openBordereau(order.id);
-    } finally {
-      setPrinting(null);
-    }
+         // Refresh only this order
+         try {
+          const r = await fetch(`${API}/orders/${order.id}`, {
+            headers: { Authorization: `Bearer ${getToken()}` },
+          });
+          if (r.ok) {
+            const fresh = await r.json();
+            setOrders((prev) => prev.map((o) => (o.id === order.id ? fresh : o)));
+          }
+        } catch {}
+      } catch {
+        openBordereau(order.id);
+      } finally {
+        setPrinting(null);
+      }
   }
 
   function toggleSelect(id: string) {
