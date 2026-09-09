@@ -841,7 +841,12 @@ function OrderModal({
       setComputedPrices(results);
     })();
   }, [lineItems, order.storeId]);
-
+  const itemsChanged =
+    lineItems.length !== order.lineItems.length ||
+    lineItems.some((li) => {
+      const orig = order.lineItems.find((o) => o.id === li.id);
+      return !orig || orig.quantity !== li.quantity || orig.title !== li.title;
+    });
   const productsTotal = lineItems.reduce(
     (s, li, idx) => s + (computedPrices[idx] ?? (Number(li.price) || 0) * (Number(li.quantity) || 0)),
     0
@@ -1004,14 +1009,16 @@ function OrderModal({
             discountType: discountType || null,
             discountValue: discountValue ? parseFloat(discountValue) : null,
             discountNote: discountNote || null,
-            lineItems: lineItems.map((li) => ({
-              productId: (li as any).productId ?? null,
-              title: li.title,
-              sku: li.sku,
-              variantTitle: li.variantTitle,
-              quantity: li.quantity,
-              price: li.price,
-            })),
+            ...(itemsChanged && {
+              lineItems: lineItems.map((li) => ({
+                productId: (li as any).productId ?? null,
+                title: li.title,
+                sku: li.sku,
+                variantTitle: li.variantTitle,
+                quantity: li.quantity,
+                price: li.price,
+              })),
+            }),
           },
         }),
       });
@@ -1731,8 +1738,7 @@ function ConfirmationContent() {
     if (orders.length > 0) fetchCustomerStats();
   }, [orders.length]);
 
-  async function handleDone(orderId: string, updatedFields: Partial<Order>, newStatus?: OrderStatus) {
-    // Optimistic update
+  function handleDone(orderId: string, updatedFields: Partial<Order>, newStatus?: OrderStatus) {
     setOrders((prev) =>
       prev.map((o) =>
         o.id === orderId
@@ -1740,16 +1746,6 @@ function ConfirmationContent() {
           : o
       )
     );
-
-    // Refresh only the modified order
-    try {
-      const res = await fetch(`${API}/orders/${orderId}`, {
-        headers: { Authorization: `Bearer ${getToken()}` },
-      });
-      if (!res.ok) return;
-      const fresh = await res.json();
-      setOrders((prev) => prev.map((o) => (o.id === orderId ? fresh : o)));
-    } catch {}
   }
   async function detectLoyalCustomers() {
     setDetectingLoyal(true);
