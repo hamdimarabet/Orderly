@@ -158,7 +158,9 @@ export function Sidebar({ stores, selectedStoreIds, onChangeSelectedStores }: Si
         </div>
         <span className="text-sm font-semibold">Orderly</span>
       </div>
-      <NotificationCenter />
+      <div className="md:hidden">
+        <NotificationCenter />
+      </div>
     </div>
 
     {/* Backdrop */}
@@ -186,7 +188,9 @@ export function Sidebar({ stores, selectedStoreIds, onChangeSelectedStores }: Si
           <span className="text-sm font-semibold">Orderly</span>
         </div>
         <div className="flex items-center gap-1">
-          <NotificationCenter />
+        <div className="hidden md:block">
+            <NotificationCenter />
+          </div>
           <div className="relative">
             <button
               onClick={() => setUserMenuOpen((v) => !v)}
