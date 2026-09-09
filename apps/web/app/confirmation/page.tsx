@@ -962,82 +962,89 @@ function OrderModal({
     return data;
   }
 
-  function logAttempt(cancelReason?: string, cancelNote?: string, deliveryCompany?: string, scheduledDate?: string) {
-    const newAttempt: CallAttempt = {
-      id: Date.now().toString(),
-      date: new Date().toISOString(),
-      phone: callPhone,
-      result: result as CallAttempt["result"],
-      note: callNote || null,
-    };
-    const updatedAttempts = [...attempts, newAttempt];
+  async function logAttempt(cancelReason?: string, cancelNote?: string, deliveryCompany?: string, scheduledDate?: string) {
+    setLoading(true);
+    try {
+      const newAttempt: CallAttempt = {
+        id: Date.now().toString(),
+        date: new Date().toISOString(),
+        phone: callPhone,
+        result: result as CallAttempt["result"],
+        note: callNote || null,
+      };
+      const updatedAttempts = [...attempts, newAttempt];
 
-    let newStatus: OrderStatus;
-    if (result === "ANSWERED_CONFIRMED" && deliveryCompany) {
-      newStatus = "A_PREPARER";
-    } else if (result === "ANSWERED_REFUSED" && cancelReason) {
-      newStatus = "ANNULE";
-    } else {
-      newStatus = "CONFIRMATION_EN_COURS";
-    }
+      let newStatus: OrderStatus;
+      if (result === "ANSWERED_CONFIRMED" && deliveryCompany) {
+        newStatus = "A_PREPARER";
+      } else if (result === "ANSWERED_REFUSED" && cancelReason) {
+        newStatus = "ANNULE";
+      } else {
+        newStatus = "CONFIRMATION_EN_COURS";
+      }
 
-    // Update the table and close instantly
-    onDone({
-      customerName,
-      customerPhone: phone1,
-      customerPhone2: phone2,
-      callAttempts: updatedAttempts,
-      internalNote,
-      deliveryCompany,
-      total,
-    } as any, newStatus);
-    onClose();
-
-    // Save in background
-    fetch(`${API}/orders/${order.id}/log-call`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${getToken()}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        callAttempts: updatedAttempts,
-        status: newStatus,
-        reason: cancelReason,
-        note: cancelNote,
-        deliveryCompany,
-        scheduledDeliveryDate: scheduledDate || null,
-        orderUpdates: {
-          customerName,
-          customerPhone: phone1,
-          customerPhone2: phone2,
-          shippingAddress: { city, address1: address },
-          internalNote,
-          total,
-          subtotal: productsTotal,
-          shippingTotal: shippingCost,
-          discountType: discountType || null,
-          discountValue: discountValue ? parseFloat(discountValue) : null,
-          discountNote: discountNote || null,
-          ...(itemsChanged && {
-            lineItems: lineItems.map((li) => ({
-              productId: (li as any).productId ?? null,
-              title: li.title,
-              sku: li.sku,
-              variantTitle: li.variantTitle,
-              quantity: li.quantity,
-              price: li.price,
-            })),
-          }),
+      // Single request that does everything
+      const res = await fetch(`${API}/orders/${order.id}/log-call`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+          "Content-Type": "application/json",
         },
-      }),
-    }).catch((e) => console.error("log-call failed", e));
+        body: JSON.stringify({
+          callAttempts: updatedAttempts,
+          status: newStatus,
+          reason: cancelReason,
+          note: cancelNote,
+          deliveryCompany,
+          scheduledDeliveryDate: scheduledDate || null,
+          orderUpdates: {
+            customerName,
+            customerPhone: phone1,
+            customerPhone2: phone2,
+            shippingAddress: { city, address1: address },
+            internalNote,
+            total,
+            subtotal: productsTotal,
+            shippingTotal: shippingCost,
+            discountType: discountType || null,
+            discountValue: discountValue ? parseFloat(discountValue) : null,
+            discountNote: discountNote || null,
+            ...(itemsChanged && {
+              lineItems: lineItems.map((li) => ({
+                productId: (li as any).productId ?? null,
+                title: li.title,
+                sku: li.sku,
+                variantTitle: li.variantTitle,
+                quantity: li.quantity,
+                price: li.price,
+              })),
+            }),
+          },
+        }),
+      });
 
-    processMentions(callNote, {
-      link: "/confirmation",
-      orderId: order.id,
-      orderNumber: order.orderNumber,
-    }).catch(() => {});
+      const fresh = await res.json();
+
+      // Mentions run in background, don't block
+      processMentions(callNote, {
+        link: "/confirmation",
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+      }).catch(() => {});
+
+      onDone({
+        customerName,
+        customerPhone: phone1,
+        customerPhone2: phone2,
+        callAttempts: updatedAttempts,
+        internalNote,
+      }, newStatus);
+      onClose();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
   }
 
   function handleLog() {
