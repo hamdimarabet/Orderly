@@ -171,8 +171,14 @@ getCustomers(
     });
   }
   @Get('stats/customer-badges')
-  getCustomerBadges(@Query('storeIds') storeIds?: string) {
-    return this.orders.getCustomerBadges(storeIds ? storeIds.split(',') : undefined);
+  getCustomerBadges(
+    @Query('storeIds') storeIds?: string,
+    @Query('phones') phones?: string,
+  ) {
+    return this.orders.getCustomerBadges(
+      storeIds ? storeIds.split(',') : undefined,
+      phones ? phones.split(',') : undefined,
+    );
   }
   @Get('stats/alerts')
   getAlerts(@Query('storeIds') storeIds?: string) {

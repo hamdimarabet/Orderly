@@ -1698,10 +1698,17 @@ function ConfirmationContent() {
   // Load customer stats for badges
   // Load customer stats for badges
   const fetchCustomerStats = useCallback(async () => {
+    if (orders.length === 0) return;
     try {
-      const res = await fetch(`${API}/orders/stats/customer-badges`, {
-        headers: { Authorization: `Bearer ${getToken()}` },
-      });
+      const phones = orders
+        .map((o) => o.customerPhone)
+        .filter(Boolean)
+        .join(",");
+
+      const res = await fetch(
+        `${API}/orders/stats/customer-badges?phones=${encodeURIComponent(phones)}`,
+        { headers: { Authorization: `Bearer ${getToken()}` } }
+      );
       const data = await res.json();
       if (!data || typeof data !== "object") return;
 
@@ -1721,7 +1728,7 @@ function ConfirmationContent() {
     } catch {
       setCustomerStats({});
     }
-  }, []);
+  }, [orders]);
 
   useEffect(() => {
     fetchOrders();

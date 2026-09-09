@@ -1004,9 +1004,10 @@ export class OrdersService {
       .sort((a: any, b: any) => b.lifetimeValue - a.lifetimeValue);
   }
     // Lightweight version for confirmation page badges
-    async getCustomerBadges(storeIds?: string[]) {
+    async getCustomerBadges(storeIds?: string[], phones?: string[]) {
       const where: any = { customerPhone: { not: null } };
       if (storeIds?.length) where.storeId = { in: storeIds };
+      if (phones?.length) where.customerPhone = { in: phones };
   
       const rows = await this.prisma.order.findMany({
         where,
