@@ -960,8 +960,6 @@ function OrderModal({
   async function logAttempt(cancelReason?: string, cancelNote?: string, deliveryCompany?: string, scheduledDate?: string) {
     setLoading(true);
     try {
-      await saveOrder();
-
       const newAttempt: CallAttempt = {
         id: Date.now().toString(),
         date: new Date().toISOString(),
@@ -971,66 +969,61 @@ function OrderModal({
       };
       const updatedAttempts = [...attempts, newAttempt];
 
-      await fetch(`${API}/orders/${order.id}/call-attempts`, {
-        method: "PATCH",
+      let newStatus: OrderStatus;
+      if (result === "ANSWERED_CONFIRMED" && deliveryCompany) {
+        newStatus = "A_PREPARER";
+      } else if (result === "ANSWERED_REFUSED" && cancelReason) {
+        newStatus = "ANNULE";
+      } else {
+        newStatus = "CONFIRMATION_EN_COURS";
+      }
+
+      // Single request that does everything
+      const res = await fetch(`${API}/orders/${order.id}/log-call`, {
+        method: "POST",
         headers: {
           Authorization: `Bearer ${getToken()}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ callAttempts: updatedAttempts }),
+        body: JSON.stringify({
+          callAttempts: updatedAttempts,
+          status: newStatus,
+          reason: cancelReason,
+          note: cancelNote,
+          deliveryCompany,
+          scheduledDeliveryDate: scheduledDate || null,
+          orderUpdates: {
+            customerName,
+            customerPhone: phone1,
+            customerPhone2: phone2,
+            shippingAddress: { city, address1: address },
+            internalNote,
+            total,
+            subtotal: productsTotal,
+            shippingTotal: shippingCost,
+            discountType: discountType || null,
+            discountValue: discountValue ? parseFloat(discountValue) : null,
+            discountNote: discountNote || null,
+            lineItems: lineItems.map((li) => ({
+              productId: (li as any).productId ?? null,
+              title: li.title,
+              sku: li.sku,
+              variantTitle: li.variantTitle,
+              quantity: li.quantity,
+              price: li.price,
+            })),
+          },
+        }),
       });
-      await processMentions(callNote, {
+
+      const fresh = await res.json();
+
+      // Mentions run in background, don't block
+      processMentions(callNote, {
         link: "/confirmation",
         orderId: order.id,
         orderNumber: order.orderNumber,
-      });
-
-      let newStatus: OrderStatus | undefined;
-
-      if (result === "ANSWERED_CONFIRMED" && deliveryCompany) {
-        await fetch(`${API}/orders/${order.id}`, {
-          method: "PATCH",
-          headers: {
-            Authorization: `Bearer ${getToken()}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            deliveryCompany,
-            scheduledDeliveryDate: scheduledDate || null,
-          }),
-        });
-
-        newStatus = "A_PREPARER";
-
-        await fetch(`${API}/orders/${order.id}/status`, {
-          method: "PATCH",
-          headers: {
-            Authorization: `Bearer ${getToken()}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ status: newStatus }),
-        });
-      } else if (result === "ANSWERED_REFUSED" && cancelReason) {
-        await fetch(`${API}/orders/${order.id}/status`, {
-          method: "PATCH",
-          headers: {
-            Authorization: `Bearer ${getToken()}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ status: "ANNULE", reason: cancelReason, note: cancelNote }),
-        });
-        newStatus = "ANNULE";
-      } else {
-        await fetch(`${API}/orders/${order.id}/status`, {
-          method: "PATCH",
-          headers: {
-            Authorization: `Bearer ${getToken()}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ status: "CONFIRMATION_EN_COURS" }),
-        });
-        newStatus = "CONFIRMATION_EN_COURS";
-      }
+      }).catch(() => {});
 
       onDone({
         customerName,
