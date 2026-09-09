@@ -158,9 +158,7 @@ export function Sidebar({ stores, selectedStoreIds, onChangeSelectedStores }: Si
         </div>
         <span className="text-sm font-semibold">Orderly</span>
       </div>
-      <div className="md:hidden">
-        <NotificationCenter />
-      </div>
+     
     </div>
 
     {/* Backdrop */}
