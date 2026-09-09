@@ -1653,6 +1653,8 @@ function ConfirmationContent() {
   const [detectingLoyal, setDetectingLoyal] = useState(false);
   const [customerStats, setCustomerStats] = useState<Record<string, CustomerStats>>({});
   const [page, setPage] = useState(1);
+  const [serverTotal, setServerTotal] = useState(0);
+  const [serverTotalPages, setServerTotalPages] = useState(1);
   const [filter, setFilter] = useState<"all" | "pending" | "confirmed" | "refused" | "a_verifier">("all");
   const [period, setPeriod] = useState<Period>(getPeriodRange("all"));
   const [advFilters, setAdvFilters] = useState<AdvancedFilterState>(EMPTY_FILTERS);
@@ -1666,25 +1668,32 @@ function ConfirmationContent() {
   }, [stores]);
 
   const fetchOrders = useCallback(async () => {
+    if (selectedStoreIds.length === 0) return;
     setLoading(true);
     try {
-      const token = getToken();
-      const res = await fetch(`${API}/orders?pageSize=200`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const params = new URLSearchParams({
+        storeIds: selectedStoreIds.join(","),
+        page: String(page),
+        pageSize: String(PAGE_SIZE),
+        excludeStatus: "ARCHIVE",
+      });
+      if (search) params.set("search", search);
+      if (period.from) params.set("from", period.from.toISOString());
+      if (period.to) params.set("to", period.to.toISOString());
+
+      const res = await fetch(`${API}/orders?${params}`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
       });
       const data = await res.json();
-      const allOrders: Order[] = data.orders ?? [];
-
-      // Hide archived orders
-      const visible = allOrders.filter((o) => o.orderStatus !== "ARCHIVE");
-
-      setOrders(visible);
+      setOrders(data.orders ?? []);
+      setServerTotal(data.total ?? 0);
+      setServerTotalPages(data.totalPages ?? 1);
     } catch {
       setOrders([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedStoreIds, page, search, period]);
 
   // Load customer stats for badges
   // Load customer stats for badges
@@ -1789,8 +1798,8 @@ function ConfirmationContent() {
     return true;
   });
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const pageOrders = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const totalPages = serverTotalPages;
+  const pageOrders = filtered;
 
   // Orders matching the stats filters (period + delivery + product)
   const statsOrders = orders.filter((o) => {
