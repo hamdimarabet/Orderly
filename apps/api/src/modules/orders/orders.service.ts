@@ -984,6 +984,59 @@ export class OrdersService {
       })
       .sort((a: any, b: any) => b.lifetimeValue - a.lifetimeValue);
   }
+    // Lightweight version for confirmation page badges
+    async getCustomerBadges(storeIds?: string[]) {
+      const where: any = { customerPhone: { not: null } };
+      if (storeIds?.length) where.storeId = { in: storeIds };
+  
+      const rows = await this.prisma.order.findMany({
+        where,
+        select: {
+          customerPhone: true,
+          orderStatus: true,
+          total: true,
+        },
+      });
+  
+      const byPhone: Record<string, any> = {};
+  
+      for (const o of rows) {
+        const phone = (o.customerPhone ?? '').replace(/\s|\+216/g, '');
+        if (!phone || phone.length < 6) continue;
+  
+        if (!byPhone[phone]) {
+          byPhone[phone] = {
+            totalOrders: 0,
+            delivered: 0,
+            returned: 0,
+            cancelled: 0,
+            lifetimeValue: 0,
+          };
+        }
+  
+        const c = byPhone[phone];
+        c.totalOrders++;
+  
+        if (['LIVRE', 'PAYE'].includes(o.orderStatus)) {
+          c.delivered++;
+          c.lifetimeValue += Number(o.total);
+        }
+        if (['RETOUR', 'RETOUR_DEPOT', 'RETOUR_RECU'].includes(o.orderStatus)) {
+          c.returned++;
+        }
+        if (o.orderStatus === 'ANNULE') c.cancelled++;
+      }
+  
+      // Compute rates
+      for (const phone of Object.keys(byPhone)) {
+        const c = byPhone[phone];
+        c.deliveryRate = c.totalOrders > 0 ? Math.round((c.delivered / c.totalOrders) * 100) : 0;
+        c.returnRate = c.totalOrders > 0 ? Math.round((c.returned / c.totalOrders) * 100) : 0;
+        c.lifetimeValue = Math.round(c.lifetimeValue);
+      }
+  
+      return byPhone;
+    }
   async getDashboard(query: { from?: string; to?: string; storeIds?: string[] }) {
     const where: any = {};
     if (query.storeIds?.length) where.storeId = { in: query.storeIds };

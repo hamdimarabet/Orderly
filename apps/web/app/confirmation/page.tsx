@@ -1687,23 +1687,25 @@ function ConfirmationContent() {
   }, []);
 
   // Load customer stats for badges
+  // Load customer stats for badges
   const fetchCustomerStats = useCallback(async () => {
     try {
-      const res = await fetch(`${API}/orders/stats/customers`, {
+      const res = await fetch(`${API}/orders/stats/customer-badges`, {
         headers: { Authorization: `Bearer ${getToken()}` },
       });
       const data = await res.json();
-      if (!Array.isArray(data)) return;
+      if (!data || typeof data !== "object") return;
+
       const map: Record<string, CustomerStats> = {};
-      for (const c of data) {
-        map[c.phone] = {
-          phone: c.phone,
+      for (const [phone, c] of Object.entries<any>(data)) {
+        map[phone] = {
+          phone,
           totalOrders: c.totalOrders,
-          confirmationRate: c.confirmationRate,
+          confirmationRate: 0,
           deliveryRate: c.deliveryRate,
           returnRate: c.returnRate,
           lifetimeValue: c.lifetimeValue,
-          avgBasket: c.avgBasket,
+          avgBasket: c.totalOrders > 0 ? Math.round(c.lifetimeValue / c.totalOrders) : 0,
         };
       }
       setCustomerStats(map);
