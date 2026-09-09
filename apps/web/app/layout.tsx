@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth-context";
-import { OrdersProvider } from "@/lib/orders-context";
 import { StoresProvider } from "@/lib/stores-context";
 
 export const metadata: Metadata = {
@@ -19,7 +18,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <AuthProvider>
           <StoresProvider>
-            <OrdersProvider>{children}</OrdersProvider>
+          {children}
           </StoresProvider>
         </AuthProvider>
       </body>
