@@ -1085,6 +1085,116 @@ export class OrdersService {
   
       return rows;
     }
+    async logCallAttempt(
+      orderId: string,
+      data: {
+        callAttempts: any[];
+        status: OrderStatus;
+        reason?: string;
+        note?: string;
+        deliveryCompany?: string;
+        scheduledDeliveryDate?: string | null;
+        orderUpdates?: any;
+      },
+      actorId: string,
+    ) {
+      let agentName: string | null = null;
+      if (actorId) {
+        const user = await this.prisma.user.findUnique({
+          where: { id: actorId },
+          select: { name: true },
+        });
+        agentName = user?.name ?? null;
+      }
+  
+      const u = data.orderUpdates ?? {};
+      const isConfirmed = ['A_PREPARER', 'CONFIRME', 'ECHANGE'].includes(data.status);
+  
+      let subtotal: number | undefined;
+      if (u.lineItems) {
+        subtotal = u.lineItems.reduce(
+          (s: number, li: any) => s + li.price * li.quantity,
+          0,
+        );
+      }
+  
+      const order = await this.prisma.order.update({
+        where: { id: orderId },
+        data: {
+          callAttempts: data.callAttempts,
+          orderStatus: data.status,
+          assignedAgentId: actorId,
+          assignedAgentName: agentName,
+          ...(isConfirmed && { confirmedAt: new Date() }),
+          ...(data.reason && { cancellationReason: data.reason }),
+          ...(data.note && { cancellationNote: data.note }),
+          ...(data.deliveryCompany && { deliveryCompany: data.deliveryCompany }),
+          ...(data.scheduledDeliveryDate !== undefined && {
+            scheduledDeliveryDate: data.scheduledDeliveryDate
+              ? new Date(data.scheduledDeliveryDate)
+              : null,
+          }),
+          ...(u.customerName !== undefined && { customerName: u.customerName }),
+          ...(u.customerPhone !== undefined && { customerPhone: u.customerPhone }),
+          ...(u.customerPhone2 !== undefined && { customerPhone2: u.customerPhone2 }),
+          ...(u.shippingAddress !== undefined && { shippingAddress: u.shippingAddress }),
+          ...(u.internalNote !== undefined && { internalNote: u.internalNote }),
+          ...(u.total !== undefined && { total: u.total }),
+          ...(u.subtotal !== undefined && { subtotal: u.subtotal }),
+          ...(u.shippingTotal !== undefined && { shippingTotal: u.shippingTotal }),
+          ...(u.discountType !== undefined && { discountType: u.discountType }),
+          ...(u.discountValue !== undefined && { discountValue: u.discountValue }),
+          ...(u.discountNote !== undefined && { discountNote: u.discountNote }),
+          ...(u.discountValue && { discountGrantedBy: actorId }),
+          ...(u.lineItems && {
+            lineItems: {
+              deleteMany: {},
+              create: u.lineItems.map((li: any) => ({
+                title: li.title,
+                sku: li.sku ?? null,
+                variantTitle: li.variantTitle ?? null,
+                quantity: li.quantity,
+                price: li.price,
+                fulfilledQty: 0,
+                refundedQty: 0,
+                ...(li.productId && { productId: li.productId }),
+              })),
+            },
+          }),
+        },
+        include: {
+          lineItems: { include: { product: { select: { imageUrl: true } } } },
+          fulfillments: { orderBy: { createdAt: 'desc' }, take: 1 },
+          store: { select: { name: true } },
+        },
+      });
+  
+      await this.prisma.orderEvent.create({
+        data: {
+          orderId,
+          eventType: 'status_changed',
+          payload: { to: data.status, reason: data.reason },
+          actor: actorId,
+        },
+      });
+  
+      // Deduct bundle stock in background
+      if (data.status === 'A_PREPARER' || data.status === 'CONFIRME') {
+        const lineItems = order.lineItems
+          .filter((li) => li.sku)
+          .map((li) => ({ sku: li.sku!, quantity: li.quantity }));
+        this.bundles.deductStock(order.storeId, lineItems).catch(() => {});
+      }
+  
+      return {
+        ...order,
+        storeName: order.store.name,
+        trackingNumber: order.fulfillments[0]?.trackingNumber ?? null,
+        carrier: order.fulfillments[0]?.carrier ?? null,
+        itemCount: order.lineItems.reduce((s, li) => s + li.quantity, 0),
+        callAttempts: (order.callAttempts as any[]) ?? [],
+      };
+    }
   async getDashboard(query: { from?: string; to?: string; storeIds?: string[] }) {
     const where: any = {};
     if (query.storeIds?.length) where.storeId = { in: query.storeIds };

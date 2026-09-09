@@ -50,6 +50,14 @@ export class OrdersController {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.send(html);
   }
+  @Post(':id/log-call')
+  logCall(
+    @Param('id') id: string,
+    @Body() body: any,
+    @Request() req: any,
+  ) {
+    return this.orders.logCallAttempt(id, body, req.user.id);
+  }
 
   @Post('manual')
   createManual(
