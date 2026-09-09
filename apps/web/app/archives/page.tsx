@@ -271,9 +271,10 @@ function ArchivesContent() {
     setLoading(true);
     try {
       const token = getToken();
-      const res = await fetch(`${API}/orders?pageSize=200`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await fetch(
+        `${API}/orders?pageSize=200&orderStatus=ARCHIVE`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
       const data = await res.json();
       const all: Order[] = data.orders ?? [];
       const archived = all.filter((o) => o.orderStatus === "ARCHIVE");

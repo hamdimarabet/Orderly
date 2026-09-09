@@ -157,9 +157,10 @@ function RetoursContent() {
     setLoading(true);
     try {
       const token = getToken();
-      const res = await fetch(`${API}/orders?pageSize=200`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await fetch(
+        `${API}/orders?pageSize=200&orderStatus=RETOUR,RETOUR_DEPOT,RETOUR_RECU`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
       const data = await res.json();
       const all: Order[] = data.orders ?? [];
       setOrders(all.filter((o) => RETURN_STATUS_KEYS.includes(o.orderStatus)));
