@@ -112,11 +112,11 @@ export function NotificationCenter() {
       }
 
       // Orders — scheduled + reclamations
-      const ordersRes = await fetch(`${API}/orders?pageSize=200`, {
+      const ordersRes = await fetch(`${API}/orders/stats/alerts`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const ordersData = await ordersRes.json();
-      const orders: Order[] = ordersData.orders ?? [];
+      const orders: Order[] = Array.isArray(ordersData) ? ordersData : [];
 
       for (const order of orders) {
         if (order.scheduledDeliveryDate) {

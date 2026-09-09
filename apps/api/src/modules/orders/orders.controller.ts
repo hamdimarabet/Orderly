@@ -168,6 +168,10 @@ getCustomers(
   getCustomerBadges(@Query('storeIds') storeIds?: string) {
     return this.orders.getCustomerBadges(storeIds ? storeIds.split(',') : undefined);
   }
+  @Get('stats/alerts')
+  getAlerts(@Query('storeIds') storeIds?: string) {
+    return this.orders.getAlerts(storeIds ? storeIds.split(',') : undefined);
+  }
   @Post(':id/prepare-print')
   prepareForPrint(@Param('id') id: string, @Request() req: any) {
     return this.orders.prepareForPrint(id, req.user.id);

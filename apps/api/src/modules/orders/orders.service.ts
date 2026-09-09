@@ -1036,6 +1036,34 @@ export class OrdersService {
       }
   
       return byPhone;
+    }  async getAlerts(storeIds?: string[]) {
+      const where: any = {};
+      if (storeIds?.length) where.storeId = { in: storeIds };
+  
+      const rows = await this.prisma.order.findMany({
+        where: {
+          ...where,
+          OR: [
+            { orderStatus: 'A_VERIFIER' },
+            { scheduledDeliveryDate: { not: null } },
+            { tags: { has: 'Réclamation' } },
+          ],
+        },
+        select: {
+          id: true,
+          orderNumber: true,
+          customerName: true,
+          orderStatus: true,
+          scheduledDeliveryDate: true,
+          tags: true,
+          internalNote: true,
+          updatedAt: true,
+        },
+        orderBy: { updatedAt: 'desc' },
+        take: 50,
+      });
+  
+      return rows;
     }
   async getDashboard(query: { from?: string; to?: string; storeIds?: string[] }) {
     const where: any = {};
