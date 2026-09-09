@@ -14,11 +14,15 @@ export class OrdersService {
   async findAll(query: {
     storeIds?: string[];
     orderStatus?: OrderStatus[];
-    financialStatus?: FinancialStatus[];
-    fulfillmentStatus?: FulfillmentStatus[];
+    financialStatus?: any[];
+    fulfillmentStatus?: any[];
     search?: string;
     page?: number;
     pageSize?: number;
+    from?: string;
+    to?: string;
+    callFilter?: string;
+    excludeStatus?: OrderStatus[];
   }) {
     const {
       storeIds,
@@ -28,18 +32,29 @@ export class OrdersService {
       search,
       page = 1,
       pageSize = 25,
+      from,
+      to,
+      callFilter,
+      excludeStatus,
     } = query;
 
     const where: Prisma.OrderWhereInput = {
       ...(storeIds?.length && { storeId: { in: storeIds } }),
       ...(orderStatus?.length && { orderStatus: { in: orderStatus } }),
+      ...(excludeStatus?.length && { orderStatus: { notIn: excludeStatus } }),
       ...(financialStatus?.length && { financialStatus: { in: financialStatus } }),
       ...(fulfillmentStatus?.length && { fulfillmentStatus: { in: fulfillmentStatus } }),
+      ...((from || to) && {
+        sourceCreatedAt: {
+          ...(from && { gte: new Date(from) }),
+          ...(to && { lte: new Date(to) }),
+        },
+      }),
       ...(search && {
         OR: [
           { orderNumber: { contains: search, mode: 'insensitive' } },
           { customerName: { contains: search, mode: 'insensitive' } },
-          { customerEmail: { contains: search, mode: 'insensitive' } },
+          { customerPhone: { contains: search } },
         ],
       }),
     };

@@ -22,13 +22,19 @@ export class OrdersController {
     @Query('search') search?: string,
     @Query('page') page?: string,
     @Query('pageSize') pageSize?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('excludeStatus') excludeStatus?: string,
   ) {
     return this.orders.findAll({
       storeIds: storeIds ? storeIds.split(',') : undefined,
       orderStatus: orderStatus ? (orderStatus.split(',') as any) : undefined,
       financialStatus: financialStatus ? (financialStatus.split(',') as any) : undefined,
       fulfillmentStatus: fulfillmentStatus ? (fulfillmentStatus.split(',') as any) : undefined,
+      excludeStatus: excludeStatus ? (excludeStatus.split(',') as any) : undefined,
       search,
+      from,
+      to,
       page: page ? parseInt(page) : 1,
       pageSize: pageSize ? parseInt(pageSize) : 25,
     });
