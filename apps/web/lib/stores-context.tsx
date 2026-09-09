@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode,useMemo, } from "react";
 import { Store } from "@/types/order";
 
 interface StoresContextValue {
@@ -42,8 +42,13 @@ const res = await fetch(`${API}/stores`,{
     return () => window.removeEventListener("orderly:login", fetchStores);
   }, []);
 
+  const value = useMemo(
+    () => ({ stores, isLoading, refresh: fetchStores }),
+    [stores, isLoading]
+  );
+
   return (
-    <StoresContext.Provider value={{ stores, isLoading, refresh: fetchStores }}>
+    <StoresContext.Provider value={value}>
       {children}
     </StoresContext.Provider>
   );

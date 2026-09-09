@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, ReactNode ,useMemo,} from "react";
 import { useRouter } from "next/navigation";
 import { AppUser } from "@/types/order";
 import { apiFetch } from "@/lib/api";
@@ -91,9 +91,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (user.role === "SUPER_ADMIN") return true;
     return (user.permissions ?? []).includes(permission);
   }
-
+  const authValue = useMemo(
+    () => ({ user, isLoading, login, logout, canAccessStore, hasPermission }),
+    [user, isLoading]
+  );
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout, canAccessStore, hasPermission }}>
+    <AuthContext.Provider value={authValue}>
       {children}
     </AuthContext.Provider>
   );
