@@ -1732,8 +1732,11 @@ function ConfirmationContent() {
 
   useEffect(() => {
     fetchOrders();
-    fetchCustomerStats();
-  }, [fetchOrders, fetchCustomerStats]);
+  }, [fetchOrders]);
+
+  useEffect(() => {
+    if (orders.length > 0) fetchCustomerStats();
+  }, [orders.length]);
 
   async function handleDone(orderId: string, updatedFields: Partial<Order>, newStatus?: OrderStatus) {
     // Optimistic update
