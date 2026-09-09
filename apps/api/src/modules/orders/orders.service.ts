@@ -83,7 +83,11 @@ export class OrdersService {
     const o = await this.prisma.order.findUnique({
       where: { id },
       include: {
-        lineItems: true,
+        lineItems: {
+          include: {
+            product: { select: { imageUrl: true } },
+          },
+        },
         fulfillments: true,
         refunds: true,
         events: { orderBy: { createdAt: 'desc' } },
