@@ -18,6 +18,7 @@ import { BundlesModule } from './modules/bundles/bundles.module';
 import { ShippingModule } from './modules/shipping/shipping.module';
 import { UpsellsModule } from './modules/upsells/upsells.module';
 import { FlowsModule } from './modules/flows/flows.module';
+import { ReviewsModule } from './modules/reviews/reviews.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -38,6 +39,7 @@ import { FlowsModule } from './modules/flows/flows.module';
     ShippingModule,
     UpsellsModule,
     FlowsModule,
+    ReviewsModule,
   ],
 })
 export class AppModule {}
