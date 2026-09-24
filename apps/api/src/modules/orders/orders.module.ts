@@ -4,9 +4,10 @@ import { OrdersController } from './orders.controller';
 import { BordereauService } from './bordereau.service';
 import { DeliveryModule } from '../delivery/delivery.module';
 import { BundlesModule } from '../bundles/bundles.module';
+import { FlowsModule } from '../flows/flows.module';
 
 @Module({
-  imports: [DeliveryModule, BundlesModule],
+  imports: [DeliveryModule, BundlesModule, FlowsModule],
   providers: [OrdersService, BordereauService],
   controllers: [OrdersController],
   exports: [OrdersService],

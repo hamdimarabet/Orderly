@@ -3,12 +3,14 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { OrderStatus, FinancialStatus, FulfillmentStatus, Prisma } from '@prisma/client';
 import { CosmosService } from '../delivery/cosmos.service';
 import { BundlesService } from '../bundles/bundles.service';
+import { FlowsService } from '../flows/flows.service';
 @Injectable()
 export class OrdersService {
   constructor(
     private prisma: PrismaService,
     private cosmos: CosmosService,
     private bundles: BundlesService,
+    private flows: FlowsService,
   ) {}
 
   async findAll(query: {
@@ -604,6 +606,17 @@ export class OrdersService {
         actor: actorId,
       },
     });
+        // Trigger marketing flows
+        this.flows.emit('order_status_changed', {
+          storeId: (order as any).storeId,
+          orderId: (order as any).id,
+          customerPhone: (order as any).customerPhone,
+          customerName: (order as any).customerName,
+          orderNumber: (order as any).orderNumber,
+          status,
+          total: Number((order as any).total),
+          city: ((order as any).shippingAddress as any)?.city,
+        }).catch(() => {});
 
       // Deduct bundle components when order is confirmed
       if (status === 'A_PREPARER' || status === 'CONFIRME') {
