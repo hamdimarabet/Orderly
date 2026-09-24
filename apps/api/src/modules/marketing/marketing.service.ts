@@ -246,7 +246,7 @@ export class MarketingService {
   // ---------- FLOWS ----------
 
   async listFlows() {
-    return this.prisma.flow.findMany({
+    return this.prisma.automationFlow.findMany({
       include: { segment: { select: { name: true } } },
       orderBy: { createdAt: 'desc' },
     });
@@ -261,7 +261,7 @@ export class MarketingService {
     message: string;
     delayHours?: number;
   }) {
-    return this.prisma.flow.create({
+    return this.prisma.automationFlow.create({
       data: {
         name: data.name,
         description: data.description ?? null,
@@ -275,16 +275,16 @@ export class MarketingService {
   }
 
   async toggleFlow(id: string) {
-    const flow = await this.prisma.flow.findUnique({ where: { id } });
+    const flow = await this.prisma.automationFlow.findUnique({ where: { id } });
     if (!flow) throw new Error('Flow not found');
-    return this.prisma.flow.update({
+    return this.prisma.automationFlow.update({
       where: { id },
       data: { isActive: !flow.isActive },
     });
   }
 
   async deleteFlow(id: string) {
-    return this.prisma.flow.delete({ where: { id } });
+    return this.prisma.automationFlow.delete({ where: { id } });
   }
 
   async seedDefaultSegments() {
