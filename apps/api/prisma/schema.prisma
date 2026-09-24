@@ -446,7 +446,7 @@ model Segment {
   isSystem    Boolean  @default(false)
 
   campaigns   Campaign[]
-  flows       Flow[]
+  flows       AutomationFlow[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -493,13 +493,13 @@ model CampaignSend {
   @@index([campaignId, status])
 }
 
-model Flow {
+model AutomationFlow {
   id          String   @id @default(cuid())
   name        String
   description String?
 
-  trigger     String   // LOW_STOCK, NEW_PRODUCT, INACTIVE_CUSTOMER, AFTER_DELIVERY, ABANDONED
-  triggerConfig Json?  // { days: 30, threshold: 5, productId: "..." }
+  trigger     String
+  triggerConfig Json?
 
   segmentId   String?
   segment     Segment? @relation(fields: [segmentId], references: [id])
@@ -658,4 +658,88 @@ model BundleComponent {
   quantity  Int     @default(1)
 
   @@unique([bundleId, productId])
+}
+model Flow {
+  id          String   @id @default(cuid())
+  storeId     String?
+  name        String
+  description String?
+  isActive    Boolean  @default(false)
+
+  triggerType String
+  triggerConfig Json?
+
+  nodes       Json
+  edges       Json
+
+  stats       Json?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  runs        FlowRun[]
+
+  @@index([storeId, isActive])
+  @@index([triggerType, isActive])
+}
+
+model FlowRun {
+  id          String   @id @default(cuid())
+  flowId      String
+  flow        Flow     @relation(fields: [flowId], references: [id], onDelete: Cascade)
+
+  orderId     String?
+  customerPhone String?
+
+  status      String   @default("RUNNING")
+  currentNode String?
+  context     Json?
+
+  resumeAt    DateTime?
+  error       String?
+
+  startedAt   DateTime @default(now())
+  completedAt DateTime?
+
+  logs        FlowLog[]
+
+  @@index([flowId, status])
+  @@index([status, resumeAt])
+  @@index([customerPhone])
+}
+
+model FlowLog {
+  id        String   @id @default(cuid())
+  runId     String
+  run       FlowRun  @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  nodeId    String
+  nodeType  String
+  status    String
+  message   String?
+  payload   Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([runId, createdAt])
+}
+
+model Review {
+  id          String   @id @default(cuid())
+  orderId     String
+  storeId     String
+
+  customerPhone String
+  customerName  String?
+
+  rating      Int
+  comment     String?
+
+  token       String   @unique
+  respondedAt DateTime?
+
+  createdAt   DateTime @default(now())
+
+  @@index([storeId, rating])
+  @@index([orderId])
 }

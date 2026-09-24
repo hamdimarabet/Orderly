@@ -6,3 +6,6 @@ out/
 dist/
 *.log
 .DS_Store
+orderly_backup.sql 
+apps/api/findstr 
+apps/api/powershell 
