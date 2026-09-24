@@ -92,13 +92,13 @@ export class ReviewsService {
 
     // Trigger flows listening to reviews
     this.flows.emit('review_received', {
-      storeId: updated.storeId,
-      orderId: updated.orderId,
-      customerPhone: updated.customerPhone,
-      customerName: updated.customerName,
-      rating: clean,
-      comment: updated.comment,
-    }).catch(() => {});
+        storeId: (updated as any).storeId,
+        orderId: (updated as any).orderId,
+        customerPhone: (updated as any).customerPhone,
+        customerName: (updated as any).customerName,
+        rating: clean,
+        comment: (updated as any).comment,
+      }).catch(() => {});
 
     return { ok: true, rating: clean };
   }
