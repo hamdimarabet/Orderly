@@ -667,12 +667,16 @@ export class OrdersService {
     const barcode = (result as any).barcode;
     const apiBase = process.env.PUBLIC_API_URL ?? '';
 
+    // Cosmos sometimes returns a label URL with a different barcode
+    const cosmosLabel = (result as any).labelPdfUrl ?? (result as any).labelUrl ?? '';
+    const labelBarcode = cosmosLabel.match(/barcode=(\d+)/)?.[1] ?? barcode;
+
     return {
       ok: true,
       source: 'cosmos',
       barcode,
-      labelUrl: barcode
-        ? `${apiBase}/api/delivery/cosmos/${order.storeId}/label?barcode=${barcode}&format=pdf`
+      labelUrl: labelBarcode
+        ? `${apiBase}/api/delivery/cosmos/${order.storeId}/label?barcode=${labelBarcode}&format=pdf`
         : null,
       alreadySent: (result as any).alreadySent ?? false,
     };

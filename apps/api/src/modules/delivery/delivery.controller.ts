@@ -16,7 +16,11 @@ export class DeliveryController {
   ) {}
 
   // ---- Integrations ----
-
+  @UseGuards(JwtAuthGuard)
+  @Post('cosmos/fix-barcodes')
+  fixBarcodes() {
+    return this.cosmos.fixLabelBarcodes();
+  }
   @Get('integrations')
   listIntegrations() {
     return this.cosmos.listIntegrations();

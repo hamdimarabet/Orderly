@@ -192,6 +192,9 @@ export class CosmosService {
 
       const d = data.data ?? {};
       const barcode = d.barcode ?? d.id ?? null;
+      // Cosmos returns a label URL whose barcode can differ from the parcel barcode
+      const labelBarcode =
+        (d.labelPdfUrl ?? d.labelUrl ?? '').match(/barcode=(\d+)/)?.[1] ?? barcode;
 
       await this.prisma.fulfillment.create({
         data: {
@@ -200,7 +203,7 @@ export class CosmosService {
           trackingNumber: barcode ? String(barcode) : null,
           trackingUrl: d.labelPdfUrl ?? d.labelUrl ?? null,
           status: d.status ?? 'pending',
-          deliveryPartnerRef: barcode ? String(barcode) : null,
+          deliveryPartnerRef: labelBarcode ? String(labelBarcode) : null,
         },
       });
 
@@ -496,5 +499,26 @@ export class CosmosService {
     }
 
     return { ok: true, checked: totalChecked, updated: totalUpdated };
+  }
+  async fixLabelBarcodes() {
+    const rows = await this.prisma.fulfillment.findMany({
+      where: { carrier: 'COSMOS', trackingUrl: { not: null } },
+      select: { id: true, trackingUrl: true, deliveryPartnerRef: true },
+    });
+
+    let fixed = 0;
+    for (const f of rows) {
+      const match = (f.trackingUrl ?? '').match(/barcode=(\d+)/);
+      const labelBarcode = match?.[1];
+      if (labelBarcode && labelBarcode !== f.deliveryPartnerRef) {
+        await this.prisma.fulfillment.update({
+          where: { id: f.id },
+          data: { deliveryPartnerRef: labelBarcode },
+        });
+        fixed++;
+      }
+    }
+
+    return { ok: true, checked: rows.length, fixed };
   }
 }
