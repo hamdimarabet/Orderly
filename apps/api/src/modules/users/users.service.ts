@@ -219,4 +219,41 @@ export class UsersService {
 
     return { ok: true };
   }
+  async resetPassword(targetUserId: string, actorId: string) {
+    const actor = await this.prisma.user.findUnique({
+      where: { id: actorId },
+      select: { role: true },
+    });
+
+    if (actor?.role !== 'SUPER_ADMIN') {
+      return { ok: false, error: 'Seul un super admin peut réinitialiser un mot de passe' };
+    }
+
+    const target = await this.prisma.user.findUnique({
+      where: { id: targetUserId },
+      select: { id: true, name: true, email: true },
+    });
+    if (!target) return { ok: false, error: 'Utilisateur introuvable' };
+
+    // Generate a readable temporary password
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let temp = '';
+    for (let i = 0; i < 10; i++) {
+      temp += chars[Math.floor(Math.random() * chars.length)];
+    }
+
+    const bcrypt = require('bcrypt');
+    const hash = await bcrypt.hash(temp, 10);
+
+    await this.prisma.user.update({
+      where: { id: targetUserId },
+      data: { passwordHash: hash },
+    });
+
+    return {
+      ok: true,
+      tempPassword: temp,
+      user: { name: target.name, email: target.email },
+    };
+  }
 }

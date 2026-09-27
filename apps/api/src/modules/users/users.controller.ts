@@ -29,6 +29,10 @@ export class UsersController {
   }) {
     return this.users.create(body);
   }
+  @Post(':id/reset-password')
+  resetPassword(@Param('id') id: string, @Request() req: any) {
+    return this.users.resetPassword(id, req.user.id);
+  }
   @Patch('me/profile')
   updateProfile(@Body() body: any, @Request() req: any) {
     return this.users.updateProfile(req.user.id, body);
