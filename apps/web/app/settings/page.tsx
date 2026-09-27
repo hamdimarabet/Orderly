@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { User, Bell, Shield, Palette, Building2, Check } from "lucide-react";
-
+const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api";
 const TABS = [
   { key: "profile", label: "Profile", icon: User },
   { key: "notifications", label: "Notifications", icon: Bell },
@@ -33,15 +33,61 @@ function ProfileTab({ user }: { user: NonNullable<ReturnType<typeof useAuth>["us
   const [name, setName] = useState(user.name);
   const [email, setEmail] = useState(user.email);
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
-  function save() { setSaved(true); setTimeout(() => setSaved(false), 3000); }
+  async function save() {
+    setSaving(true);
+    setError("");
+    try {
+      const res = await fetch(`${API}/users/me/profile`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${window.localStorage.getItem("orderly_token")}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name, email }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.message ?? "Échec de la mise à jour");
+        return;
+      }
+
+      const updated = await res.json();
+
+      // Refresh the local session
+      const stored = JSON.parse(window.localStorage.getItem("orderly_user") ?? "{}");
+      window.localStorage.setItem(
+        "orderly_user",
+        JSON.stringify({
+          ...stored,
+          name: updated.name,
+          email: updated.email,
+          avatarInitials: updated.name?.[0]?.toUpperCase() ?? "?",
+        })
+      );
+
+      setSaved(true);
+      setTimeout(() => {
+        setSaved(false);
+        window.location.reload();
+      }, 1200);
+    } catch {
+      setError("Erreur réseau");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-sm font-semibold">Profile</h2>
-        <p className="mt-0.5 text-xs text-muted">Update your personal information.</p>
+        <h2 className="text-sm font-semibold">Profil</h2>
+        <p className="mt-0.5 text-xs text-muted">Modifiez vos informations personnelles.</p>
       </div>
+
       <div className="flex items-center gap-4">
         <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary-soft text-xl font-bold text-primary">
           {user.avatarInitials}
@@ -54,18 +100,28 @@ function ProfileTab({ user }: { user: NonNullable<ReturnType<typeof useAuth>["us
           </span>
         </div>
       </div>
+
       <div className="space-y-4 rounded-lg border border-border p-5">
         <div>
-          <label className="mb-1.5 block text-xs font-medium text-muted">Full name</label>
+          <label className="mb-1.5 block text-xs font-medium text-muted">Nom complet</label>
           <Input value={name} onChange={(e) => setName(e.target.value)} />
         </div>
         <div>
-          <label className="mb-1.5 block text-xs font-medium text-muted">Email address</label>
+          <label className="mb-1.5 block text-xs font-medium text-muted">Adresse email</label>
           <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
         </div>
       </div>
+
+      {error && (
+        <p className="rounded-md bg-status-cancelled-bg px-3 py-2 text-xs font-medium text-status-cancelled">
+          {error}
+        </p>
+      )}
+
       <div className="flex items-center gap-3">
-        <Button onClick={save}>Save changes</Button>
+        <Button disabled={saving} onClick={save}>
+          {saving ? "Enregistrement..." : "Enregistrer"}
+        </Button>
         {saved && <SavedBanner />}
       </div>
     </div>
@@ -130,14 +186,49 @@ function SecurityTab() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
 
-  function save() {
+  const [saving, setSaving] = useState(false);
+
+  async function save() {
     setError("");
-    if (!current || !next || !confirm) { setError("All fields required."); return; }
-    if (next !== confirm) { setError("New passwords don't match."); return; }
-    if (next.length < 8) { setError("Password must be at least 8 characters."); return; }
-    setSaved(true);
-    setCurrent(""); setNext(""); setConfirm("");
-    setTimeout(() => setSaved(false), 3000);
+    if (!current || !next || !confirm) {
+      setError("Tous les champs sont requis.");
+      return;
+    }
+    if (next !== confirm) {
+      setError("Les mots de passe ne correspondent pas.");
+      return;
+    }
+    if (next.length < 8) {
+      setError("Le mot de passe doit faire au moins 8 caractères.");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const res = await fetch(`${API}/users/me/password`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${window.localStorage.getItem("orderly_token")}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ currentPassword: current, newPassword: next }),
+      });
+
+      const data = await res.json();
+
+      if (!data.ok) {
+        setError(data.error ?? "Échec du changement de mot de passe");
+        return;
+      }
+
+      setSaved(true);
+      setCurrent(""); setNext(""); setConfirm("");
+      setTimeout(() => setSaved(false), 3000);
+    } catch {
+      setError("Erreur réseau");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
