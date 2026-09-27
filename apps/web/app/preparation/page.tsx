@@ -48,7 +48,19 @@ function formatMoney(n: number, currency: string) {
   return new Intl.NumberFormat("fr-FR", { style: "currency", currency }).format(n);
 }
 
-function openBordereau(orderId: string) {
+async function openBordereau(orderId: string) {
+  // Prefer the Cosmos label when the parcel exists
+  try {
+    const res = await fetch(`${API}/orders/${orderId}/label`, {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    });
+    const data = await res.json();
+    if (data.labelUrl) {
+      window.open(data.labelUrl, "_blank");
+      return;
+    }
+  } catch {}
+
   window.open(`${API}/orders/${orderId}/bordereau`, "_blank");
 }
 

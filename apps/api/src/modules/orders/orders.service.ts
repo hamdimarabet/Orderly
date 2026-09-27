@@ -1477,4 +1477,24 @@ export class OrdersService {
       barcode: order.fulfillments[0]?.deliveryPartnerRef ?? null,
     };
   }
+  async getLabel(orderId: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      select: { storeId: true },
+    });
+    if (!order) return { labelUrl: null };
+
+    const parcel = await this.prisma.fulfillment.findFirst({
+      where: { orderId, carrier: 'COSMOS' },
+      orderBy: { createdAt: 'desc' },
+      select: { deliveryPartnerRef: true },
+    });
+
+    if (!parcel?.deliveryPartnerRef) return { labelUrl: null };
+
+    const apiBase = process.env.PUBLIC_API_URL ?? '';
+    return {
+      labelUrl: `${apiBase}/api/delivery/cosmos/${order.storeId}/label?barcode=${parcel.deliveryPartnerRef}&format=pdf`,
+    };
+  }
 }

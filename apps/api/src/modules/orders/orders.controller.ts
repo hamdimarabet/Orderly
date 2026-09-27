@@ -39,7 +39,10 @@ export class OrdersController {
       pageSize: pageSize ? parseInt(pageSize) : 25,
     });
   }
-
+  @Get(':id/label')
+  getLabel(@Param('id') id: string) {
+    return this.orders.getLabel(id);
+  }
   @Get(':id/bordereau')
   @SetMetadata('isPublic', true)
   async getBordereau(
