@@ -165,4 +165,58 @@ export class UsersService {
   async remove(id: string) {
     return this.prisma.user.delete({ where: { id } });
   }
+  async updateProfile(
+    userId: string,
+    data: { name?: string; email?: string },
+  ) {
+    if (data.email) {
+      const existing = await this.prisma.user.findFirst({
+        where: { email: data.email, id: { not: userId } },
+      });
+      if (existing) throw new Error('Cet email est déjà utilisé');
+    }
+
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(data.name && { name: data.name }),
+        ...(data.email && { email: data.email }),
+      },
+      include: { storeAccess: true },
+    });
+
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      storeIds: user.storeAccess.map((a) => a.storeId),
+      permissions: user.permissions ?? [],
+    };
+  }
+
+  async changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+  ) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return { ok: false, error: 'Utilisateur introuvable' };
+
+    const bcrypt = require('bcrypt');
+    const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!valid) return { ok: false, error: 'Mot de passe actuel incorrect' };
+
+    if (newPassword.length < 8) {
+      return { ok: false, error: 'Le mot de passe doit faire au moins 8 caractères' };
+    }
+
+    const hash = await bcrypt.hash(newPassword, 10);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash: hash },
+    });
+
+    return { ok: true };
+  }
 }

@@ -29,7 +29,18 @@ export class UsersController {
   }) {
     return this.users.create(body);
   }
+  @Patch('me/profile')
+  updateProfile(@Body() body: any, @Request() req: any) {
+    return this.users.updateProfile(req.user.id, body);
+  }
 
+  @Patch('me/password')
+  changePassword(
+    @Body() body: { currentPassword: string; newPassword: string },
+    @Request() req: any,
+  ) {
+    return this.users.changePassword(req.user.id, body.currentPassword, body.newPassword);
+  }
   @Post('invite')
   invite(@Body() body: {
     email: string;
