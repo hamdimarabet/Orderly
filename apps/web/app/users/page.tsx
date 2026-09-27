@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import {
   Plus, X, Check, Shield, Users, Mail,
-  ToggleLeft, ToggleRight, Trash2, Copy, ExternalLink,
+  ToggleLeft, ToggleRight, Trash2, Copy, ExternalLink,KeyRound,
 } from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api";
@@ -422,6 +422,27 @@ function UsersContent() {
   const [selectedStoreIds, setSelectedStoreIds] = useState<string[]>([]);
   const [showInvite, setShowInvite] = useState(false);
   const [permissionsUser, setPermissionsUser] = useState<User | null>(null);
+  const [resetResult, setResetResult] = useState<{ password: string; name: string } | null>(null);
+
+  async function resetPassword(u: User) {
+    if (!window.confirm(`Réinitialiser le mot de passe de ${u.name} ?`)) return;
+
+    const res = await fetch(`${API}/users/${u.id}/reset-password`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${getToken()}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({}),
+    });
+    const data = await res.json();
+
+    if (data.ok) {
+      setResetResult({ password: data.tempPassword, name: u.name });
+    } else {
+      alert(data.error ?? "Échec de la réinitialisation");
+    }
+  }
   const [inviteResult, setInviteResult] = useState<{ url: string; email: string } | null>(null);
 
   const accessibleStores = stores.filter((s) => canAccessStore(s.id));
@@ -649,6 +670,20 @@ function UsersContent() {
                             }
                           </button>
                           <button
+                            onClick={() => resetPassword(u)}
+                            className="rounded-md p-1.5 text-muted hover:bg-surface-sunken hover:text-primary"
+                            title="Réinitialiser le mot de passe"
+                          >
+                            <KeyRound className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={() => removeUser(u.id)}
+                            disabled={u.id === currentUser?.id}
+                            className="rounded-md p-1.5 text-muted hover:bg-surface-sunken hover:text-status-cancelled disabled:opacity-40"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                          <button
                             onClick={() => removeUser(u.id)}
                             disabled={u.id === currentUser?.id}
                             className="rounded-md p-1.5 text-muted hover:bg-surface-sunken hover:text-status-cancelled disabled:opacity-40"
@@ -698,7 +733,45 @@ function UsersContent() {
           }}
         />
       )}
+      {resetResult && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-foreground/30 backdrop-blur-[2px]">
+          <div className="mx-3 w-full max-w-sm rounded-xl border border-border bg-surface shadow-2xl">
+            <div className="border-b border-border px-5 py-4">
+              <h2 className="text-sm font-semibold">Mot de passe réinitialisé</h2>
+            </div>
 
+            <div className="space-y-4 p-5">
+              <p className="text-xs text-muted">
+                Transmettez ce mot de passe temporaire à <strong>{resetResult.name}</strong>.
+                Il pourra le changer depuis ses paramètres.
+              </p>
+
+              <div className="rounded-lg bg-surface-sunken p-4 text-center">
+                <p className="font-mono text-xl font-bold tracking-wider">
+                  {resetResult.password}
+                </p>
+              </div>
+
+              <Button
+                variant="secondary"
+                className="w-full"
+                onClick={() => {
+                  navigator.clipboard.writeText(resetResult.password);
+                }}
+              >
+                <Copy className="h-3.5 w-3.5" />
+                Copier
+              </Button>
+            </div>
+
+            <div className="border-t border-border px-5 py-4">
+              <Button className="w-full" onClick={() => setResetResult(null)}>
+                Fermer
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
       {inviteResult && (
         <InviteLinkModal
           inviteUrl={inviteResult.url}
