@@ -255,13 +255,25 @@ export class ShopifyWebhook {
         if (bySku) productId = bySku.id;
       }
 
-      if (!productId && title) {
-        const byName = await this.prisma.product.findFirst({
-          where: { storeId, name: { equals: title, mode: 'insensitive' } },
-          select: { id: true },
-        });
-        if (byName) productId = byName.id;
-      }
+          // Try "Title - Variant" first, then plain title
+          const variant = li.variant_title ?? null;
+          const combined = variant ? `${title} - ${variant}` : null;
+    
+          if (!productId && combined) {
+            const byCombined = await this.prisma.product.findFirst({
+              where: { storeId, name: { equals: combined, mode: 'insensitive' } },
+              select: { id: true },
+            });
+            if (byCombined) productId = byCombined.id;
+          }
+    
+          if (!productId && title) {
+            const byName = await this.prisma.product.findFirst({
+              where: { storeId, name: { equals: title, mode: 'insensitive' } },
+              select: { id: true },
+            });
+            if (byName) productId = byName.id;
+          }
 
       if (!productId && title) {
         const alias = await this.prisma.productAlias.findFirst({

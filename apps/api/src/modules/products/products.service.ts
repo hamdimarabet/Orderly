@@ -461,7 +461,7 @@ export class ProductsService {
         productId: null,
         order: { storeId },
       },
-      select: { id: true, sku: true, title: true },
+      select: { id: true, sku: true, title: true, variantTitle: true },
     });
 
     let linked = 0;
@@ -477,13 +477,25 @@ export class ProductsService {
         if (bySku) productId = bySku.id;
       }
 
-      if (!productId && line.title) {
-        const byName = await this.prisma.product.findFirst({
-          where: { storeId, name: { equals: line.title, mode: 'insensitive' } },
-          select: { id: true },
-        });
-        if (byName) productId = byName.id;
-      }
+      const combined = line.variantTitle
+      ? `${line.title} - ${line.variantTitle}`
+      : null;
+
+    if (!productId && combined) {
+      const byCombined = await this.prisma.product.findFirst({
+        where: { storeId, name: { equals: combined, mode: 'insensitive' } },
+        select: { id: true },
+      });
+      if (byCombined) productId = byCombined.id;
+    }
+
+    if (!productId && line.title) {
+      const byName = await this.prisma.product.findFirst({
+        where: { storeId, name: { equals: line.title, mode: 'insensitive' } },
+        select: { id: true },
+      });
+      if (byName) productId = byName.id;
+    }
 
       if (!productId && line.title) {
         const alias = await this.prisma.productAlias.findFirst({
