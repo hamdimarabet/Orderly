@@ -882,8 +882,10 @@ function PreparationContent() {
           body: JSON.stringify({}),
         });
         const data = await res.json();
-        if (data.source === "cosmos" && data.barcode) {
-          cosmosBarcodes.push(data.barcode);
+        if (data.source === "cosmos" && data.labelUrl) {
+          const bc = data.labelUrl.match(/barcode=(\d+)/)?.[1];
+          if (bc) cosmosBarcodes.push(bc);
+          else fallback.push(id);
         } else {
           fallback.push(id);
         }
@@ -892,13 +894,14 @@ function PreparationContent() {
       }
     }
 
-    // Cosmos: one PDF with all labels
-    if (cosmosBarcodes.length > 0) {
+     // Cosmos: one PDF with all labels
+     if (cosmosBarcodes.length > 0) {
       const storeId = orders.find((o) => ids.includes(o.id))?.storeId;
-      window.open(
-        `${API}/delivery/cosmos/${storeId}/label?barcode=${cosmosBarcodes.join(",")}&format=pdf`,
-        "_blank"
-      );
+      const url = `${API}/delivery/cosmos/${storeId}/label?barcode=${cosmosBarcodes.join(",")}&format=pdf`;
+
+      // Navigate instead of opening a tab, popups get blocked after async calls
+      const win = window.open(url, "_blank");
+      if (!win) window.location.href = url;
     }
 
     // Others: one tab each
