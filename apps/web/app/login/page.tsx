@@ -9,8 +9,8 @@ import { Input } from "@/components/ui/input";
 export default function LoginPage() {
   const { login, user } = useAuth();
   const router = useRouter();
-  const [email, setEmail] = useState("admin@orderly.app");
-  const [password, setPassword] = useState("admin123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -77,12 +77,7 @@ export default function LoginPage() {
           </div>
         </form>
 
-        <div className="mt-5 rounded-md border border-border bg-surface-sunken p-3 text-xs text-muted">
-          <p className="font-medium text-foreground">Demo accounts</p>
-          <p className="mt-1">admin@orderly.app / admin123 — Super Admin</p>
-          <p>sara@orderly.app / manager123 — Store Manager</p>
-          <p>nadia@orderly.app / staff123 — Staff</p>
-        </div>
+      
       </div>
     </div>
   );
