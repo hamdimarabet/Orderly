@@ -509,9 +509,17 @@ export class ProductsService {
       }
 
       if (productId) {
+        const product = await this.prisma.product.findUnique({
+          where: { id: productId },
+          select: { sku: true },
+        });
+
         await this.prisma.orderLineItem.update({
           where: { id: line.id },
-          data: { productId },
+          data: {
+            productId,
+            ...(!line.sku && product?.sku && { sku: product.sku }),
+          },
         });
         linked++;
       }
