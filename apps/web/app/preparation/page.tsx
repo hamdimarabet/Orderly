@@ -870,7 +870,7 @@ function PreparationContent() {
     for (const id of ids) {
       const order = orders.find((o) => o.id === id);
       if (!order) continue;
-      if (!["A_PREPARER", "ECHANGE"].includes(order.orderStatus)) continue;
+      if (!["A_PREPARER", "ECHANGE", "EN_PREPARATION", "EMBALLE"].includes(order.orderStatus)) continue;
 
       try {
         const res = await fetch(`${API}/orders/${id}/prepare-print`, {
