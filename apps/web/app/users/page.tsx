@@ -38,6 +38,7 @@ const ALL_PERMISSIONS = [
   { key: "reclamation", label: "Réclamations", description: "Traitement des réclamations" },
   { key: "products", label: "Produits & Stock", description: "Gestion des produits et stocks" },
   { key: "stats", label: "Statistiques", description: "Voir les chiffres, KPIs et chiffre d'affaires" },
+  { key: "stats_revenue", label: "Chiffres d'affaires", description: "Voir les montants et revenus" },
   { key: "alerts", label: "Alertes stock", description: "Voir les alertes de stock" },
   { key: "inbox", label: "Messagerie", description: "Répondre aux messages clients" },
   { key: "scanner", label: "Scanner QR", description: "Scanner les codes QR" },

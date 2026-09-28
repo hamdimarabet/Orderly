@@ -1880,15 +1880,17 @@ function ConfirmationContent() {
             <StatCard className="" label="Refusés" value={refusedCount} total={statsTotal} color="red" />
             <StatCard className="" label="En attente" value={pendingCount} total={statsTotal} color="orange" />
             <StatCard className="" label="À vérifier" value={aVerifierCount} total={statsTotal} color="red" />
-            <div className="rounded-lg bg-primary-soft px-2 py-1.5 md:px-4 md:py-3">
-              <p className="text-[10px] font-medium text-primary md:text-[11px]">CA confirmé</p>
-              <p className="mt-0.5 text-base font-bold text-primary font-mono md:mt-1 md:text-2xl">
-                {revenue.toLocaleString("fr-FR", { maximumFractionDigits: 0 })}
-              </p>
-              <p className="mt-1 text-[10px] text-primary/70">
-                Moy. {avgAttempts} tentative{Number(avgAttempts) > 1 ? "s" : ""}/commande
-              </p>
-            </div>
+            {hasPermission("stats_revenue") && (
+              <div className="rounded-lg bg-primary-soft px-2 py-1.5 md:px-4 md:py-3">
+                <p className="text-[10px] font-medium text-primary md:text-[11px]">CA confirmé</p>
+                <p className="mt-0.5 text-base font-bold text-primary font-mono md:mt-1 md:text-2xl">
+                  {revenue.toLocaleString("fr-FR", { maximumFractionDigits: 0 })}
+                </p>
+                <p className="mt-1 text-[10px] text-primary/70">
+                  Moy. {avgAttempts} tentative{Number(avgAttempts) > 1 ? "s" : ""}/commande
+                </p>
+              </div>
+            )}
           </div>
         )}
 

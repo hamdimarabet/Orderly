@@ -184,7 +184,8 @@ function OverviewContent() {
                 </div>
               )}
 
-              {/* Revenue row */}
+                         {/* Revenue row */}
+                         {hasPermission("stats_revenue") && (
               <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
                 <KpiCard
                   label="CA encaisse"
@@ -214,7 +215,8 @@ function OverviewContent() {
                   sub="sur commandes payees"
                   tone="purple"
                 />
-              </div>
+                          </div>
+              )}
 
               {/* Rates row */}
               <div className="grid grid-cols-2 gap-3 md:grid-cols-6">
