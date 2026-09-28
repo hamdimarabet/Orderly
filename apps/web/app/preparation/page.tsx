@@ -1005,15 +1005,17 @@ function PreparationContent() {
           <StatCard className="" label="En préparation" value={enCoursCount} total={statsTotal} color="orange" />
           <StatCard className="" label="Emballées" value={emballeCount} total={statsTotal} color="green" />
           <StatCard className="" label="Traitées" value={traiteesCount} total={statsTotal} color="purple" />
-          <div className="rounded-lg bg-primary-soft px-2 py-1.5 md:px-4 md:py-3">
-            <p className="text-[10px] font-medium text-primary md:text-[11px]">Valeur emballée</p>
-            <p className="mt-0.5 text-base font-bold text-primary font-mono md:mt-1 md:text-2xl">
-              {emballeValue.toLocaleString("fr-FR", { maximumFractionDigits: 0 })}
-            </p>
-            <p className="mt-1 text-[10px] text-primary/70">
-              sur {totalValue.toLocaleString("fr-FR", { maximumFractionDigits: 0 })} TND
-            </p>
-          </div>
+          {hasPermission("stats_revenue") && (
+            <div className="rounded-lg bg-primary-soft px-2 py-1.5 md:px-4 md:py-3">
+              <p className="text-[10px] font-medium text-primary md:text-[11px]">Valeur emballée</p>
+              <p className="mt-0.5 text-base font-bold text-primary font-mono md:mt-1 md:text-2xl">
+                {emballeValue.toLocaleString("fr-FR", { maximumFractionDigits: 0 })}
+              </p>
+              <p className="mt-1 text-[10px] text-primary/70">
+                sur {totalValue.toLocaleString("fr-FR", { maximumFractionDigits: 0 })} TND
+              </p>
+            </div>
+          )}
         </div>
         )}
        {/* Filters */}
