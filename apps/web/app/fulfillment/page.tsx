@@ -494,6 +494,7 @@ function FulfillmentContent() {
         </div>
         )}
         {/* Revenue row */}
+        {hasPermission("stats_revenue") && (
         <div className="grid grid-cols-1 gap-2 border-b border-border bg-surface px-3 pb-3 md:grid-cols-3 md:gap-3 md:px-5 md:pb-4">
           <div className="rounded-lg bg-status-delivered-bg px-4 py-3">
             <p className="text-[11px] font-medium text-status-delivered">CA encaissé (payé)</p>
@@ -501,6 +502,7 @@ function FulfillmentContent() {
               {caEncaisse.toLocaleString("fr-FR", { maximumFractionDigits: 0 })} TND
             </p>
           </div>
+          
           <div className="rounded-lg bg-status-processing-bg px-4 py-3">
             <p className="text-[11px] font-medium text-status-processing">CA en attente (livré non payé)</p>
             <p className="mt-1 text-xl font-bold text-status-processing font-mono">
@@ -513,7 +515,7 @@ function FulfillmentContent() {
               {finished} <span className="text-xs font-normal text-muted">/ {statsTotal}</span>
             </p>
           </div>
-        </div>
+        </div>)}
 
         {/* Status filter tabs */}
         <div className="flex gap-1 overflow-x-auto border-b border-border bg-surface px-5 py-2">

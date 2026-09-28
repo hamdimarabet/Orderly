@@ -2081,7 +2081,7 @@ function ConfirmationContent() {
                   <th className="px-4 py-2.5">Client</th>
                   
                   <th className="px-4 py-2.5">Produits</th>
-                  <th className="px-4 py-2.5">Total</th>
+                  {hasPermission("stats_revenue") && <th className="px-4 py-2.5">Total</th>}
                   <th className="px-4 py-2.5">Statut</th>
                   <th className="px-4 py-2.5">Appel</th>
                   <th className="px-4 py-2.5">Tags</th>
@@ -2161,9 +2161,11 @@ function ConfirmationContent() {
                           )}
                         </div>
                       </td>
-                      <td className="px-4 py-3 font-mono text-sm font-medium">
-                        {formatMoney(order.total, order.currency)}
-                      </td>
+                      {hasPermission("stats_revenue") && (
+                        <td className="px-4 py-3 font-mono text-sm font-medium">
+                          {formatMoney(order.total, order.currency)}
+                        </td>
+                      )}
                       <td className="px-4 py-3">
                         <OrderStatusBadge status={order.orderStatus} />
                       </td>
