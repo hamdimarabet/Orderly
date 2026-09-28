@@ -774,4 +774,31 @@ export class ProductsService {
   
       return { ok: true, created, details };
     }
+    async fixMissingSkus(storeId: string) {
+      const lines = await this.prisma.orderLineItem.findMany({
+        where: {
+          sku: null,
+          productId: { not: null },
+          order: { storeId },
+        },
+        select: { id: true, productId: true },
+      });
+  
+      let fixed = 0;
+      for (const line of lines) {
+        const product = await this.prisma.product.findUnique({
+          where: { id: line.productId! },
+          select: { sku: true },
+        });
+        if (product?.sku) {
+          await this.prisma.orderLineItem.update({
+            where: { id: line.id },
+            data: { sku: product.sku },
+          });
+          fixed++;
+        }
+      }
+  
+      return { ok: true, checked: lines.length, fixed };
+    }
 }

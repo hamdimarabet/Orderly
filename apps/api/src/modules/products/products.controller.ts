@@ -18,7 +18,10 @@ import {
     list(@Query('storeIds') storeIds?: string) {
       return this.products.listWithStats(storeIds ? storeIds.split(',') : undefined);
     }
-  
+    @Post('fix-skus/:storeId')
+  fixSkus(@Param('storeId') storeId: string) {
+    return this.products.fixMissingSkus(storeId);
+  }
     @Get('summary')
     summary(@Query('storeIds') storeIds?: string) {
       return this.products.summary(storeIds ? storeIds.split(',') : undefined);
