@@ -7,6 +7,7 @@ import { useStores } from "@/lib/stores-context";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PeriodFilter, getPeriodRange, type Period } from "@/components/stats/period-filter";
 import { cn } from "@/lib/utils";
 import {
   Plus, X, Users, Play, Pause, Trash2, Shuffle,
@@ -37,6 +38,8 @@ function DispatchContent() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
+  const [period, setPeriod] = useState<Period>(getPeriodRange("today"));
+  const [redistributing, setRedistributing] = useState(false);
   const [ruleAgent, setRuleAgent] = useState<Agent | null>(null);
 
   const accessibleStores = stores.filter((s) => canAccessStore(s.id));
@@ -50,7 +53,11 @@ function DispatchContent() {
   const fetchAgents = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API}/dispatch/agents`, {
+      const params = new URLSearchParams();
+      if (period.from) params.set("from", period.from.toISOString());
+      if (period.to) params.set("to", period.to.toISOString());
+
+      const res = await fetch(`${API}/dispatch/agents?${params}`, {
         headers: { Authorization: `Bearer ${getToken()}` },
       });
       const data = await res.json();
@@ -60,7 +67,7 @@ function DispatchContent() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [period]);
 
   useEffect(() => {
     fetchAgents();
@@ -77,7 +84,24 @@ function DispatchContent() {
     });
     fetchAgents();
   }
-
+  async function redistribute() {
+    setRedistributing(true);
+    try {
+      const res = await fetch(`${API}/dispatch/redistribute`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      alert(`${data.moved} commandes redistribuées.`);
+      fetchAgents();
+    } finally {
+      setRedistributing(false);
+    }
+  }
   async function runDispatch() {
     setRunning(true);
     try {
@@ -104,7 +128,7 @@ function DispatchContent() {
 
   const available = agents.filter((a) => a.isAvailable);
   const paused = agents.filter((a) => !a.isAvailable);
-  const totalToday = agents.reduce((s, a) => s + a.todayCount, 0);
+  const totalToday = agents.reduce((s, a) => s + ((a as any).stats?.total ?? 0), 0);
 
   return (
     <div className="flex h-screen bg-background">
@@ -128,6 +152,13 @@ function DispatchContent() {
             {running ? "Répartition..." : "Répartir maintenant"}
           </Button>
         </header>
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-surface px-3 py-2 md:px-5 md:py-3">
+          <PeriodFilter period={period} onChange={setPeriod} />
+          <Button size="sm" variant="secondary" disabled={redistributing} onClick={redistribute}>
+            <Shuffle className={cn("h-3.5 w-3.5", redistributing && "animate-spin")} />
+            Redistribuer les non traitées
+          </Button>
+        </div>
 
         <div className="flex-1 p-3 md:overflow-y-auto md:p-5">
           {loading ? (
@@ -204,85 +235,119 @@ function DispatchContent() {
 }
 
 function AgentCard({
-  agent,
-  stores,
-  onToggle,
-  onRules,
-  onRefresh,
-}: {
-  agent: Agent;
-  stores: { id: string; name: string }[];
-  onToggle: () => void;
-  onRules: () => void;
-  onRefresh: () => void;
-}) {
-  return (
-    <div
-      className={cn(
-        "rounded-xl border bg-surface p-3.5",
-        agent.isAvailable ? "border-border" : "border-border opacity-60"
-      )}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <div
-            className={cn(
-              "flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white",
-              agent.isAvailable ? "bg-primary" : "bg-slate-400"
-            )}
-          >
-            {agent.name[0]?.toUpperCase()}
+    agent,
+    stores,
+    onToggle,
+    onRules,
+    onRefresh,
+  }: {
+    agent: any;
+    stores: { id: string; name: string }[];
+    onToggle: () => void;
+    onRules: () => void;
+    onRefresh: () => void;
+  }) {
+    const s = agent.stats ?? { total: 0, confirmed: 0, refused: 0, pending: 0, treatedRate: 0 };
+  
+    return (
+      <div
+        className={cn(
+          "rounded-xl border bg-surface p-3.5",
+          agent.isAvailable ? "border-border" : "border-border opacity-60"
+        )}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <div
+              className={cn(
+                "flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white",
+                agent.isAvailable ? "bg-primary" : "bg-slate-400"
+              )}
+            >
+              {agent.name[0]?.toUpperCase()}
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold">{agent.name}</p>
+              <p className="truncate text-xs text-muted">{agent.email}</p>
+            </div>
           </div>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold">{agent.name}</p>
-            <p className="truncate text-xs text-muted">{agent.email}</p>
+  
+          <div className="flex shrink-0 items-center gap-2">
+            <div className="text-right">
+              <p className="font-mono text-lg font-bold text-primary">{s.total}</p>
+              <p className="text-[10px] text-muted">assignées</p>
+            </div>
+            <button
+              onClick={onToggle}
+              className={cn(
+                "flex h-8 items-center gap-1 rounded-full px-3 text-xs font-medium",
+                agent.isAvailable
+                  ? "bg-emerald-100 text-emerald-700"
+                  : "bg-slate-100 text-slate-600"
+              )}
+            >
+              {agent.isAvailable ? <Play className="h-3 w-3" /> : <Pause className="h-3 w-3" />}
+              {agent.isAvailable ? "Actif" : "Pause"}
+            </button>
           </div>
         </div>
-
-        <div className="flex shrink-0 items-center gap-2">
-          <div className="text-right">
-            <p className="font-mono text-lg font-bold text-primary">
-              {agent.todayCount}
-            </p>
-            <p className="text-[10px] text-muted">aujourd'hui</p>
+  
+        {/* Stats */}
+        {s.total > 0 && (
+          <div className="mt-3 rounded-lg bg-surface-sunken p-2.5">
+            <div className="flex flex-wrap items-center gap-3 text-xs">
+              <span className="text-status-delivered">
+                <span className="font-mono font-bold">{s.confirmed}</span> confirmées
+              </span>
+              <span className="text-status-cancelled">
+                <span className="font-mono font-bold">{s.refused}</span> refusées
+              </span>
+              <span className="text-status-processing">
+                <span className="font-mono font-bold">{s.pending}</span> en attente
+              </span>
+            </div>
+  
+            <div className="mt-2 flex items-center gap-2">
+              <div className="h-1.5 flex-1 rounded-full bg-white">
+                <div
+                  className={cn(
+                    "h-1.5 rounded-full transition-all",
+                    s.treatedRate >= 80 ? "bg-status-delivered" :
+                    s.treatedRate >= 50 ? "bg-status-processing" :
+                    "bg-status-cancelled"
+                  )}
+                  style={{ width: `${s.treatedRate}%` }}
+                />
+              </div>
+              <span className="shrink-0 text-[11px] font-medium text-muted">
+                {s.treatedRate}% traité
+              </span>
+            </div>
           </div>
+        )}
+  
+        {/* Rules */}
+        <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-border pt-3">
+          {agent.rules.length === 0 ? (
+            <span className="rounded-full bg-surface-sunken px-2.5 py-1 text-[11px] text-muted">
+              Reçoit de tout
+            </span>
+          ) : (
+            agent.rules.map((r: any) => (
+              <RuleBadge key={r.id} rule={r} stores={stores} />
+            ))
+          )}
           <button
-            onClick={onToggle}
-            className={cn(
-              "flex h-8 items-center gap-1 rounded-full px-3 text-xs font-medium",
-              agent.isAvailable
-                ? "bg-emerald-100 text-emerald-700"
-                : "bg-slate-100 text-slate-600"
-            )}
+            onClick={onRules}
+            className="flex items-center gap-1 rounded-full border border-dashed border-border px-2.5 py-1 text-[11px] text-muted hover:border-primary hover:text-primary"
           >
-            {agent.isAvailable ? <Play className="h-3 w-3" /> : <Pause className="h-3 w-3" />}
-            {agent.isAvailable ? "Actif" : "Pause"}
+            <Settings2 className="h-3 w-3" />
+            Règles
           </button>
         </div>
       </div>
-
-      {/* Rules */}
-      <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-border pt-3">
-        {agent.rules.length === 0 ? (
-          <span className="rounded-full bg-surface-sunken px-2.5 py-1 text-[11px] text-muted">
-            Reçoit de tout
-          </span>
-        ) : (
-          agent.rules.map((r) => (
-            <RuleBadge key={r.id} rule={r} stores={stores} />
-          ))
-        )}
-        <button
-          onClick={onRules}
-          className="flex items-center gap-1 rounded-full border border-dashed border-border px-2.5 py-1 text-[11px] text-muted hover:border-primary hover:text-primary"
-        >
-          <Settings2 className="h-3 w-3" />
-          Règles
-        </button>
-      </div>
-    </div>
-  );
-}
+    );
+  }
 
 function RuleBadge({ rule, stores }: { rule: any; stores: { id: string; name: string }[] }) {
   const parts: { icon: any; text: string }[] = [];
