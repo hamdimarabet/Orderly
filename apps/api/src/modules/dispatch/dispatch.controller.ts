@@ -11,8 +11,8 @@ import {
     constructor(private dispatch: DispatchService) {}
   
     @Get('agents')
-    listAgents() {
-      return this.dispatch.listAgents();
+    listAgents(@Query('from') from?: string, @Query('to') to?: string) {
+      return this.dispatch.listAgents(from, to);
     }
   
     @Patch('agents/:userId/availability')
@@ -36,6 +36,11 @@ import {
     @Post('run')
     run(@Body() body: { storeIds?: string[] }) {
       return this.dispatch.dispatchPending(body?.storeIds);
+    }
+  
+    @Post('redistribute')
+    redistribute() {
+      return this.dispatch.redistributePending();
     }
   
     @Post('reassign/:orderId')

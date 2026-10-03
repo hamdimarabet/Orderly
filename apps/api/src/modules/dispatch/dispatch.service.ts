@@ -9,39 +9,129 @@ export class DispatchService {
 
   // ---------- AVAILABILITY ----------
 
-  async listAgents() {
+  async listAgents(from?: string, to?: string) {
     const users = await this.prisma.user.findMany({
       where: { isActive: true, role: { not: 'SUPER_ADMIN' } },
       include: {
         availability: true,
-        dispatchRules: true,
+        dispatchRules: { where: { isActive: true } },
       },
       orderBy: { name: 'asc' },
     });
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const dateFilter: any = {};
+    if (from) dateFilter.gte = new Date(from);
+    if (to) dateFilter.lte = new Date(to);
 
-    const counts = await this.prisma.order.groupBy({
-      by: ['assignedAgentId'],
-      where: { confirmedAt: { gte: today } },
-      _count: { id: true },
+    const orders = await this.prisma.order.findMany({
+      where: {
+        assignedAgentId: { not: null },
+        ...(Object.keys(dateFilter).length > 0 && { sourceCreatedAt: dateFilter }),
+      },
+      select: {
+        assignedAgentId: true,
+        orderStatus: true,
+        callAttempts: true,
+        total: true,
+      },
     });
 
-    const countMap = Object.fromEntries(
-      counts.map((c) => [c.assignedAgentId, c._count.id]),
-    );
+    const stats: Record<string, any> = {};
 
-    return users.map((u) => ({
-      id: u.id,
-      name: u.name,
-      email: u.email,
-      role: u.role,
-      isAvailable: u.availability?.isActive ?? true,
-      note: u.availability?.note ?? null,
-      todayCount: countMap[u.id] ?? 0,
-      rules: u.dispatchRules.filter((r) => r.isActive),
-    }));
+    for (const o of orders) {
+      const id = o.assignedAgentId!;
+      if (!stats[id]) {
+        stats[id] = {
+          total: 0,
+          confirmed: 0,
+          refused: 0,
+          pending: 0,
+          revenue: 0,
+        };
+      }
+
+      const s = stats[id];
+      s.total++;
+
+      const attempts = (o.callAttempts as any[]) ?? [];
+      const isConfirmed = attempts.some((a) => a.result === 'ANSWERED_CONFIRMED');
+      const isRefused =
+        attempts.some((a) => a.result === 'ANSWERED_REFUSED') ||
+        o.orderStatus === 'ANNULE';
+
+      if (isConfirmed) {
+        s.confirmed++;
+        s.revenue += Number(o.total);
+      } else if (isRefused) {
+        s.refused++;
+      } else {
+        s.pending++;
+      }
+    }
+
+    return users.map((u) => {
+      const s = stats[u.id] ?? {
+        total: 0, confirmed: 0, refused: 0, pending: 0, revenue: 0,
+      };
+
+      return {
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        role: u.role,
+        isAvailable: u.availability?.isActive ?? true,
+        note: u.availability?.note ?? null,
+        rules: u.dispatchRules,
+        stats: {
+          ...s,
+          revenue: Math.round(s.revenue),
+          treatedRate: s.total > 0
+            ? Math.round(((s.confirmed + s.refused) / s.total) * 100)
+            : 0,
+        },
+      };
+    });
+  }
+  async redistributePending() {
+    // Orders assigned to paused agents, still untreated
+    const pausedAgents = await this.prisma.agentAvailability.findMany({
+      where: { isActive: false },
+      select: { userId: true },
+    });
+    const pausedIds = pausedAgents.map((a) => a.userId);
+
+    if (pausedIds.length === 0) return { ok: true, moved: 0 };
+
+    const orders = await this.prisma.order.findMany({
+      where: {
+        assignedAgentId: { in: pausedIds },
+        orderStatus: { in: ['NOUVEAU', 'CONFIRMATION_EN_COURS'] },
+      },
+      include: { lineItems: { select: { sku: true } } },
+    });
+
+    let moved = 0;
+    for (const o of orders) {
+      const agent = await this.pickAgent({
+        storeId: o.storeId,
+        total: Number(o.total),
+        city: (o.shippingAddress as any)?.city ?? null,
+        skus: o.lineItems.map((li) => li.sku).filter(Boolean) as string[],
+      });
+
+      if (!agent) continue;
+
+      await this.prisma.order.update({
+        where: { id: o.id },
+        data: {
+          assignedAgentId: agent.id,
+          assignedAgentName: agent.name,
+        },
+      });
+      moved++;
+    }
+
+    return { ok: true, moved };
   }
 
   async setAvailability(userId: string, isActive: boolean, note?: string) {
