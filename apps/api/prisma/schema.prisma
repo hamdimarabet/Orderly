@@ -182,7 +182,12 @@ model Order {
   customerPhone2    String?
   shippingAddress   Json?
   billingAddress    Json?
-
+  preparedById   String?
+  preparedByName String?
+  packedById     String?
+  packedByName   String?
+  scannedById    String?
+  scannedByName  String?
   currency          String            @default("USD")
   subtotal          Decimal           @db.Decimal(10, 2)
   taxTotal          Decimal           @db.Decimal(10, 2) @default(0)
@@ -399,6 +404,8 @@ model User {
   inviteToken  String?
   inviteExpiry DateTime?
   isActive     Boolean   @default(true)
+    dispatchRules  DispatchRule[]      @relation("DispatchRules")
+  availability   AgentAvailability?  @relation("Availability")
 
   storeAccess  UserStoreAccess[]
   notifications Notification[]
@@ -742,4 +749,33 @@ model Review {
 
   @@index([storeId, rating])
   @@index([orderId])
+}
+model DispatchRule {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation("DispatchRules", fields: [userId], references: [id], onDelete: Cascade)
+
+  storeId    String?
+  productSku String?
+  minTotal   Decimal? @db.Decimal(10, 3)
+  maxTotal   Decimal? @db.Decimal(10, 3)
+  city       String?
+
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([isActive])
+}
+
+model AgentAvailability {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation("Availability", fields: [userId], references: [id], onDelete: Cascade)
+
+  isActive  Boolean  @default(true)
+  pausedAt  DateTime?
+  note      String?
+
+  updatedAt DateTime @updatedAt
 }
