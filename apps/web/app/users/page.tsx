@@ -35,6 +35,7 @@ const ALL_PERMISSIONS = [
   { key: "preparation", label: "Préparation", description: "Préparer les commandes, bordereaux" },
   { key: "fulfillment", label: "Livraison", description: "Suivi des livraisons, statuts" },
   { key: "retours", label: "Retours", description: "Gestion des retours" },
+  { key: "assign_orders", label: "Assigner les commandes", description: "Attribuer manuellement des commandes aux agents" },
   { key: "reclamation", label: "Réclamations", description: "Traitement des réclamations" },
   { key: "products", label: "Produits & Stock", description: "Gestion des produits et stocks" },
   { key: "stats", label: "Statistiques", description: "Voir les chiffres, KPIs et chiffre d'affaires" },

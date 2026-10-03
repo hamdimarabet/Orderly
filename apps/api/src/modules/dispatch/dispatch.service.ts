@@ -133,7 +133,23 @@ export class DispatchService {
 
     return { ok: true, moved };
   }
+  async assignBulk(orderIds: string[], userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true },
+    });
+    if (!user) return { ok: false, error: 'Agent introuvable' };
 
+    const result = await this.prisma.order.updateMany({
+      where: { id: { in: orderIds } },
+      data: {
+        assignedAgentId: userId,
+        assignedAgentName: user.name,
+      },
+    });
+
+    return { ok: true, assigned: result.count, agent: user.name };
+  }
   async setAvailability(userId: string, isActive: boolean, note?: string) {
     return this.prisma.agentAvailability.upsert({
       where: { userId },

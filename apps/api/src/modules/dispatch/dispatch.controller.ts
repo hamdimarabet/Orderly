@@ -22,7 +22,10 @@ import {
     ) {
       return this.dispatch.setAvailability(userId, body.isActive, body.note);
     }
-  
+    @Post('assign-bulk')
+  assignBulk(@Body() body: { orderIds: string[]; userId: string }) {
+    return this.dispatch.assignBulk(body.orderIds, body.userId);
+  }
     @Post('rules')
     addRule(@Body() body: any) {
       return this.dispatch.addRule(body);
