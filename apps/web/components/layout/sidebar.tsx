@@ -11,7 +11,7 @@ import {
   LayoutGrid, Phone, Package, Truck, RotateCcw, QrCode, Archive,
   Users, MessageSquare, AlertCircle, ShoppingBag, TrendingUp,
   Megaphone, StoreIcon, Plug, Settings, LogOut, ChevronDown,Menu,
-  Check, Circle,Tag,Layers,Zap,
+  Check, Circle,Tag,Layers,Zap,Shuffle,
 } from "lucide-react";
 
 const NAV_GROUPS = [
@@ -52,6 +52,7 @@ const NAV_GROUPS = [
     label: "Équipe",
     items: [
       { label: "Performance", icon: TrendingUp, href: "/agents", permission: "agents" },
+      { label: "Répartition", icon: Shuffle, href: "/dispatch", permission: "users" },
       { label: "Chat équipe", icon: MessageSquare, href: "/chat", permission: "chat" },
       { label: "Marketing", icon: Megaphone, href: "/marketing", permission: "marketing" },
       { label: "Automatisations", icon: Zap, href: "/flows", permission: "marketing" },
