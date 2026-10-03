@@ -225,10 +225,13 @@ export class DispatchService {
     today.setHours(0, 0, 0, 0);
 
     const counts = await this.prisma.order.groupBy({
-      by: ['assignedAgentId'],
-      where: { confirmedAt: { gte: today } },
-      _count: { id: true },
-    });
+        by: ['assignedAgentId'],
+        where: {
+          assignedAgentId: { not: null },
+          orderStatus: { in: ['NOUVEAU', 'CONFIRMATION_EN_COURS'] },
+        },
+        _count: { id: true },
+      });
     const load = Object.fromEntries(
       counts.map((c) => [c.assignedAgentId, c._count.id]),
     );
