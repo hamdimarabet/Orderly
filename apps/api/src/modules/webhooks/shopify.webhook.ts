@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { DispatchService } from '../dispatch/dispatch.service';
 import {
   OrderStatus,
   FinancialStatus,
@@ -8,12 +9,22 @@ import {
 
 @Injectable()
 export class ShopifyWebhook {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private dispatch: DispatchService,
+  ) {}
 
   async handleOrderCreate(storeId: string, payload: any) {
     const order = await this.upsertOrder(storeId, payload);
+
     // Detect loyal customer for this phone (non-blocking)
     this.tagLoyalForPhone(payload.customer?.phone ?? payload.shipping_address?.phone).catch(() => {});
+
+    // Assign an agent automatically (non-blocking)
+    if (order?.id) {
+      this.dispatch.dispatchOne(order.id).catch(() => {});
+    }
+
     return order;
   }
 
