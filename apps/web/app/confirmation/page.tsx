@@ -26,7 +26,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import {
   Phone, Search, X, ChevronLeft, ChevronRight,CheckCircle2, PhoneMissed, Clock, PhoneOff,
-  Plus, Trash2, Edit2, Check, Building2, Calendar, Archive, Truck,Sparkles,ArrowRightLeft,Lock, AlertTriangle,Package,
+  Plus, Trash2, Edit2, Check, Building2, Calendar, Archive, Truck,Sparkles,ArrowRightLeft,Lock, AlertTriangle,Package,Users,
 } from "lucide-react";
 import { Order, OrderStatus, CallAttempt } from "@/types/order";
 import { OrderStatusBadge } from "@/components/orders/status-badge";
@@ -1653,6 +1653,28 @@ function ConfirmationContent() {
   const [detectingLoyal, setDetectingLoyal] = useState(false);
   const [customerStats, setCustomerStats] = useState<Record<string, CustomerStats>>({});
   const [page, setPage] = useState(1);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showAssign, setShowAssign] = useState(false);
+
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    const ids = pageOrders.map((o) => o.id);
+    const allSelected = ids.every((id) => selectedIds.has(id));
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allSelected) ids.forEach((id) => next.delete(id));
+      else ids.forEach((id) => next.add(id));
+      return next;
+    });
+  }
   const [serverTotal, setServerTotal] = useState(0);
   const [serverTotalPages, setServerTotalPages] = useState(1);
   const [filter, setFilter] = useState<"all" | "pending" | "confirmed" | "refused" | "a_verifier">("all");
@@ -2076,6 +2098,16 @@ function ConfirmationContent() {
                       <table className="hidden w-full border-collapse text-sm md:table">
               <thead className="sticky top-0 z-10 bg-surface">
                 <tr className="border-b border-border text-left text-xs font-medium text-muted">
+                {hasPermission("assign_orders") && (
+                    <th className="w-10 px-4 py-2.5">
+                      <input
+                        type="checkbox"
+                        checked={pageOrders.length > 0 && pageOrders.every((o) => selectedIds.has(o.id))}
+                        onChange={toggleSelectAll}
+                        className="h-3.5 w-3.5 rounded border-border-strong accent-primary"
+                      />
+                    </th>
+                  )}
                   <th className="px-4 py-2.5">Commande</th>
                   <th className="px-4 py-2.5">Date</th>
                   <th className="px-4 py-2.5">Client</th>
@@ -2107,6 +2139,16 @@ function ConfirmationContent() {
                       )}
                       onClick={() => setActiveOrder(order)}
                     >
+                                            {hasPermission("assign_orders") && (
+                        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(order.id)}
+                            onChange={() => toggleSelect(order.id)}
+                            className="h-3.5 w-3.5 rounded border-border-strong accent-primary"
+                          />
+                        </td>
+                      )}
                       <td className="px-4 py-3">
                         <span className="font-mono text-[13px] font-semibold">{order.orderNumber}</span>
                       </td>
@@ -2294,10 +2336,127 @@ function ConfirmationContent() {
           onCreated={fetchOrders}
         />
       )}
+            {selectedIds.size > 0 && hasPermission("assign_orders") && (
+        <div className="fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-xl border border-border bg-surface px-5 py-3 shadow-xl">
+          <span className="text-sm font-medium">
+            {selectedIds.size} sélectionnée{selectedIds.size > 1 ? "s" : ""}
+          </span>
+          <Button size="sm" onClick={() => setShowAssign(true)}>
+            <Users className="h-3.5 w-3.5" />
+            Assigner à
+          </Button>
+          <button
+            onClick={() => setSelectedIds(new Set())}
+            className="text-muted hover:text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
+      {showAssign && (
+        <AssignModal
+          count={selectedIds.size}
+          onClose={() => setShowAssign(false)}
+          onAssign={async (userId) => {
+            const res = await fetch(`${API}/dispatch/assign-bulk`, {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${getToken()}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                orderIds: Array.from(selectedIds),
+                userId,
+              }),
+            });
+            const data = await res.json();
+            if (data.ok) {
+              alert(`${data.assigned} commandes assignées à ${data.agent}.`);
+              setSelectedIds(new Set());
+              setShowAssign(false);
+              fetchOrders();
+            }
+          }}
+        />
+      )}
     </div>
   );
 }
+function AssignModal({
+  count,
+  onClose,
+  onAssign,
+}: {
+  count: number;
+  onClose: () => void;
+  onAssign: (userId: string) => void;
+}) {
+  const [agents, setAgents] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
 
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`${API}/dispatch/agents`, {
+          headers: { Authorization: `Bearer ${getToken()}` },
+        });
+        const data = await res.json();
+        setAgents(Array.isArray(data) ? data : []);
+      } catch {
+        setAgents([]);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-foreground/30 backdrop-blur-[2px]">
+      <div className="mx-3 flex max-h-[85vh] w-full max-w-sm flex-col rounded-xl border border-border bg-surface shadow-2xl">
+        <div className="flex items-center justify-between border-b border-border px-5 py-4">
+          <div>
+            <h2 className="text-sm font-semibold">Assigner {count} commande{count > 1 ? "s" : ""}</h2>
+            <p className="text-xs text-muted">Choisissez un agent</p>
+          </div>
+          <button onClick={onClose} className="rounded-md p-1 hover:bg-surface-sunken">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4 space-y-1.5">
+          {loading ? (
+            <p className="py-8 text-center text-xs text-muted">Chargement...</p>
+          ) : (
+            agents.map((a) => (
+              <button
+                key={a.id}
+                disabled={busy}
+                onClick={() => { setBusy(true); onAssign(a.id); }}
+                className="flex w-full items-center gap-3 rounded-lg border border-border p-3 text-left transition-colors hover:border-primary hover:bg-primary-soft/30 disabled:opacity-50"
+              >
+                <div className={cn(
+                  "flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white",
+                  a.isAvailable ? "bg-primary" : "bg-slate-400"
+                )}>
+                  {a.name[0]?.toUpperCase()}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{a.name}</p>
+                  <p className="text-[11px] text-muted">
+                    {a.stats?.total ?? 0} commandes
+                    {!a.isAvailable && " · en pause"}
+                  </p>
+                </div>
+              </button>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 export default function ConfirmationPage() {
   return (
     <RouteGuard>
