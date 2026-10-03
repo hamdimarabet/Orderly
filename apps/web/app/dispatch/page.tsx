@@ -38,7 +38,7 @@ function DispatchContent() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
-  const [period, setPeriod] = useState<Period>(getPeriodRange("today"));
+  const [period, setPeriod] = useState<Period>(getPeriodRange("all"));
   const [redistributing, setRedistributing] = useState(false);
   const [ruleAgent, setRuleAgent] = useState<Agent | null>(null);
 
