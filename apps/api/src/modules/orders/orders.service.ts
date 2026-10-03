@@ -595,6 +595,18 @@ export class OrdersService {
           assignedAgentName: agentName,
         }),
         ...(isConfirmed && { confirmedAt: new Date() }),
+        ...(status === 'EN_PREPARATION' && actorId && {
+          preparedById: actorId,
+          preparedByName: agentName,
+        }),
+        ...(status === 'EMBALLE' && actorId && {
+          packedById: actorId,
+          packedByName: agentName,
+        }),
+        ...(status === 'RETOUR_RECU' && actorId && {
+          scannedById: actorId,
+          scannedByName: agentName,
+        }),
       },
     });
 
