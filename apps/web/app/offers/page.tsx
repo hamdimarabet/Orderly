@@ -164,6 +164,48 @@ function OfferModal({
               <p className="text-xs font-semibold uppercase tracking-wide text-muted">
                 Paliers actifs
               </p>
+                            {/* Quantity 1 — shipping only */}
+                            {!offers.some((o) => o.quantity === 1) && (
+                <div className="flex items-center gap-3 rounded-lg border border-dashed border-border px-3 py-2.5">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface-sunken text-xs font-bold text-muted">
+                    ×1
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold">{basePrice.toFixed(3)} TND</p>
+                    <div className="mt-1 flex items-center gap-1.5">
+                      <span className="text-[10px] text-muted">Livraison</span>
+                      <Input
+                        type="number"
+                        defaultValue=""
+                        onBlur={async (e) => {
+                          const val = e.target.value;
+                          if (val === "") return;
+                          await fetch(`${API}/products/${product.id}/offers`, {
+                            method: "POST",
+                            headers: {
+                              Authorization: `Bearer ${getToken()}`,
+                              "Content-Type": "application/json",
+                            },
+                            body: JSON.stringify({
+                              quantity: 1,
+                              priceType: "FIXED",
+                              price: basePrice,
+                              shippingPrice: parseFloat(val),
+                            }),
+                          });
+                          await load();
+                          onSaved();
+                        }}
+                        placeholder="normale"
+                        step="0.001"
+                        min={0}
+                        className="h-6 w-20 text-[11px]"
+                      />
+                      <span className="text-[10px] text-muted">TND</span>
+                    </div>
+                  </div>
+                </div>
+              )}
               {offers.map((o) => {
                 const normal = basePrice * o.quantity;
                 const offerTotal = computeTotal(o);
