@@ -155,7 +155,8 @@ model ShippingRule {
   freeThreshold Decimal? @db.Decimal(10, 3)
   cityOverrides Json?
   isActive      Boolean  @default(true)
-
+  tiers         Json?
+  productRules  Json?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

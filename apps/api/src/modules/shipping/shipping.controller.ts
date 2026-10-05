@@ -25,8 +25,14 @@ import {
       @Param('storeId') storeId: string,
       @Query('subtotal') subtotal: string,
       @Query('city') city?: string,
+      @Query('skus') skus?: string,
     ) {
-      return this.shipping.calculate(storeId, parseFloat(subtotal) || 0, city);
+      return this.shipping.calculate(
+        storeId,
+        parseFloat(subtotal) || 0,
+        city,
+        skus ? skus.split(',') : undefined,
+      );
     }
   
     @Post('rules')
