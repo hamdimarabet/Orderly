@@ -266,9 +266,9 @@ function AddStoreModal({
                         <p className="font-semibold text-foreground">Dans Partners.shopify.com :</p>
                         <p>1. Apps → Create app → Create app manually</p>
                         <p>2. Nom : Orderly</p>
-                        <p>3. App URL : <span className="font-mono">https://orderly-production-641f.up.railway.app</span></p>
+                        <p>3. App URL : <span className="font-mono">https://orderly-production-64e3.up.railway.app</span></p>
                         <p>4. Redirect URL :</p>
-                        <p className="font-mono pl-3 text-[10px] break-all">https://orderly-production-641f.up.railway.app/api/integrations/shopify/callback</p>
+                        <p className="font-mono pl-3 text-[10px] break-all">https://orderly-production-64e3.up.railway.app/api/integrations/shopify/callback</p>
                         <p>5. Scopes : <span className="font-mono">read_products,read_inventory,read_orders,read_fulfillments</span></p>
                         <p>6. Legacy install flow : ON</p>
                         <p>7. Save → copier Client ID et Client Secret</p>
