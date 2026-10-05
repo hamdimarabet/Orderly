@@ -183,11 +183,45 @@ function OfferModal({
                           : "Prix fixe"}
                         {basePrice > 0 && ` · économie ${saving.toFixed(3)} TND`}
                       </p>
-                      {(o as any).shippingPrice !== null && (o as any).shippingPrice !== undefined && (
-                        <p className="text-[10px] font-medium text-primary">
-                          Livraison {Number((o as any).shippingPrice) === 0 ? "gratuite" : `${Number((o as any).shippingPrice).toFixed(3)} TND`}
-                        </p>
-                      )}
+                      <div className="mt-1 flex items-center gap-1.5">
+                        <span className="text-[10px] text-muted">Livraison</span>
+                        <Input
+                          type="number"
+                          value={(o as any).shippingPrice ?? ""}
+                          onChange={async (e) => {
+                            const val = e.target.value;
+                            setOffers((prev) =>
+                              prev.map((x) =>
+                                x.id === o.id ? { ...x, shippingPrice: val === "" ? null : val } : x
+                              ) as any
+                            );
+                          }}
+                          onBlur={async (e) => {
+                            const val = e.target.value;
+                            await fetch(`${API}/products/${product.id}/offers`, {
+                              method: "POST",
+                              headers: {
+                                Authorization: `Bearer ${getToken()}`,
+                                "Content-Type": "application/json",
+                              },
+                              body: JSON.stringify({
+                                quantity: o.quantity,
+                                priceType: o.priceType,
+                                price: o.priceType === "FIXED" ? Number(o.price) : undefined,
+                                percent: o.priceType === "PERCENT" ? Number(o.percent) : undefined,
+                                shippingPrice: val === "" ? null : parseFloat(val),
+                              }),
+                            });
+                            await load();
+                            onSaved();
+                          }}
+                          placeholder="normale"
+                          step="0.001"
+                          min={0}
+                          className="h-6 w-20 text-[11px]"
+                        />
+                        <span className="text-[10px] text-muted">TND</span>
+                      </div>
                       {((o as any).startsAt || (o as any).endsAt) && (
                         <p className="text-[10px] text-muted">
                           {(o as any).startsAt && `du ${new Date((o as any).startsAt).toLocaleDateString("fr-FR")}`}
