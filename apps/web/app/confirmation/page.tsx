@@ -782,6 +782,8 @@ function OrderModal({
   const [shippingReason, setShippingReason] = useState("");
 
   const [computedPrices, setComputedPrices] = useState<Record<string, number>>({});
+  const [offerShipping, setOfferShipping] = useState<number | null>(null);
+  
 
   const [upsellPrices, setUpsellPrices] = useState<Record<string, any>>({});
 
@@ -807,7 +809,7 @@ function OrderModal({
         } catch {}
       }
       setUpsellPrices(upsells);
-
+      setOfferShipping(null);
       // 2. Compute each line
       const results: Record<string, number> = {};
       await Promise.all(
@@ -831,6 +833,9 @@ function OrderModal({
               { headers: { Authorization: `Bearer ${getToken()}` } }
             );
             const data = await res.json();
+            if (data.shippingPrice !== null && data.shippingPrice !== undefined) {
+              setOfferShipping(data.shippingPrice);
+            }
             results[idx] = data.total > 0
               ? data.total
               : (Number(li.price) || 0) * qty;
@@ -860,6 +865,14 @@ function OrderModal({
       setShippingReason("Commande vide");
       return;
     }
+
+    // An offer with its own shipping price wins
+    if (offerShipping !== null) {
+      setShippingCost(offerShipping);
+      setShippingFree(offerShipping === 0);
+      setShippingReason("Prix de l'offre quantité");
+      return;
+    }
     (async () => {
       try {
         const skus = lineItems.map((li) => li.sku).filter(Boolean).join(",");
@@ -875,7 +888,7 @@ function OrderModal({
         setShippingCost(Number(order.shippingTotal) || 0);
       }
     })();
-  }, [productsTotal, city, order.storeId]);
+  }, [productsTotal, city, order.storeId, offerShipping]);
 
   const subtotalCalc = productsTotal + shippingCost;
  
