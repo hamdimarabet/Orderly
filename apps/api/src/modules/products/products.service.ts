@@ -318,6 +318,9 @@ export class ProductsService {
     price?: number;
     percent?: number;
     label?: string;
+    startsAt?: string | null;
+    endsAt?: string | null;
+    shippingPrice?: number | null;
   }) {
     return this.prisma.quantityOffer.upsert({
       where: {
@@ -333,16 +336,21 @@ export class ProductsService {
         price: data.price ?? null,
         percent: data.percent ?? null,
         label: data.label ?? null,
+        startsAt: data.startsAt ? new Date(data.startsAt) : null,
+        endsAt: data.endsAt ? new Date(data.endsAt) : null,
+        shippingPrice: data.shippingPrice ?? null,
       },
       update: {
         priceType: data.priceType,
         price: data.price ?? null,
         percent: data.percent ?? null,
         label: data.label ?? null,
+        startsAt: data.startsAt ? new Date(data.startsAt) : null,
+        endsAt: data.endsAt ? new Date(data.endsAt) : null,
+        shippingPrice: data.shippingPrice ?? null,
       },
     });
   }
-
   async removeOffer(id: string) {
     return this.prisma.quantityOffer.delete({ where: { id } });
   }
@@ -397,6 +405,9 @@ export class ProductsService {
     return {
       unitPrice: quantity > 0 ? total / quantity : basePrice,
       total,
+      shippingPrice: (offer as any).shippingPrice !== null && (offer as any).shippingPrice !== undefined
+        ? Number((offer as any).shippingPrice)
+        : null,
       offerApplied: {
         quantity: offer.quantity,
         priceType: offer.priceType,

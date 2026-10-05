@@ -118,6 +118,7 @@ model QuantityOffer {
   startsAt   DateTime?
   endsAt     DateTime?
   createdAt  DateTime @default(now())
+    shippingPrice Decimal? @db.Decimal(10, 3)
 
   @@unique([productId, quantity])
   @@index([productId])

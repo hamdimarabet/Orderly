@@ -44,6 +44,9 @@ import {
       price?: number;
       percent?: number;
       label?: string;
+      startsAt?: string | null;
+      endsAt?: string | null;
+      shippingPrice?: number | null;
     },
   ) {
     return this.products.createOffer({ productId: id, ...body });
