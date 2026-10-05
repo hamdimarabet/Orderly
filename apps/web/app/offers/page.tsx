@@ -45,6 +45,7 @@ function OfferModal({
   const [percent, setPercent] = useState("");
   const [startsAt, setStartsAt] = useState("");
   const [endsAt, setEndsAt] = useState("");
+  const [shippingPrice, setShippingPrice] = useState("");
 
   const basePrice = Number(product.sellPrice ?? 0);
 
@@ -88,6 +89,7 @@ function OfferModal({
             percent: type === "PERCENT" ? parseFloat(percent) : undefined,
             startsAt: startsAt || null,
             endsAt: endsAt || null,
+            shippingPrice: shippingPrice ? parseFloat(shippingPrice) : null,
           }),
       });
       setPrice("");
@@ -181,6 +183,11 @@ function OfferModal({
                           : "Prix fixe"}
                         {basePrice > 0 && ` · économie ${saving.toFixed(3)} TND`}
                       </p>
+                      {(o as any).shippingPrice !== null && (o as any).shippingPrice !== undefined && (
+                        <p className="text-[10px] font-medium text-primary">
+                          Livraison {Number((o as any).shippingPrice) === 0 ? "gratuite" : `${Number((o as any).shippingPrice).toFixed(3)} TND`}
+                        </p>
+                      )}
                       {((o as any).startsAt || (o as any).endsAt) && (
                         <p className="text-[10px] text-muted">
                           {(o as any).startsAt && `du ${new Date((o as any).startsAt).toLocaleDateString("fr-FR")}`}
@@ -273,7 +280,23 @@ function OfferModal({
                   className="h-8 text-xs"
                 />
               </div>
-            )}
+            )}            <div>
+            <label className="mb-1 block text-[11px] text-muted">
+              Prix de livraison pour ce palier (optionnel)
+            </label>
+            <Input
+              type="number"
+              value={shippingPrice}
+              onChange={(e) => setShippingPrice(e.target.value)}
+              placeholder="Laisser vide pour la règle normale"
+              step="0.001"
+              min={0}
+              className="h-8 text-xs"
+            />
+            <p className="mt-1 text-[10px] text-muted">
+              Mettez 0 pour une livraison gratuite sur ce palier
+            </p>
+          </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="mb-1 block text-[11px] text-muted">Valide à partir du</label>
