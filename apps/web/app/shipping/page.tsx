@@ -43,6 +43,10 @@ function RuleModal({
   const [showOverrides, setShowOverrides] = useState(
     Object.keys(rule?.cityOverrides ?? {}).length > 0
   );
+  const [tiers, setTiers] = useState<any[]>(rule?.tiers ?? []);
+  const [productRules, setProductRules] = useState<any[]>(rule?.productRules ?? []);
+  const [showTiers, setShowTiers] = useState((rule?.tiers ?? []).length > 0);
+  const [showProductRules, setShowProductRules] = useState((rule?.productRules ?? []).length > 0);
   const [loading, setLoading] = useState(false);
 
   async function save() {
@@ -60,6 +64,8 @@ function RuleModal({
         basePrice: parseFloat(basePrice) || 0,
         freeThreshold: freeThreshold ? parseFloat(freeThreshold) : null,
         cityOverrides: Object.keys(cityOverrides).length > 0 ? cityOverrides : null,
+        tiers: tiers.length > 0 ? tiers : null,
+        productRules: productRules.length > 0 ? productRules : null,
       };
 
       if (rule) {
@@ -148,6 +154,155 @@ function RuleModal({
             <p className="mt-1 text-[11px] text-muted">
               Si le sous-total dépasse ce montant, la livraison devient gratuite
             </p>
+          </div>
+                    {/* Amount tiers */}
+                    <div>
+            <button
+              onClick={() => setShowTiers((v) => !v)}
+              className="text-xs font-medium text-primary hover:underline"
+            >
+              {showTiers ? "Masquer" : "Définir"} des paliers par montant
+            </button>
+
+            {showTiers && (
+              <div className="mt-2 space-y-2 rounded-lg border border-border p-3">
+                <p className="text-[11px] text-muted">
+                  Le premier palier qui correspond au sous-total l'emporte.
+                  Laissez "jusqu'à" vide pour un palier sans limite haute.
+                </p>
+
+                {tiers.map((t, idx) => (
+                  <div key={idx} className="flex items-center gap-1.5">
+                    <Input
+                      type="number"
+                      value={t.from ?? 0}
+                      onChange={(e) =>
+                        setTiers((prev) =>
+                          prev.map((x, i) => i === idx ? { ...x, from: parseFloat(e.target.value) || 0 } : x)
+                        )
+                      }
+                      placeholder="De"
+                      className="h-7 w-20 text-xs"
+                    />
+                    <span className="text-[10px] text-muted">à</span>
+                    <Input
+                      type="number"
+                      value={t.to ?? ""}
+                      onChange={(e) =>
+                        setTiers((prev) =>
+                          prev.map((x, i) => i === idx ? { ...x, to: e.target.value ? parseFloat(e.target.value) : null } : x)
+                        )
+                      }
+                      placeholder="∞"
+                      className="h-7 w-20 text-xs"
+                    />
+                    <span className="text-[10px] text-muted">→</span>
+                    <Input
+                      type="number"
+                      value={t.price ?? 0}
+                      onChange={(e) =>
+                        setTiers((prev) =>
+                          prev.map((x, i) => i === idx ? { ...x, price: parseFloat(e.target.value) || 0 } : x)
+                        )
+                      }
+                      placeholder="Prix"
+                      step="0.001"
+                      className="h-7 w-20 text-xs"
+                    />
+                    <button
+                      onClick={() => setTiers((prev) => prev.filter((_, i) => i !== idx))}
+                      className="text-muted hover:text-status-cancelled"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
+
+                <button
+                  onClick={() => setTiers((prev) => [...prev, { from: 0, to: null, price: 0 }])}
+                  className="flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                >
+                  <Plus className="h-3 w-3" /> Ajouter un palier
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Product rules */}
+          <div>
+            <button
+              onClick={() => setShowProductRules((v) => !v)}
+              className="text-xs font-medium text-primary hover:underline"
+            >
+              {showProductRules ? "Masquer" : "Définir"} des règles par produit
+            </button>
+
+            {showProductRules && (
+              <div className="mt-2 space-y-2 rounded-lg border border-border p-3">
+                <p className="text-[11px] text-muted">
+                  Prioritaire sur les paliers. Séparez plusieurs SKU par des virgules.
+                </p>
+
+                {productRules.map((pr, idx) => (
+                  <div key={idx} className="space-y-1.5 rounded-lg bg-surface-sunken p-2">
+                    <div className="flex items-center gap-1.5">
+                      <Input
+                        value={(pr.skus ?? []).join(",")}
+                        onChange={(e) =>
+                          setProductRules((prev) =>
+                            prev.map((x, i) => i === idx
+                              ? { ...x, skus: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) }
+                              : x)
+                          )
+                        }
+                        placeholder="sku1,sku2"
+                        className="h-7 flex-1 text-xs"
+                      />
+                      <button
+                        onClick={() => setProductRules((prev) => prev.filter((_, i) => i !== idx))}
+                        className="text-muted hover:text-status-cancelled"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={pr.matchAll === false ? "any" : "all"}
+                        onChange={(e) =>
+                          setProductRules((prev) =>
+                            prev.map((x, i) => i === idx ? { ...x, matchAll: e.target.value === "all" } : x)
+                          )
+                        }
+                        className="h-7 flex-1 rounded-md border border-border bg-surface px-2 text-[11px]"
+                      >
+                        <option value="all">Tous présents</option>
+                        <option value="any">Au moins un</option>
+                      </select>
+                      <Input
+                        type="number"
+                        value={pr.price ?? 0}
+                        onChange={(e) =>
+                          setProductRules((prev) =>
+                            prev.map((x, i) => i === idx ? { ...x, price: parseFloat(e.target.value) || 0 } : x)
+                          )
+                        }
+                        placeholder="Prix"
+                        step="0.001"
+                        className="h-7 w-20 text-xs"
+                      />
+                    </div>
+                  </div>
+                ))}
+
+                <button
+                  onClick={() => setProductRules((prev) => [...prev, { skus: [], matchAll: true, price: 0 }])}
+                  className="flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                >
+                  <Plus className="h-3 w-3" /> Ajouter une règle
+                </button>
+              </div>
+            )}
           </div>
 
           <div>
