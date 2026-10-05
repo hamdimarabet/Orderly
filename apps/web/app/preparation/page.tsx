@@ -149,8 +149,9 @@ function CreateOrderModal({
     if (productsTotal <= 0) { setShippingCost(0); setShippingFree(false); return; }
     (async () => {
       try {
+        const skus = products.map((p) => p.sku).filter(Boolean).join(",");
         const res = await fetch(
-          `${API}/shipping/calculate/${storeId}?subtotal=${productsTotal}&city=${encodeURIComponent(city)}`,
+          `${API}/shipping/calculate/${storeId}?subtotal=${productsTotal}&city=${encodeURIComponent(city)}&skus=${encodeURIComponent(skus)}`,
           { headers: { Authorization: `Bearer ${getToken()}` } }
         );
         const data = await res.json();
