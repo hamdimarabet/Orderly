@@ -70,9 +70,15 @@ function OfferModal({
 
   async function addOffer() {
     const q = parseInt(qty);
-    if (!q || q < 2) return;
-    if (type === "FIXED" && !price) return;
-    if (type === "PERCENT" && !percent) return;
+    if (!q || q < 1) return;
+
+    // Quantity 1 is only used to set a shipping price
+    if (q === 1) {
+      if (!shippingPrice) return;
+    } else {
+      if (type === "FIXED" && !price) return;
+      if (type === "PERCENT" && !percent) return;
+    }
 
     setBusy(true);
     try {
@@ -83,14 +89,14 @@ function OfferModal({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-            quantity: q,
-            priceType: type,
-            price: type === "FIXED" ? parseFloat(price) : undefined,
-            percent: type === "PERCENT" ? parseFloat(percent) : undefined,
-            startsAt: startsAt || null,
-            endsAt: endsAt || null,
-            shippingPrice: shippingPrice ? parseFloat(shippingPrice) : null,
-          }),
+          quantity: q,
+          priceType: q === 1 ? "FIXED" : type,
+          price: q === 1 ? basePrice : (type === "FIXED" ? parseFloat(price) : undefined),
+          percent: q === 1 ? undefined : (type === "PERCENT" ? parseFloat(percent) : undefined),
+          startsAt: startsAt || null,
+          endsAt: endsAt || null,
+          shippingPrice: shippingPrice ? parseFloat(shippingPrice) : null,
+        }),
       });
       setPrice("");
       setPercent("");
@@ -257,10 +263,11 @@ function OfferModal({
                   type="number"
                   value={qty}
                   onChange={(e) => setQty(e.target.value)}
-                  min={2}
+                  min={1}
                   className="h-8 w-20 text-xs"
                 />
               </div>
+              {parseInt(qty) > 1 && (
               <div className="flex-1">
                 <label className="mb-1 block text-[11px] text-muted">Type de prix</label>
                 <div className="flex h-8 rounded-md border border-border overflow-hidden">
@@ -283,9 +290,14 @@ function OfferModal({
                   ))}
                 </div>
               </div>
+              )}
             </div>
 
-            {type === "FIXED" ? (
+            {parseInt(qty) === 1 ? (
+              <p className="rounded-lg bg-primary-soft px-3 py-2 text-[11px] text-primary">
+                Pour 1 unité, seul le prix de livraison est pris en compte.
+              </p>
+            ) : type === "FIXED" ? (
               <div>
                 <label className="mb-1 block text-[11px] text-muted">
                   Prix total pour {qty} unités
