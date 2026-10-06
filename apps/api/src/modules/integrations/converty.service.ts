@@ -370,21 +370,76 @@ export class ConvertyService {
     }
 
     const cart: any[] = o?.cart ?? [];
-    const lineItems = cart.map((c) => {
+    const lineItems: any[] = [];
+
+    for (const c of cart) {
       const variant = (c.selectedVariants ?? [])
         .map((v: any) => v.value)
         .filter(Boolean)
         .join(' / ');
-      return {
-        title: c.product?.name ?? 'Produit',
-        sku: c.product?.sku ? String(c.product.sku) : null,
+
+      const title = c.product?.name ?? 'Produit';
+      const sku = c.product?.sku ? String(c.product.sku) : null;
+
+      // Resolve the matching product by SKU, name+variant, name, then alias
+      let productId: string | null = null;
+
+      if (sku) {
+        const bySku = await this.prisma.product.findUnique({
+          where: { storeId_sku: { storeId, sku } },
+          select: { id: true },
+        });
+        if (bySku) productId = bySku.id;
+      }
+
+      if (!productId && variant) {
+        const byCombined = await this.prisma.product.findFirst({
+          where: { storeId, name: { equals: `${title} - ${variant}`, mode: 'insensitive' } },
+          select: { id: true },
+        });
+        if (byCombined) productId = byCombined.id;
+      }
+
+      if (!productId) {
+        const byName = await this.prisma.product.findFirst({
+          where: { storeId, name: { equals: title, mode: 'insensitive' } },
+          select: { id: true },
+        });
+        if (byName) productId = byName.id;
+      }
+
+      if (!productId) {
+        const alias = await this.prisma.productAlias.findFirst({
+          where: {
+            alias: { equals: title, mode: 'insensitive' },
+            product: { storeId },
+          },
+          select: { productId: true },
+        });
+        if (alias) productId = alias.productId;
+      }
+
+      // Fill SKU from the resolved product when Converty sends none
+      let finalSku = sku;
+      if (!finalSku && productId) {
+        const p = await this.prisma.product.findUnique({
+          where: { id: productId },
+          select: { sku: true },
+        });
+        finalSku = p?.sku ?? null;
+      }
+
+      lineItems.push({
+        title,
+        sku: finalSku,
         variantTitle: variant || null,
         quantity: Number(c.quantity ?? 1),
         price: Number(c.pricePerUnit ?? c.product?.price ?? 0),
         fulfilledQty: 0,
         refundedQty: 0,
-      };
-    });
+        ...(productId && { productId }),
+      });
+    }
 
     const total = Number(o?.total?.totalPrice ?? 0);
     const deliveryPrice = Number(o?.total?.deliveryPrice ?? 0);
