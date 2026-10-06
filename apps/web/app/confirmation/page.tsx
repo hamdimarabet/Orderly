@@ -1693,6 +1693,17 @@ function ConfirmationContent() {
   const [serverTotal, setServerTotal] = useState(0);
   const [serverTotalPages, setServerTotalPages] = useState(1);
   const [filter, setFilter] = useState<"all" | "pending" | "confirmed" | "refused" | "a_verifier">("all");
+  const [agentFilter, setAgentFilter] = useState<string>("");
+  const [agents, setAgents] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch(`${API}/dispatch/agents`, {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    })
+      .then((r) => r.json())
+      .then((d) => setAgents(Array.isArray(d) ? d : []))
+      .catch(() => {});
+  }, []);
   const [period, setPeriod] = useState<Period>(getPeriodRange("all"));
   const [advFilters, setAdvFilters] = useState<AdvancedFilterState>(EMPTY_FILTERS);
   const accessibleStores = stores.filter((s) => canAccessStore(s.id));
@@ -1824,6 +1835,7 @@ function ConfirmationContent() {
       const hay = `${o.orderNumber} ${o.customerName ?? ""} ${o.customerPhone ?? ""}`.toLowerCase();
       if (!hay.includes(q)) return false;
     }
+    if (agentFilter && o.assignedAgentId !== agentFilter) return false;
     const attempts = Array.isArray(o.callAttempts) ? o.callAttempts as CallAttempt[] : [];
     const confirmed = attempts.some((a) => a.result === "ANSWERED_CONFIRMED");
     const refused = attempts.some((a) => a.result === "ANSWERED_REFUSED");
@@ -1944,6 +1956,16 @@ function ConfirmationContent() {
             />
           </div>
           <AdvancedFilters filters={advFilters} onChange={setAdvFilters} orders={orders} />
+          <select
+            value={agentFilter}
+            onChange={(e) => { setAgentFilter(e.target.value); setPage(1); }}
+            className="h-9 shrink-0 rounded-md border border-border bg-surface px-2 text-xs focus-visible:outline-none"
+          >
+            <option value="">Tous les agents</option>
+            {agents.map((a) => (
+              <option key={a.id} value={a.id}>{a.name}</option>
+            ))}
+          </select>
           <div className="-mx-3 flex gap-1 overflow-x-auto px-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:mx-0 md:px-0">
             {[
               { key: "all", label: "Tous", count: orders.length },
@@ -2124,6 +2146,7 @@ function ConfirmationContent() {
                     </th>
                   )}
                   <th className="px-4 py-2.5">Commande</th>
+                  <th className="px-4 py-2.5">Magasin</th>
                   <th className="px-4 py-2.5">Date</th>
                   <th className="px-4 py-2.5">Client</th>
                   
@@ -2166,6 +2189,11 @@ function ConfirmationContent() {
                       )}
                       <td className="px-4 py-3">
                         <span className="font-mono text-[13px] font-semibold">{order.orderNumber}</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="rounded bg-surface-sunken px-2 py-0.5 text-[11px] font-medium text-muted">
+                          {order.storeName}
+                        </span>
                       </td>
                       <td className="px-4 py-3 text-xs text-muted whitespace-nowrap">
                         {formatDate(order.sourceCreatedAt)}
