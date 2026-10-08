@@ -25,6 +25,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { TagBadge } from "@/components/orders/tag-picker";
+
+const [agentFilter, setAgentFilter] = useState<string>("");
+const [agents, setAgents] = useState<any[]>([]);
+
+
+useEffect(() => {
+  fetch(`${API}/dispatch/agents`, {
+    headers: { Authorization: `Bearer ${getToken()}` },
+  })
+    .then((r) => r.json())
+    .then((d) => setAgents(Array.isArray(d) ? d : []))
+    .catch(() => {});
+}, []);
 import {
   Search, ChevronLeft, ChevronRight, Package,
   CheckCircle2, X, Printer, Archive, Plus, Truck,
@@ -747,7 +760,19 @@ function PreparationContent() {
   const [printing, setPrinting] = useState<string | null>(null);
   const [period, setPeriod] = useState<Period>(getPeriodRange("all"));
   const [advFilters, setAdvFilters] = useState<AdvancedFilterState>(EMPTY_FILTERS);
+  const [serverTotalPages, setServerTotalPages] = useState(1);
+  const [agentFilter, setAgentFilter] = useState<string>("");
+  const [agents, setAgents] = useState<any[]>([]);
+  const [serverStats, setServerStats] = useState<any>({ total: 0 });
 
+  useEffect(() => {
+    fetch(`${API}/dispatch/agents`, {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    })
+      .then((r) => r.json())
+      .then((d) => setAgents(Array.isArray(d) ? d : []))
+      .catch(() => {});
+  }, []);
   const accessibleStores = stores.filter((s) => canAccessStore(s.id));
   const activeStore = accessibleStores[0];
 
@@ -758,27 +783,33 @@ function PreparationContent() {
   }, [stores]);
 
   const fetchOrders = useCallback(async () => {
+    if (selectedStoreIds.length === 0) return;
     setLoading(true);
     try {
-      const token = getToken();
-      const res = await fetch(
-        `${API}/orders?pageSize=200&orderStatus=${PREP_STATUS_KEYS.join(",")}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const params = new URLSearchParams({
+        storeIds: selectedStoreIds.join(","),
+        page: String(page),
+        pageSize: String(PAGE_SIZE),
+        orderStatus: PREP_STATUS_KEYS.join(","),
+      });
+      if (search) params.set("search", search);
+      if (period.from) params.set("from", period.from.toISOString());
+      if (period.to) params.set("to", period.to.toISOString());
+      if (agentFilter) params.set("agentId", agentFilter);
+
+      const res = await fetch(`${API}/orders?${params}`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
       const data = await res.json();
-      const all: Order[] = data.orders ?? [];
-      setOrders(all.filter((o) => PREP_STATUS_KEYS.includes(o.orderStatus)));
+      setOrders(data.orders ?? []);
+      setServerTotalPages(data.totalPages ?? 1);
+      if (data.stats) setServerStats(data.stats);
     } catch {
       setOrders([]);
     } finally {
       setLoading(false);
     }
-  }, []);
-
-  useEffect(() => {
-    fetchOrders();
-  }, [fetchOrders]);
-
+  }, [selectedStoreIds, page, search, period, agentFilter]);
   async function changeStatus(orderId: string, status: OrderStatus) {
     if (PREP_STATUS_KEYS.includes(status)) {
       setOrders((prev) =>
@@ -935,8 +966,8 @@ function PreparationContent() {
     return true;
   });
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const pageOrders = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const totalPages = serverTotalPages;
+  const pageOrders = filtered;
 
   // Orders matching stats filters
   const statsOrders = orders.filter((o) => {
@@ -951,7 +982,7 @@ function PreparationContent() {
     counts[o.orderStatus] = (counts[o.orderStatus] ?? 0) + 1;
   });
 
-  const statsTotal = statsOrders.length;
+  const statsTotal = serverStats.total || statsOrders.length;
   const aPreparerCount = (counts["A_PREPARER"] ?? 0) + (counts["ECHANGE"] ?? 0);
   const enCoursCount = counts["EN_PREPARATION"] ?? 0;
   const emballeCount = counts["EMBALLE"] ?? 0;
