@@ -26,18 +26,6 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { TagBadge } from "@/components/orders/tag-picker";
 
-const [agentFilter, setAgentFilter] = useState<string>("");
-const [agents, setAgents] = useState<any[]>([]);
-
-
-useEffect(() => {
-  fetch(`${API}/dispatch/agents`, {
-    headers: { Authorization: `Bearer ${getToken()}` },
-  })
-    .then((r) => r.json())
-    .then((d) => setAgents(Array.isArray(d) ? d : []))
-    .catch(() => {});
-}, []);
 import {
   Search, ChevronLeft, ChevronRight, Package,
   CheckCircle2, X, Printer, Archive, Plus, Truck,
