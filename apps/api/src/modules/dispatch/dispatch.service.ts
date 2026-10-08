@@ -276,34 +276,79 @@ export class DispatchService {
       },
       include: { lineItems: { select: { sku: true } } },
       orderBy: { sourceCreatedAt: 'asc' },
-      take: 200,
     });
 
-    let assigned = 0;
-    const unassigned: string[] = [];
-
-    for (const o of orders) {
-      const agent = await this.pickAgent({
-        storeId: o.storeId,
-        total: Number(o.total),
-        city: (o.shippingAddress as any)?.city ?? null,
-        skus: o.lineItems.map((li) => li.sku).filter(Boolean) as string[],
-      });
-
-      if (!agent) {
-        unassigned.push(o.orderNumber);
-        continue;
-      }
-
-      await this.prisma.order.update({
-        where: { id: o.id },
-        data: {
-          assignedAgentId: agent.id,
-          assignedAgentName: agent.name,
+       // Load agents and their current load once
+       const agents = await this.prisma.user.findMany({
+        where: {
+          isActive: true,
+          role: { not: 'SUPER_ADMIN' },
+          OR: [{ availability: { isActive: true } }, { availability: null }],
         },
+        include: { dispatchRules: { where: { isActive: true } } },
       });
-      assigned++;
-    }
+  
+      if (agents.length === 0) {
+        return { ok: true, assigned: 0, unassigned: orders.length, orders: [] };
+      }
+  
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+  
+      const counts = await this.prisma.order.groupBy({
+        by: ['assignedAgentId'],
+        where: {
+          assignedAgentId: { not: null },
+          orderStatus: { in: ['NOUVEAU', 'CONFIRMATION_EN_COURS'] },
+          sourceCreatedAt: { gte: today },
+        },
+        _count: { id: true },
+      });
+  
+      const load: Record<string, number> = {};
+      agents.forEach((a) => { load[a.id] = 0; });
+      counts.forEach((c) => {
+        if (c.assignedAgentId) load[c.assignedAgentId] = c._count.id;
+      });
+  
+      let assigned = 0;
+      const unassigned: string[] = [];
+      const updates: { id: string; agentId: string; agentName: string }[] = [];
+  
+      for (const o of orders) {
+        const payload = {
+          storeId: o.storeId,
+          total: Number(o.total),
+          city: (o.shippingAddress as any)?.city ?? null,
+          skus: o.lineItems.map((li) => li.sku).filter(Boolean) as string[],
+        };
+  
+        const matching = agents.filter((a) =>
+          a.dispatchRules.some((r) => this.ruleMatches(r, payload)),
+        );
+        const catchAll = agents.filter((a) => a.dispatchRules.length === 0);
+        const pool = matching.length > 0 ? matching : catchAll;
+  
+        if (pool.length === 0) {
+          unassigned.push(o.orderNumber);
+          continue;
+        }
+  
+        pool.sort((a, b) => (load[a.id] ?? 0) - (load[b.id] ?? 0));
+        const chosen = pool[0];
+  
+        load[chosen.id] = (load[chosen.id] ?? 0) + 1;
+        updates.push({ id: o.id, agentId: chosen.id, agentName: chosen.name });
+        assigned++;
+      }
+  
+      // Write in batches
+      for (const u of updates) {
+        await this.prisma.order.update({
+          where: { id: u.id },
+          data: { assignedAgentId: u.agentId, assignedAgentName: u.agentName },
+        });
+      }
 
     return { ok: true, assigned, unassigned: unassigned.length, orders: unassigned };
   }
