@@ -322,9 +322,10 @@ function FulfillmentContent() {
   const [filter, setFilter] = useState<OrderStatus | "all">("all");
   const [page, setPage] = useState(1);
   const [showImport, setShowImport] = useState(false);
-  const [period, setPeriod] = useState<Period>(getPeriodRange("all"));
+  const [period, setPeriod] = useState<Period>(getPeriodRange("today"));
   const [advFilters, setAdvFilters] = useState<AdvancedFilterState>(EMPTY_FILTERS);
   const [serverTotalPages, setServerTotalPages] = useState(1);
+  const [serverStats, setServerStats] = useState<any>({ total: 0 });
   const [agentFilter, setAgentFilter] = useState<string>("");
   const [agents, setAgents] = useState<any[]>([]);
 
@@ -365,6 +366,7 @@ function FulfillmentContent() {
       const data = await res.json();
       setOrders(data.orders ?? []);
       setServerTotalPages(data.totalPages ?? 1);
+      if (data.stats) setServerStats(data.stats);
     } catch {
       setOrders([]);
     } finally {
@@ -439,7 +441,7 @@ function FulfillmentContent() {
     counts[o.orderStatus] = (counts[o.orderStatus] ?? 0) + 1;
   });
 
-  const statsTotal = statsOrders.length;
+  const statsTotal = serverStats.total || statsOrders.length;
   const paidCount = counts["PAYE"] ?? 0;
   const livrePaidCount = (counts["LIVRE"] ?? 0) + paidCount;
   const enCoursCount =

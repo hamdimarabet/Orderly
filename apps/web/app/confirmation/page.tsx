@@ -1707,7 +1707,7 @@ function ConfirmationContent() {
       .then((d) => setAgents(Array.isArray(d) ? d : []))
       .catch(() => {});
   }, []);
-  const [period, setPeriod] = useState<Period>(getPeriodRange("all"));
+  const [period, setPeriod] = useState<Period>(getPeriodRange("today"));
   const [advFilters, setAdvFilters] = useState<AdvancedFilterState>(EMPTY_FILTERS);
   const accessibleStores = stores.filter((s) => canAccessStore(s.id));
   const activeStore = accessibleStores[0];
