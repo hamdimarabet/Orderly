@@ -1692,6 +1692,9 @@ function ConfirmationContent() {
   }
   const [serverTotal, setServerTotal] = useState(0);
   const [serverTotalPages, setServerTotalPages] = useState(1);
+  const [serverStats, setServerStats] = useState<any>({
+    total: 0, confirmed: 0, refused: 0, aVerifier: 0, pending: 0, revenue: 0, avgAttempts: "0",
+  });
   const [filter, setFilter] = useState<"all" | "pending" | "confirmed" | "refused" | "a_verifier">("all");
   const [agentFilter, setAgentFilter] = useState<string>("");
   const [agents, setAgents] = useState<any[]>([]);
@@ -1728,6 +1731,7 @@ function ConfirmationContent() {
       if (search) params.set("search", search);
       if (period.from) params.set("from", period.from.toISOString());
       if (period.to) params.set("to", period.to.toISOString());
+      if (agentFilter) params.set("agentId", agentFilter);
 
       const res = await fetch(`${API}/orders?${params}`, {
         headers: { Authorization: `Bearer ${getToken()}` },
@@ -1736,12 +1740,13 @@ function ConfirmationContent() {
       setOrders(data.orders ?? []);
       setServerTotal(data.total ?? 0);
       setServerTotalPages(data.totalPages ?? 1);
+      if (data.stats) setServerStats(data.stats);
     } catch {
       setOrders([]);
     } finally {
       setLoading(false);
     }
-  }, [selectedStoreIds, page, search, period]);
+  }, [selectedStoreIds, page, search, period, agentFilter]);
 
   // Load customer stats for badges
   // Load customer stats for badges
@@ -1827,15 +1832,7 @@ function ConfirmationContent() {
   }
 
   const filtered = orders.filter((o) => {
-    if (!selectedStoreIds.includes(o.storeId)) return false;
-    if (!isInPeriod(o.sourceCreatedAt, period)) return false;
     if (!applyAdvancedFilters(o, advFilters)) return false;
-    if (search) {
-      const q = search.toLowerCase();
-      const hay = `${o.orderNumber} ${o.customerName ?? ""} ${o.customerPhone ?? ""}`.toLowerCase();
-      if (!hay.includes(q)) return false;
-    }
-    if (agentFilter && o.assignedAgentId !== agentFilter) return false;
     const attempts = Array.isArray(o.callAttempts) ? o.callAttempts as CallAttempt[] : [];
     const confirmed = attempts.some((a) => a.result === "ANSWERED_CONFIRMED");
     const refused = attempts.some((a) => a.result === "ANSWERED_REFUSED");
@@ -1849,42 +1846,14 @@ function ConfirmationContent() {
   const totalPages = serverTotalPages;
   const pageOrders = filtered;
 
-  // Orders matching the stats filters (period + delivery + product)
-  const statsOrders = orders.filter((o) => {
-    if (!selectedStoreIds.includes(o.storeId)) return false;
-    if (!isInPeriod(o.sourceCreatedAt, period)) return false;
-    if (!applyAdvancedFilters(o, advFilters)) return false;
-    return true;
-  });
-
-  const statsTotal = statsOrders.length;
-
-  const confirmedCount = statsOrders.filter((o) => {
-    const attempts = Array.isArray(o.callAttempts) ? o.callAttempts as CallAttempt[] : [];
-    return attempts.some((a) => a.result === "ANSWERED_CONFIRMED");
-  }).length;
-
-  const refusedCount = statsOrders.filter((o) => {
-    const attempts = Array.isArray(o.callAttempts) ? o.callAttempts as CallAttempt[] : [];
-    return attempts.some((a) => a.result === "ANSWERED_REFUSED") || o.orderStatus === "ANNULE";
-  }).length;
-
-  const aVerifierCount = statsOrders.filter((o) => o.orderStatus === "A_VERIFIER").length;
-  const pendingCount = statsTotal - confirmedCount - refusedCount - aVerifierCount;
-
-  const totalAttempts = statsOrders.reduce((s, o) => {
-    const attempts = Array.isArray(o.callAttempts) ? o.callAttempts as CallAttempt[] : [];
-    return s + attempts.length;
-  }, 0);
-
-  const avgAttempts = statsTotal > 0 ? (totalAttempts / statsTotal).toFixed(1) : "0";
-
-  const revenue = statsOrders
-    .filter((o) => {
-      const attempts = Array.isArray(o.callAttempts) ? o.callAttempts as CallAttempt[] : [];
-      return attempts.some((a) => a.result === "ANSWERED_CONFIRMED");
-    })
-    .reduce((s, o) => s + Number(o.total), 0);
+  // Stats come from the server, computed on the whole filtered set
+  const statsTotal = serverStats.total;
+  const confirmedCount = serverStats.confirmed;
+  const refusedCount = serverStats.refused;
+  const aVerifierCount = serverStats.aVerifier;
+  const pendingCount = serverStats.pending;
+  const avgAttempts = serverStats.avgAttempts;
+  const revenue = serverStats.revenue;
 
   
   return (
