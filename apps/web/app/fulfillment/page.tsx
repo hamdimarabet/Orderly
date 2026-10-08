@@ -324,7 +324,18 @@ function FulfillmentContent() {
   const [showImport, setShowImport] = useState(false);
   const [period, setPeriod] = useState<Period>(getPeriodRange("all"));
   const [advFilters, setAdvFilters] = useState<AdvancedFilterState>(EMPTY_FILTERS);
+  const [serverTotalPages, setServerTotalPages] = useState(1);
+  const [agentFilter, setAgentFilter] = useState<string>("");
+  const [agents, setAgents] = useState<any[]>([]);
 
+  useEffect(() => {
+    fetch(`${API}/dispatch/agents`, {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    })
+      .then((r) => r.json())
+      .then((d) => setAgents(Array.isArray(d) ? d : []))
+      .catch(() => {});
+  }, []);
   const accessibleStores = stores.filter((s) => canAccessStore(s.id));
 
   useEffect(() => {
@@ -334,22 +345,32 @@ function FulfillmentContent() {
   }, [stores]);
 
   const fetchOrders = useCallback(async () => {
+    if (selectedStoreIds.length === 0) return;
     setLoading(true);
     try {
-      const token = getToken();
-      const res = await fetch(
-        `${API}/orders?pageSize=200&orderStatus=${DELIVERY_STATUS_KEYS.join(",")}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const params = new URLSearchParams({
+        storeIds: selectedStoreIds.join(","),
+        page: String(page),
+        pageSize: String(PAGE_SIZE),
+        orderStatus: DELIVERY_STATUS_KEYS.join(","),
+      });
+      if (search) params.set("search", search);
+      if (period.from) params.set("from", period.from.toISOString());
+      if (period.to) params.set("to", period.to.toISOString());
+      if (agentFilter) params.set("agentId", agentFilter);
+
+      const res = await fetch(`${API}/orders?${params}`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
       const data = await res.json();
-      const all: Order[] = data.orders ?? [];
-      setOrders(all.filter((o) => DELIVERY_STATUS_KEYS.includes(o.orderStatus)));
+      setOrders(data.orders ?? []);
+      setServerTotalPages(data.totalPages ?? 1);
     } catch {
       setOrders([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedStoreIds, page, search, period, agentFilter]);
 
   useEffect(() => {
     fetchOrders();
@@ -402,8 +423,8 @@ function FulfillmentContent() {
     return true;
   });
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const pageOrders = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const totalPages = serverTotalPages;
+  const pageOrders = filtered;
 
   // Orders matching stats filters
   const statsOrders = orders.filter((o) => {
@@ -555,6 +576,17 @@ function FulfillmentContent() {
               />
             </div>
             <AdvancedFilters filters={advFilters} onChange={setAdvFilters} orders={orders} />
+         
+            <select
+              value={agentFilter}
+              onChange={(e) => { setAgentFilter(e.target.value); setPage(1); }}
+              className="h-9 shrink-0 rounded-md border border-border bg-surface px-2 text-xs focus-visible:outline-none"
+            >
+              <option value="">Tous les agents</option>
+              {agents.map((a) => (
+                <option key={a.id} value={a.id}>{a.name}</option>
+              ))}
+            </select>
           </div>
           <ActiveFilterChips filters={advFilters} onChange={setAdvFilters} />
         </div>
