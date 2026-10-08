@@ -247,7 +247,32 @@ export class ShopifyWebhook {
     const financialStatus = this.mapFinancialStatus(payload.financial_status);
     const fulfillmentStatus = this.mapFulfillmentStatus(payload.fulfillment_status);
     const orderStatus = this.deriveOrderStatus(financialStatus, fulfillmentStatus);
+    // Some stores encode the real offer name in the customer name after a dash
+    const storeConfig = await this.prisma.store.findUnique({
+      where: { id: storeId },
+      select: { credentials: true },
+    });
+    const detectFromCustomer =
+      (storeConfig?.credentials as any)?.detectOfferFromCustomerName === true;
 
+    let offerName: string | null = null;
+    let cleanFirstName: string | null = null;
+    let cleanLastName: string | null = null;
+
+    if (detectFromCustomer) {
+      const first = payload.customer?.first_name ?? payload.shipping_address?.first_name ?? '';
+      const last = payload.customer?.last_name ?? payload.shipping_address?.last_name ?? '';
+      const full = `${first} ${last}`.trim();
+
+      const dash = full.indexOf(' - ');
+      if (dash > -1) {
+        offerName = full.slice(dash + 3).trim() || null;
+        const realName = full.slice(0, dash).trim();
+        const parts = realName.split(/\s+/);
+        cleanFirstName = parts[0] ?? null;
+        cleanLastName = parts.slice(1).join(' ') || null;
+      }
+    }
     const rawItems = payload.line_items ?? [];
     const lineItems: any[] = [];
 
@@ -255,10 +280,30 @@ export class ShopifyWebhook {
       const sku = li.sku ?? null;
       const title = li.title ?? '';
 
-      // Resolve the matching product by SKU, name, or alias
-      let productId: string | null = null;
+            // Resolve the matching product by SKU, name, or alias
+            let productId: string | null = null;
 
-      if (sku) {
+            // Offer name from the customer field wins when enabled
+            if (offerName) {
+              const byOffer = await this.prisma.product.findFirst({
+                where: { storeId, name: { equals: offerName, mode: 'insensitive' } },
+                select: { id: true },
+              });
+              if (byOffer) productId = byOffer.id;
+      
+              if (!productId) {
+                const aliasOffer = await this.prisma.productAlias.findFirst({
+                  where: {
+                    alias: { equals: offerName, mode: 'insensitive' },
+                    product: { storeId },
+                  },
+                  select: { productId: true },
+                });
+                if (aliasOffer) productId = aliasOffer.productId;
+              }
+            }
+      
+            if (!productId && sku) {
         const bySku = await this.prisma.product.findUnique({
           where: { storeId_sku: { storeId, sku } },
           select: { id: true },
@@ -331,9 +376,11 @@ export class ShopifyWebhook {
         financialStatus,
         fulfillmentStatus,
         orderStatus,
-        customerName: payload.customer
-          ? `${payload.customer.first_name} ${payload.customer.last_name}`.trim()
-          : null,
+        customerName: cleanFirstName
+        ? `${cleanFirstName} ${cleanLastName ?? ''}`.trim()
+        : payload.customer
+        ? `${payload.customer.first_name} ${payload.customer.last_name}`.trim()
+        : null,
         customerEmail: payload.customer?.email ?? null,
         customerPhone: payload.customer?.phone ?? null,
         shippingAddress: payload.shipping_address ?? null,
