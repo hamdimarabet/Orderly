@@ -812,4 +812,90 @@ export class ProductsService {
   
       return { ok: true, checked: lines.length, fixed };
     }
+    async fixOfferNames(storeId: string) {
+      const store = await this.prisma.store.findUnique({
+        where: { id: storeId },
+        select: { credentials: true },
+      });
+  
+      const enabled =
+        (store?.credentials as any)?.detectOfferFromCustomerName === true;
+      if (!enabled) {
+        return { ok: false, error: "Option non activée sur ce magasin" };
+      }
+  
+      const orders = await this.prisma.order.findMany({
+        where: {
+          storeId,
+          customerName: { contains: ' - ' },
+        },
+        select: {
+          id: true,
+          customerName: true,
+          lineItems: { select: { id: true, productId: true } },
+        },
+      });
+  
+      let cleaned = 0;
+      let linked = 0;
+  
+      for (const o of orders) {
+        const full = o.customerName ?? '';
+        const dash = full.indexOf(' - ');
+        if (dash === -1) continue;
+  
+        const realName = full.slice(0, dash).trim();
+        const offerName = full.slice(dash + 3).trim();
+  
+        // Find the product matching the offer name
+        let productId: string | null = null;
+  
+        if (offerName) {
+          const byName = await this.prisma.product.findFirst({
+            where: { storeId, name: { equals: offerName, mode: 'insensitive' } },
+            select: { id: true, sku: true },
+          });
+          if (byName) productId = byName.id;
+  
+          if (!productId) {
+            const alias = await this.prisma.productAlias.findFirst({
+              where: {
+                alias: { equals: offerName, mode: 'insensitive' },
+                product: { storeId },
+              },
+              select: { productId: true },
+            });
+            if (alias) productId = alias.productId;
+          }
+        }
+  
+        // Clean the customer name
+        await this.prisma.order.update({
+          where: { id: o.id },
+          data: { customerName: realName || full },
+        });
+        cleaned++;
+  
+        // Link the line items
+        if (productId) {
+          const product = await this.prisma.product.findUnique({
+            where: { id: productId },
+            select: { sku: true },
+          });
+  
+          for (const li of o.lineItems) {
+            await this.prisma.orderLineItem.update({
+              where: { id: li.id },
+              data: {
+                productId,
+                ...(product?.sku && { sku: product.sku }),
+              },
+            });
+          }
+          linked++;
+        }
+      }
+  
+      return { ok: true, checked: orders.length, cleaned, linked };
+    }
 }

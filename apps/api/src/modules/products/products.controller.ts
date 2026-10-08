@@ -26,6 +26,10 @@ import {
     summary(@Query('storeIds') storeIds?: string) {
       return this.products.summary(storeIds ? storeIds.split(',') : undefined);
     }
+    @Post('fix-offer-names/:storeId')
+    fixOfferNames(@Param('storeId') storeId: string) {
+      return this.products.fixOfferNames(storeId);
+    }
     @Get('all')
   listAll(@Query('storeIds') storeIds?: string) {
     return this.products.listAll(storeIds ? storeIds.split(',') : undefined);
