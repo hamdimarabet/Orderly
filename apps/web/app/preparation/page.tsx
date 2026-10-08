@@ -798,18 +798,20 @@ function PreparationContent() {
       setLoading(false);
     }
   }, [selectedStoreIds, page, search, period, agentFilter]);
-  async function changeStatus(orderId: string, status: OrderStatus) {
-    if (PREP_STATUS_KEYS.includes(status)) {
-      setOrders((prev) =>
-        prev.map((o) => o.id === orderId ? { ...o, orderStatus: status } : o)
-      );
-    } else {
-      setOrders((prev) => prev.filter((o) => o.id !== orderId));
-    }
-    await apiChangeStatus(orderId, status);
-  }
 
-  // Imprimer → EN_PREPARATION
+useEffect(() => {
+  fetchOrders();
+}, [fetchOrders]);
+async function changeStatus(orderId: string, status: OrderStatus) {
+  if (PREP_STATUS_KEYS.includes(status)) {
+    setOrders((prev) =>
+      prev.map((o) => o.id === orderId ? { ...o, orderStatus: status } : o)
+    );
+  } else {
+    setOrders((prev) => prev.filter((o) => o.id !== orderId));
+  }
+  await apiChangeStatus(orderId, status);
+}
   async function handlePrint(order: Order) {
     setPrinting(order.id);
     try {
