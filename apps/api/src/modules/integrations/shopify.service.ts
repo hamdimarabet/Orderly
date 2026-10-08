@@ -390,9 +390,10 @@ export class ShopifyService {
     return { ok: results.some((r) => r.ok), results };
   }
   async saveShopifySetup(storeId: string, data: {
-    clientId: string;
-    clientSecret: string;
+    clientId?: string;
+    clientSecret?: string;
     shopDomain?: string;
+    detectOfferFromCustomerName?: boolean;
   }) {
     const store = await this.prisma.store.findUnique({ where: { id: storeId } });
     const existing = (store?.credentials as any) ?? {};
@@ -402,9 +403,12 @@ export class ShopifyService {
       data: {
         credentials: {
           ...existing,
-          shopifyClientId: data.clientId,
-          shopifyClientSecret: data.clientSecret,
+          ...(data.clientId && { shopifyClientId: data.clientId }),
+          ...(data.clientSecret && { shopifyClientSecret: data.clientSecret }),
           ...(data.shopDomain && { shopDomain: data.shopDomain }),
+          ...(data.detectOfferFromCustomerName !== undefined && {
+            detectOfferFromCustomerName: data.detectOfferFromCustomerName,
+          }),
         },
       },
     });

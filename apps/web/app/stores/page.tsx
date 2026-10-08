@@ -398,7 +398,9 @@ function StoreCard({
   const [editClientId, setEditClientId] = useState("");
   const [editSecret, setEditSecret] = useState("");
   const [showEditSecret, setShowEditSecret] = useState(false);
-
+  const [detectOffer, setDetectOffer] = useState(
+    (store as any).credentials?.detectOfferFromCustomerName === true
+  );
   const isShopify = store.sourceType === "SHOPIFY";
   const isConverty = store.sourceType === "MARKETPLACE";
   const isCustom = !isShopify && !isConverty;
@@ -453,16 +455,15 @@ function StoreCard({
     }
   }
   async function saveCredentials() {
-    if (!editClientId.trim() || !editSecret.trim()) return;
     setBusy("save-creds");
     try {
       const endpoint = isShopify
         ? `integrations/shopify/${store.id}/setup`
         : `integrations/converty/${store.id}/credentials`;
 
-      const body = isShopify
-        ? { clientId: editClientId.trim(), clientSecret: editSecret.trim() }
-        : { clientId: editClientId.trim(), clientSecret: editSecret.trim() };
+      const body: any = { detectOfferFromCustomerName: detectOffer };
+      if (editClientId.trim()) body.clientId = editClientId.trim();
+      if (editSecret.trim()) body.clientSecret = editSecret.trim();
 
       await fetch(`${API}/${endpoint}`, {
         method: "PATCH",
@@ -623,10 +624,25 @@ function StoreCard({
               </button>
             </div>
           </div>
+          <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-border bg-surface p-2.5">
+            <input
+              type="checkbox"
+              checked={detectOffer}
+              onChange={(e) => setDetectOffer(e.target.checked)}
+              className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded border-border-strong accent-primary"
+            />
+            <div>
+              <p className="text-[11px] font-medium">Détecter l'offre depuis le nom client</p>
+              <p className="text-[10px] text-muted">
+                Pour les boutiques qui ajoutent le nom de l'offre après un tiret
+                dans le nom du client.
+              </p>
+            </div>
+          </label>
           <Button
             size="sm"
             className="w-full"
-            disabled={busy !== "" || !editClientId.trim() || !editSecret.trim()}
+            disabled={busy !== ""}
             onClick={saveCredentials}
           >
             {busy === "save-creds" ? "Enregistrement..." : "Enregistrer"}
