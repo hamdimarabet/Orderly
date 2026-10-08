@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { OrderStatus } from '@prisma/client';
+import { DispatchService } from '../dispatch/dispatch.service';
 
 const CONVERTY_PARTNER = 'https://partner.converty.shop';
 const CONVERTY_API = 'https://api.converty.shop/api/v1';
@@ -22,7 +23,10 @@ const STATUS_MAP: Record<string, OrderStatus> = {
 
 @Injectable()
 export class ConvertyService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private dispatch: DispatchService,
+  ) {}
 
   private async getConvertyCredentials(storeId: string) {
     const store = await this.prisma.store.findUnique({ where: { id: storeId } });
@@ -448,7 +452,7 @@ export class ConvertyService {
     const cust = o?.customer ?? {};
     const isExchange = o?.exchange === true;
 
-    await this.prisma.order.create({
+    const created = await this.prisma.order.create({
       data: {
         storeId,
         externalOrderId: externalId,
@@ -478,6 +482,11 @@ export class ConvertyService {
         lineItems: { create: lineItems },
       },
     });
+
+    // Assign an agent automatically (non-blocking)
+    if ((created as any)?.id) {
+      this.dispatch.dispatchOne((created as any).id).catch(() => {});
+    }
 
     return { created: true };
   }

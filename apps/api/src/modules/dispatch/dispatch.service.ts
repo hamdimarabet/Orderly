@@ -229,6 +229,7 @@ export class DispatchService {
         where: {
           assignedAgentId: { not: null },
           orderStatus: { in: ['NOUVEAU', 'CONFIRMATION_EN_COURS'] },
+          sourceCreatedAt: { gte: today },
         },
         _count: { id: true },
       });

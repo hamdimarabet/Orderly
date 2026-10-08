@@ -3,8 +3,10 @@ import { ConvertyService } from './converty.service';
 import { ShopifyService } from './shopify.service';
 import { IntegrationsController } from './integrations.controller';
 import { ConvertyWebhookController } from './converty.webhook.controller';
+import { DispatchModule } from '../dispatch/dispatch.module';
 
 @Module({
+  imports: [DispatchModule],
   providers: [ConvertyService, ShopifyService],
   controllers: [IntegrationsController, ConvertyWebhookController],
   exports: [ConvertyService, ShopifyService],
