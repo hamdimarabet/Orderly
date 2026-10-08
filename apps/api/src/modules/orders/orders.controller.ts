@@ -25,6 +25,7 @@ export class OrdersController {
     @Query('from') from?: string,
     @Query('to') to?: string,
     @Query('excludeStatus') excludeStatus?: string,
+    @Query('agentId') agentId?: string,
   ) {
     return this.orders.findAll({
       storeIds: storeIds ? storeIds.split(',') : undefined,
@@ -37,6 +38,7 @@ export class OrdersController {
       to,
       page: page ? parseInt(page) : 1,
       pageSize: pageSize ? parseInt(pageSize) : 25,
+      agentId,
     });
   }
   @Get(':id/label')

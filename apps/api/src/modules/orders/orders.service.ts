@@ -25,6 +25,7 @@ export class OrdersService {
     to?: string;
     callFilter?: string;
     excludeStatus?: OrderStatus[];
+    agentId?: string;
   }) {
     const {
       storeIds,
@@ -38,6 +39,7 @@ export class OrdersService {
       to,
       callFilter,
       excludeStatus,
+      agentId,
     } = query;
 
     const where: Prisma.OrderWhereInput = {
@@ -46,6 +48,7 @@ export class OrdersService {
       ...(excludeStatus?.length && { orderStatus: { notIn: excludeStatus } }),
       ...(financialStatus?.length && { financialStatus: { in: financialStatus } }),
       ...(fulfillmentStatus?.length && { fulfillmentStatus: { in: fulfillmentStatus } }),
+      ...(agentId && { assignedAgentId: agentId }),
       ...((from || to) && {
         sourceCreatedAt: {
           ...(from && { gte: new Date(from) }),
@@ -61,7 +64,7 @@ export class OrdersService {
       }),
     };
 
-    const [orders, total] = await Promise.all([
+    const [orders, total, statsRows] = await Promise.all([
       this.prisma.order.findMany({
         where,
         include: {
@@ -78,7 +81,34 @@ export class OrdersService {
         take: pageSize,
       }),
       this.prisma.order.count({ where }),
+      this.prisma.order.findMany({
+        where,
+        select: {
+          orderStatus: true,
+          callAttempts: true,
+          total: true,
+        },
+      }),
     ]);
+
+    // Stats on the whole filtered set, not just the current page
+    let confirmed = 0, refused = 0, aVerifier = 0, revenue = 0, attemptsTotal = 0;
+
+    for (const o of statsRows) {
+      const attempts = (o.callAttempts as any[]) ?? [];
+      attemptsTotal += attempts.length;
+
+      const isConfirmed = attempts.some((a) => a.result === 'ANSWERED_CONFIRMED');
+      const isRefused =
+        attempts.some((a) => a.result === 'ANSWERED_REFUSED') ||
+        o.orderStatus === 'ANNULE';
+
+      if (o.orderStatus === 'A_VERIFIER') aVerifier++;
+      else if (isConfirmed) { confirmed++; revenue += Number(o.total); }
+      else if (isRefused) refused++;
+    }
+
+    const statsTotal = statsRows.length;
 
     return {
       orders: orders.map((o) => ({
@@ -93,6 +123,15 @@ export class OrdersService {
       page,
       pageSize,
       totalPages: Math.ceil(total / pageSize),
+      stats: {
+        total: statsTotal,
+        confirmed,
+        refused,
+        aVerifier,
+        pending: statsTotal - confirmed - refused - aVerifier,
+        revenue: Math.round(revenue),
+        avgAttempts: statsTotal > 0 ? (attemptsTotal / statsTotal).toFixed(1) : '0',
+      },
     };
   }
 
