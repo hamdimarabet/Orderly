@@ -113,7 +113,7 @@ export function ProductPicker({
         <Package className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-light" />
         <input
           ref={inputRef}
-          value={open ? query : (productId ? (products.find((p) => p.id === productId)?.name ?? value) : value)}
+          value={open ? query : value}
           onChange={(e) => {
             setQuery(e.target.value);
             onSelect(null, e.target.value);
