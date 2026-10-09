@@ -25,6 +25,10 @@ import {
   fixOfferPrices(@Param('storeId') storeId: string) {
     return this.products.fixOfferPrices(storeId);
   }
+  @Post('fix-offers-from-address/:storeId')
+  fixOffersFromAddress(@Param('storeId') storeId: string) {
+    return this.products.fixOffersFromAddress(storeId);
+  }
     @Get()
     list(@Query('storeIds') storeIds?: string) {
       return this.products.listWithStats(storeIds ? storeIds.split(',') : undefined);

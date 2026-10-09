@@ -1062,4 +1062,86 @@ export class ProductsService {
   
       return { ok: true, checked: orders.length, fixed };
     }
+    async fixOffersFromAddress(storeId: string) {
+      const store = await this.prisma.store.findUnique({
+        where: { id: storeId },
+        select: { credentials: true },
+      });
+  
+      const enabled =
+        (store?.credentials as any)?.detectOfferFromCustomerName === true;
+      if (!enabled) {
+        return { ok: false, error: "Option non activée sur ce magasin" };
+      }
+  
+      const orders = await this.prisma.order.findMany({
+        where: { storeId },
+        select: {
+          id: true,
+          subtotal: true,
+          shippingAddress: true,
+          lineItems: { select: { id: true } },
+        },
+      });
+  
+      let fixed = 0;
+      const notFound: string[] = [];
+  
+      for (const o of orders) {
+        const addr = o.shippingAddress as any;
+        const fullName = addr?.name ?? '';
+        const dash = fullName.indexOf(' - ');
+        if (dash === -1) continue;
+  
+        const offerName = fullName.slice(dash + 3).trim();
+        if (!offerName) continue;
+  
+        // Find the product
+        let product = await this.prisma.product.findFirst({
+          where: { storeId, name: { equals: offerName, mode: 'insensitive' } },
+          select: { id: true, name: true, sku: true, imageUrl: true },
+        });
+  
+        if (!product) {
+          const alias = await this.prisma.productAlias.findFirst({
+            where: {
+              alias: { equals: offerName, mode: 'insensitive' },
+              product: { storeId },
+            },
+            select: { product: { select: { id: true, name: true, sku: true, imageUrl: true } } },
+          });
+          product = alias?.product ?? null;
+        }
+  
+        if (!product) {
+          if (!notFound.includes(offerName)) notFound.push(offerName);
+          continue;
+        }
+  
+        const [keep, ...rest] = o.lineItems;
+        if (!keep) continue;
+  
+        if (rest.length > 0) {
+          await this.prisma.orderLineItem.deleteMany({
+            where: { id: { in: rest.map((r) => r.id) } },
+          });
+        }
+  
+        await this.prisma.orderLineItem.update({
+          where: { id: keep.id },
+          data: {
+            productId: product.id,
+            title: product.name,
+            sku: product.sku,
+            variantTitle: null,
+            quantity: 1,
+            price: Number(o.subtotal),
+          },
+        });
+  
+        fixed++;
+      }
+  
+      return { ok: true, checked: orders.length, fixed, notFound };
+    }
 }
