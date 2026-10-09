@@ -17,6 +17,10 @@ import {
   mergeBundles(@Param('storeId') storeId: string) {
     return this.products.mergeBundleLines(storeId);
   }
+  @Post('sync-titles/:storeId')
+  syncTitles(@Param('storeId') storeId: string) {
+    return this.products.syncLineTitles(storeId);
+  }
     @Get()
     list(@Query('storeIds') storeIds?: string) {
       return this.products.listWithStats(storeIds ? storeIds.split(',') : undefined);

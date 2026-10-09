@@ -976,4 +976,31 @@ export class ProductsService {
   
       return { ok: true, checked: orders.length, merged };
     }
+    async syncLineTitles(storeId: string) {
+      const lines = await this.prisma.orderLineItem.findMany({
+        where: {
+          productId: { not: null },
+          order: { storeId },
+        },
+        select: { id: true, productId: true, title: true },
+      });
+  
+      let updated = 0;
+  
+      for (const line of lines) {
+        const product = await this.prisma.product.findUnique({
+          where: { id: line.productId! },
+          select: { name: true, sku: true },
+        });
+        if (!product || product.name === line.title) continue;
+  
+        await this.prisma.orderLineItem.update({
+          where: { id: line.id },
+          data: { title: product.name, sku: product.sku },
+        });
+        updated++;
+      }
+  
+      return { ok: true, checked: lines.length, updated };
+    }
 }
