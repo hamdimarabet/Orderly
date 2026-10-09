@@ -21,6 +21,10 @@ import {
   syncTitles(@Param('storeId') storeId: string) {
     return this.products.syncLineTitles(storeId);
   }
+  @Post('fix-offer-prices/:storeId')
+  fixOfferPrices(@Param('storeId') storeId: string) {
+    return this.products.fixOfferPrices(storeId);
+  }
     @Get()
     list(@Query('storeIds') storeIds?: string) {
       return this.products.listWithStats(storeIds ? storeIds.split(',') : undefined);

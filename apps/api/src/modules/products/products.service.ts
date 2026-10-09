@@ -1003,4 +1003,63 @@ export class ProductsService {
   
       return { ok: true, checked: lines.length, updated };
     }
+    async fixOfferPrices(storeId: string) {
+      const store = await this.prisma.store.findUnique({
+        where: { id: storeId },
+        select: { credentials: true },
+      });
+  
+      const enabled =
+        (store?.credentials as any)?.detectOfferFromCustomerName === true;
+      if (!enabled) {
+        return { ok: false, error: "Option non activée sur ce magasin" };
+      }
+  
+      const orders = await this.prisma.order.findMany({
+        where: { storeId },
+        select: {
+          id: true,
+          subtotal: true,
+          lineItems: {
+            select: { id: true, productId: true, quantity: true, price: true },
+          },
+        },
+      });
+  
+      let fixed = 0;
+  
+      for (const o of orders) {
+        if (o.lineItems.length === 0) continue;
+  
+        // Only touch lines linked to a product (the detected bundle)
+        const linked = o.lineItems.filter((li) => li.productId);
+        if (linked.length === 0) continue;
+  
+        const subtotal = Number(o.subtotal);
+        const current = o.lineItems.reduce(
+          (s, li) => s + Number(li.price) * Number(li.quantity),
+          0,
+        );
+  
+        // Already correct
+        if (Math.abs(current - subtotal) < 0.01) continue;
+  
+        const [keep, ...rest] = o.lineItems;
+  
+        if (rest.length > 0) {
+          await this.prisma.orderLineItem.deleteMany({
+            where: { id: { in: rest.map((r) => r.id) } },
+          });
+        }
+  
+        await this.prisma.orderLineItem.update({
+          where: { id: keep.id },
+          data: { quantity: 1, price: subtotal },
+        });
+  
+        fixed++;
+      }
+  
+      return { ok: true, checked: orders.length, fixed };
+    }
 }
