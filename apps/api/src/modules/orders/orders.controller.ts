@@ -15,6 +15,7 @@ export class OrdersController {
 
   @Get()
   findAll(
+    @Request() req: any,
     @Query('storeIds') storeIds?: string,
     @Query('orderStatus') orderStatus?: string,
     @Query('financialStatus') financialStatus?: string,
@@ -27,6 +28,12 @@ export class OrdersController {
     @Query('excludeStatus') excludeStatus?: string,
     @Query('agentId') agentId?: string,
   ) {
+    // Agents without the assign permission only see their own orders
+    const user = req?.user;
+    const canSeeAll =
+      user?.role === 'SUPER_ADMIN' ||
+      (user?.permissions ?? []).includes('assign_orders');
+
     return this.orders.findAll({
       storeIds: storeIds ? storeIds.split(',') : undefined,
       orderStatus: orderStatus ? (orderStatus.split(',') as any) : undefined,
@@ -38,7 +45,7 @@ export class OrdersController {
       to,
       page: page ? parseInt(page) : 1,
       pageSize: pageSize ? parseInt(pageSize) : 25,
-      agentId,
+      agentId: canSeeAll ? agentId : user?.id,
     });
   }
   @Get(':id/label')
