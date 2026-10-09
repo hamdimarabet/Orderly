@@ -369,7 +369,22 @@ export class ShopifyWebhook {
         ...(productId && { productId }),
       });
     }
+    // When an offer was detected, Shopify sends one line per component.
+    // Collapse them into a single bundle line.
+    if (offerName && lineItems.length > 1) {
+      const first = lineItems[0];
+      const bundleTotal = lineItems.reduce(
+        (s, li) => s + Number(li.price) * Number(li.quantity),
+        0,
+      );
 
+      lineItems.length = 0;
+      lineItems.push({
+        ...first,
+        quantity: 1,
+        price: bundleTotal,
+      });
+    }
     return this.prisma.order.upsert({
       where: {
         storeId_externalOrderId: {
