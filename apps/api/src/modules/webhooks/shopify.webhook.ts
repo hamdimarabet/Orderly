@@ -365,7 +365,7 @@ export class ShopifyWebhook {
           ? li.quantity - li.fulfillable_quantity
           : 0,
         refundedQty: 0,
-        price: offerPrice ?? parseFloat(li.price),
+               price: parseFloat(li.price),
         ...(productId && { productId }),
       });
     }
