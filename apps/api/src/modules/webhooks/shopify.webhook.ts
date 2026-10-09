@@ -280,30 +280,44 @@ export class ShopifyWebhook {
       const sku = li.sku ?? null;
       const title = li.title ?? '';
 
-            // Resolve the matching product by SKU, name, or alias
-            let productId: string | null = null;
-
-            // Offer name from the customer field wins when enabled
-            if (offerName) {
-              const byOffer = await this.prisma.product.findFirst({
-                where: { storeId, name: { equals: offerName, mode: 'insensitive' } },
-                select: { id: true },
-              });
-              if (byOffer) productId = byOffer.id;
+                      // Resolve the matching product by SKU, name, or alias
+                      let productId: string | null = null;
+                      let offerPrice: number | null = null;
+                      let offerTitle: string | null = null;
+                      let offerSku: string | null = null;
+          
+                      // Offer name from the customer field wins when enabled
+                      if (offerName) {
+                        const byOffer = await this.prisma.product.findFirst({
+                          where: { storeId, name: { equals: offerName, mode: 'insensitive' } },
+                          select: { id: true, name: true, sku: true, sellPrice: true },
+                        });
+          
+                        if (byOffer) {
+                          productId = byOffer.id;
+                          offerTitle = byOffer.name;
+                          offerSku = byOffer.sku;
+                          offerPrice = byOffer.sellPrice ? Number(byOffer.sellPrice) : null;
+                        } else {
+                          const aliasOffer = await this.prisma.productAlias.findFirst({
+                            where: {
+                              alias: { equals: offerName, mode: 'insensitive' },
+                              product: { storeId },
+                            },
+                            select: { product: { select: { id: true, name: true, sku: true, sellPrice: true } } },
+                          });
+                          if (aliasOffer?.product) {
+                            productId = aliasOffer.product.id;
+                            offerTitle = aliasOffer.product.name;
+                            offerSku = aliasOffer.product.sku;
+                            offerPrice = aliasOffer.product.sellPrice
+                              ? Number(aliasOffer.product.sellPrice)
+                              : null;
+                          }
+                        }
+                      }
       
-              if (!productId) {
-                const aliasOffer = await this.prisma.productAlias.findFirst({
-                  where: {
-                    alias: { equals: offerName, mode: 'insensitive' },
-                    product: { storeId },
-                  },
-                  select: { productId: true },
-                });
-                if (aliasOffer) productId = aliasOffer.productId;
-              }
-            }
-      
-            if (!productId && sku) {
+                      if (!productId && !offerName && sku) {
         const bySku = await this.prisma.product.findUnique({
           where: { storeId_sku: { storeId, sku } },
           select: { id: true },
@@ -342,16 +356,16 @@ export class ShopifyWebhook {
         if (alias) productId = alias.productId;
       }
 
-      lineItems.push({
-        sku,
-        title,
-        variantTitle: li.variant_title ?? null,
+          lineItems.push({
+        sku: offerSku ?? sku,
+        title: offerTitle ?? title,
+        variantTitle: offerTitle ? null : (li.variant_title ?? null),
         quantity: li.quantity,
         fulfilledQty: li.fulfillable_quantity
           ? li.quantity - li.fulfillable_quantity
           : 0,
         refundedQty: 0,
-        price: parseFloat(li.price),
+        price: offerPrice ?? parseFloat(li.price),
         ...(productId && { productId }),
       });
     }
