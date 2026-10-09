@@ -922,4 +922,58 @@ export class ProductsService {
   
       return { ok: true, checked: orders.length, cleaned, linked, merged };
     }
+    async mergeBundleLines(storeId: string) {
+      const orders = await this.prisma.order.findMany({
+        where: { storeId },
+        select: {
+          id: true,
+          lineItems: {
+            select: { id: true, productId: true, price: true, quantity: true, title: true, sku: true },
+          },
+        },
+      });
+  
+      let merged = 0;
+  
+      for (const o of orders) {
+        if (o.lineItems.length < 2) continue;
+  
+        // All lines pointing to the same product means a bundle was split
+        const ids = o.lineItems.map((li) => li.productId);
+        const unique = Array.from(new Set(ids));
+        if (unique.length !== 1 || !unique[0]) continue;
+  
+        const product = await this.prisma.product.findUnique({
+          where: { id: unique[0] },
+          select: { name: true, sku: true },
+        });
+        if (!product) continue;
+  
+        const bundleTotal = o.lineItems.reduce(
+          (s, li) => s + Number(li.price) * Number(li.quantity),
+          0,
+        );
+  
+        const [keep, ...rest] = o.lineItems;
+  
+        await this.prisma.orderLineItem.deleteMany({
+          where: { id: { in: rest.map((r) => r.id) } },
+        });
+  
+        await this.prisma.orderLineItem.update({
+          where: { id: keep.id },
+          data: {
+            title: product.name,
+            sku: product.sku,
+            variantTitle: null,
+            quantity: 1,
+            price: bundleTotal,
+          },
+        });
+  
+        merged++;
+      }
+  
+      return { ok: true, checked: orders.length, merged };
+    }
 }

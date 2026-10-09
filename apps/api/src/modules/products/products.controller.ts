@@ -13,7 +13,10 @@ import {
       private products: ProductsService,
       private easysellSync: EasySellSyncService,
     ) {}
-  
+    @Post('merge-bundle-lines/:storeId')
+  mergeBundles(@Param('storeId') storeId: string) {
+    return this.products.mergeBundleLines(storeId);
+  }
     @Get()
     list(@Query('storeIds') storeIds?: string) {
       return this.products.listWithStats(storeIds ? storeIds.split(',') : undefined);
