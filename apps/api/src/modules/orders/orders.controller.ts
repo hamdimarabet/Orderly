@@ -15,7 +15,7 @@ export class OrdersController {
 
   @Get()
   findAll(
-    @Request() req: any,
+    @Request() req?: any,
     @Query('storeIds') storeIds?: string,
     @Query('orderStatus') orderStatus?: string,
     @Query('financialStatus') financialStatus?: string,
