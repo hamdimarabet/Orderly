@@ -832,12 +832,15 @@ export class ProductsService {
         select: {
           id: true,
           customerName: true,
-          lineItems: { select: { id: true, productId: true } },
+          lineItems: {
+            select: { id: true, price: true, quantity: true, title: true, sku: true },
+          },
         },
       });
   
       let cleaned = 0;
       let linked = 0;
+      let merged = 0;
   
       for (const o of orders) {
         const full = o.customerName ?? '';
@@ -848,24 +851,24 @@ export class ProductsService {
         const offerName = full.slice(dash + 3).trim();
   
         // Find the product matching the offer name
-        let productId: string | null = null;
+        let product: { id: string; name: string; sku: string } | null = null;
   
         if (offerName) {
           const byName = await this.prisma.product.findFirst({
             where: { storeId, name: { equals: offerName, mode: 'insensitive' } },
-            select: { id: true, sku: true },
+            select: { id: true, name: true, sku: true },
           });
-          if (byName) productId = byName.id;
+          if (byName) product = byName;
   
-          if (!productId) {
+          if (!product) {
             const alias = await this.prisma.productAlias.findFirst({
               where: {
                 alias: { equals: offerName, mode: 'insensitive' },
                 product: { storeId },
               },
-              select: { productId: true },
+              select: { product: { select: { id: true, name: true, sku: true } } },
             });
-            if (alias) productId = alias.productId;
+            if (alias?.product) product = alias.product;
           }
         }
   
@@ -876,26 +879,47 @@ export class ProductsService {
         });
         cleaned++;
   
-        // Link the line items
-        if (productId) {
-          const product = await this.prisma.product.findUnique({
-            where: { id: productId },
-            select: { sku: true },
+        if (!product) continue;
+  
+        // Merge all lines into a single bundle line
+        const bundleTotal = o.lineItems.reduce(
+          (s, li) => s + Number(li.price) * Number(li.quantity),
+          0,
+        );
+  
+        if (o.lineItems.length > 1) {
+          const [keep, ...rest] = o.lineItems;
+  
+          await this.prisma.orderLineItem.deleteMany({
+            where: { id: { in: rest.map((r) => r.id) } },
           });
   
-          for (const li of o.lineItems) {
-            await this.prisma.orderLineItem.update({
-              where: { id: li.id },
-              data: {
-                productId,
-                ...(product?.sku && { sku: product.sku }),
-              },
-            });
-          }
-          linked++;
+          await this.prisma.orderLineItem.update({
+            where: { id: keep.id },
+            data: {
+              productId: product.id,
+              title: product.name,
+              sku: product.sku,
+              variantTitle: null,
+              quantity: 1,
+              price: bundleTotal,
+            },
+          });
+          merged++;
+        } else if (o.lineItems.length === 1) {
+          await this.prisma.orderLineItem.update({
+            where: { id: o.lineItems[0].id },
+            data: {
+              productId: product.id,
+              title: product.name,
+              sku: product.sku,
+            },
+          });
         }
+  
+        linked++;
       }
   
-      return { ok: true, checked: orders.length, cleaned, linked };
+      return { ok: true, checked: orders.length, cleaned, linked, merged };
     }
 }
