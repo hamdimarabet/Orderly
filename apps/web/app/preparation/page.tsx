@@ -746,7 +746,7 @@ function PreparationContent() {
   const [showCreate, setShowCreate] = useState(false);
   const [archiveOrder, setArchiveOrder] = useState<Order | null>(null);
   const [printing, setPrinting] = useState<string | null>(null);
-  const [period, setPeriod] = useState<Period>(getPeriodRange("today"));
+  const [period, setPeriod] = useState<Period>(getPeriodRange("all"));
   const [advFilters, setAdvFilters] = useState<AdvancedFilterState>(EMPTY_FILTERS);
   const [serverTotalPages, setServerTotalPages] = useState(1);
   const [agentFilter, setAgentFilter] = useState<string>("");

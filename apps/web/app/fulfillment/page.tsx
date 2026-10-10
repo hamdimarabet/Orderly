@@ -322,7 +322,7 @@ function FulfillmentContent() {
   const [filter, setFilter] = useState<OrderStatus | "all">("all");
   const [page, setPage] = useState(1);
   const [showImport, setShowImport] = useState(false);
-  const [period, setPeriod] = useState<Period>(getPeriodRange("today"));
+  const [period, setPeriod] = useState<Period>(getPeriodRange("all"));
   const [advFilters, setAdvFilters] = useState<AdvancedFilterState>(EMPTY_FILTERS);
   const [serverTotalPages, setServerTotalPages] = useState(1);
   const [serverStats, setServerStats] = useState<any>({ total: 0 });
