@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import {
   Plus, X, Check, Shield, Users, Mail,
-  ToggleLeft, ToggleRight, Trash2, Copy, ExternalLink,KeyRound,
+  ToggleLeft, ToggleRight, Trash2, Copy, ExternalLink,KeyRound,Settings2,
 } from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api";
@@ -583,6 +583,34 @@ function UsersContent() {
   const [selectedStoreIds, setSelectedStoreIds] = useState<string[]>([]);
   const [showInvite, setShowInvite] = useState(false);
   const [permissionsUser, setPermissionsUser] = useState<User | null>(null);
+  const [tab, setTab] = useState<"users" | "roles">("users");
+  const [roles, setRoles] = useState<any[]>([]);
+  const [editRole, setEditRole] = useState<any>(null);
+
+  const fetchRoles = useCallback(async () => {
+    try {
+      const res = await fetch(`${API}/users/roles/list`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      const data = await res.json();
+      setRoles(Array.isArray(data) ? data : []);
+    } catch {
+      setRoles([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchRoles();
+  }, [fetchRoles]);
+
+  async function removeRole(id: string) {
+    if (!window.confirm("Supprimer ce rôle ?")) return;
+    await fetch(`${API}/users/roles/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${getToken()}` },
+    });
+    fetchRoles();
+  }
   const [resetResult, setResetResult] = useState<{ password: string; name: string } | null>(null);
 
   async function resetPassword(u: User) {
@@ -680,9 +708,92 @@ function UsersContent() {
             </Button>
           )}
         </header>
-
+        <div className="flex gap-1 border-b border-border bg-surface px-3 py-2 md:px-5">
+          {[
+            { key: "users", label: "Utilisateurs" },
+            { key: "roles", label: "Rôles" },
+          ].map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key as any)}
+              className={cn(
+                "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                tab === t.key
+                  ? "bg-primary text-white"
+                  : "text-muted hover:bg-surface-sunken"
+              )}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
         <div className="flex-1 p-3 md:overflow-auto md:p-5">
-          {loading ? (
+          {tab === "roles" ? (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-muted">
+                  Modèles de permissions réutilisables
+                </p>
+                <Button size="sm" onClick={() => setEditRole({ name: "", permissions: [] })}>
+                  <Plus className="h-3.5 w-3.5" />
+                  Nouveau rôle
+                </Button>
+              </div>
+
+              {roles.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20">
+                  <Shield className="h-8 w-8 text-muted-light" />
+                  <p className="mt-2 text-sm font-medium">Aucun rôle</p>
+                  <p className="mt-1 text-center text-xs text-muted max-w-sm">
+                    Créez un rôle pour appliquer un ensemble de permissions
+                    en un clic lors de l'invitation d'un agent.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {roles.map((r) => (
+                    <div
+                      key={r.id}
+                      className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface p-4"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold">{r.name}</p>
+                        <div className="mt-1.5 flex flex-wrap gap-1">
+                          {r.permissions.map((p: string) => {
+                            const meta = ALL_PERMISSIONS.find((x) => x.key === p);
+                            return (
+                              <span
+                                key={p}
+                                className="rounded bg-primary-soft px-1.5 py-0.5 text-[10px] font-medium text-primary"
+                              >
+                                {meta?.label ?? p}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 gap-1">
+                        <button
+                          onClick={() => setEditRole(r)}
+                          className="rounded-md p-1.5 text-muted hover:bg-surface-sunken"
+                        >
+                          <Settings2 className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={() => removeRole(r.id)}
+                          className="rounded-md p-1.5 text-muted hover:bg-status-cancelled-bg hover:text-status-cancelled"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+                   ) : (
+                    <>
+                  {loading ? (
             <div className="flex items-center justify-center py-24">
               <p className="text-sm text-muted">Chargement...</p>
             </div>
@@ -864,13 +975,23 @@ function UsersContent() {
                   <p className="mt-2 text-sm font-medium">Aucun utilisateur</p>
                   <p className="mt-1 text-xs text-muted">Invitez des membres de votre équipe.</p>
                 </div>
-              )}
-                       </div>
-            </>
-          )}
-        </div>
-      </div>
+                          )}
+                          </div>
+               </>
+             )}
+               </>
+             )}
+           </div>
+         </div>
+         {editRole && (
+        <RoleModal
+          role={editRole}
+          onClose={() => setEditRole(null)}
+          onSaved={() => { setEditRole(null); fetchRoles(); }}
+        />
+      )}
 
+      
       {showInvite && (
         <InviteModal
           stores={accessibleStores}
@@ -944,7 +1065,118 @@ function UsersContent() {
     </div>
   );
 }
+function RoleModal({
+  role,
+  onClose,
+  onSaved,
+}: {
+  role: any;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [name, setName] = useState(role.name ?? "");
+  const [permissions, setPermissions] = useState<string[]>(role.permissions ?? []);
+  const [loading, setLoading] = useState(false);
 
+  async function save() {
+    if (!name.trim()) return;
+    setLoading(true);
+    try {
+      await fetch(`${API}/users/roles`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name: name.trim(), permissions }),
+      });
+      onSaved();
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/30 backdrop-blur-[2px]">
+      <div className="flex h-full w-full flex-col border-border bg-surface shadow-2xl md:h-auto md:max-h-[90vh] md:max-w-lg md:rounded-xl md:border">
+        <div className="flex items-center justify-between border-b border-border px-5 py-4">
+          <h2 className="text-sm font-semibold">
+            {role.id ? "Modifier le rôle" : "Nouveau rôle"}
+          </h2>
+          <button onClick={onClose} className="rounded-md p-1 hover:bg-surface-sunken">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted">Nom du rôle</label>
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="ex: Agent confirmation"
+            />
+          </div>
+
+          <div>
+            <div className="mb-2 flex items-center justify-between">
+              <label className="text-xs font-medium text-muted">Permissions</label>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setPermissions(ALL_PERMISSIONS.map((p) => p.key))}
+                  className="text-xs text-primary hover:underline"
+                >
+                  Tout
+                </button>
+                <span className="text-muted">·</span>
+                <button
+                  onClick={() => setPermissions([])}
+                  className="text-xs text-muted hover:underline"
+                >
+                  Aucun
+                </button>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-border divide-y divide-border">
+              {ALL_PERMISSIONS.map((p) => (
+                <div
+                  key={p.key}
+                  onClick={() =>
+                    setPermissions((prev) =>
+                      prev.includes(p.key)
+                        ? prev.filter((x) => x !== p.key)
+                        : [...prev, p.key]
+                    )
+                  }
+                  className="flex cursor-pointer items-center gap-3 px-4 py-2.5 transition-colors hover:bg-surface-sunken"
+                >
+                  <div className={cn(
+                    "flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 transition-colors",
+                    permissions.includes(p.key) ? "border-primary bg-primary" : "border-border"
+                  )}>
+                    {permissions.includes(p.key) && <Check className="h-3 w-3 text-white" />}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium">{p.label}</p>
+                    <p className="text-[11px] text-muted">{p.description}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex gap-2 border-t border-border px-5 py-4">
+          <Button variant="secondary" className="flex-1" onClick={onClose}>Annuler</Button>
+          <Button className="flex-1" disabled={loading || !name.trim()} onClick={save}>
+            {loading ? "Enregistrement..." : "Enregistrer"}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
 export default function UsersPage() {
   return (
     <RouteGuard>
