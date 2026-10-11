@@ -269,14 +269,19 @@ function InviteModal({
 
 function PermissionsModal({
   user,
+  stores,
   onClose,
   onSaved,
 }: {
   user: User;
+  stores: { id: string; name: string }[];
   onClose: () => void;
   onSaved: (permissions: string[]) => void;
 }) {
   const [permissions, setPermissions] = useState<string[]>(user.permissions ?? []);
+  const [storeIds, setStoreIds] = useState<string[]>((user as any).storeIds ?? []);
+  const [newPassword, setNewPassword] = useState("");
+  const [pwdMsg, setPwdMsg] = useState("");
   const [loading, setLoading] = useState(false);
 
   function togglePermission(key: string) {
@@ -296,6 +301,16 @@ function PermissionsModal({
         },
         body: JSON.stringify({ permissions }),
       });
+
+      await fetch(`${API}/users/${user.id}/stores`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ storeIds }),
+      });
+
       onSaved(permissions);
       onClose();
     } catch (e) {
@@ -340,9 +355,76 @@ function PermissionsModal({
                 </div>
               </div>
             ))}
+                   </div>
+        </div>
+
+        <div className="m-5 mt-0">
+          <p className="mb-2 text-xs font-medium text-muted">Accès aux magasins</p>
+          <div className="flex flex-wrap gap-2">
+            {stores.map((s) => {
+              const active = storeIds.includes(s.id);
+              return (
+                <button
+                  key={s.id}
+                  onClick={() =>
+                    setStoreIds((prev) =>
+                      active ? prev.filter((x) => x !== s.id) : [...prev, s.id]
+                    )
+                  }
+                  className={cn(
+                    "rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+                    active
+                      ? "bg-primary text-white"
+                      : "bg-surface-sunken text-muted hover:bg-border"
+                  )}
+                >
+                  {s.name}
+                </button>
+              );
+            })}
           </div>
         </div>
 
+        <div className="m-5 mt-0 rounded-lg border border-border p-3">
+          <p className="mb-2 text-xs font-medium text-muted">
+            Définir un nouveau mot de passe
+          </p>
+          <div className="flex gap-2">
+            <Input
+              type="text"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="Minimum 8 caractères"
+              className="h-8 flex-1 text-xs"
+            />
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={newPassword.length < 8}
+              onClick={async () => {
+                const res = await fetch(`${API}/users/${user.id}/password-admin`, {
+                  method: "PATCH",
+                  headers: {
+                    Authorization: `Bearer ${getToken()}`,
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({ password: newPassword }),
+                });
+                const data = await res.json();
+                setPwdMsg(data.ok ? "Mot de passe mis à jour" : (data.error ?? "Échec"));
+                if (data.ok) setNewPassword("");
+                setTimeout(() => setPwdMsg(""), 3000);
+              }}
+            >
+              Définir
+            </Button>
+          </div>
+          {pwdMsg && (
+            <p className="mt-1.5 text-[11px] font-medium text-primary">{pwdMsg}</p>
+          )}
+        </div>
+
+   
         <div className="flex gap-2 border-t border-border px-5 py-4">
           <Button variant="secondary" className="flex-1" onClick={onClose}>Annuler</Button>
           <Button className="flex-1" disabled={loading} onClick={save}>
@@ -724,8 +806,9 @@ function UsersContent() {
       )}
 
       {permissionsUser && (
-        <PermissionsModal
-          user={permissionsUser}
+                <PermissionsModal
+                user={permissionsUser}
+                stores={accessibleStores}
           onClose={() => setPermissionsUser(null)}
           onSaved={(permissions) => {
             setUsers((prev) =>
