@@ -84,6 +84,16 @@ function InviteModal({
   const [selectedStores, setSelectedStores] = useState<string[]>(stores.map((s) => s.id));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [roles, setRoles] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch(`${API}/users/roles/list`, {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    })
+      .then((r) => r.json())
+      .then((d) => setRoles(Array.isArray(d) ? d : []))
+      .catch(() => {});
+  }, []);
 
   function togglePermission(key: string) {
     setPermissions((prev) =>
@@ -186,7 +196,32 @@ function InviteModal({
               ))}
             </div>
           </div>
-
+          {roles.length > 0 && (
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-muted">
+                Appliquer un rôle
+              </label>
+              <select
+                value=""
+                onChange={(e) => {
+                  const role = roles.find((r) => r.id === e.target.value);
+                  if (role) setPermissions(role.permissions);
+                }}
+                className="h-9 w-full rounded-md border border-border bg-surface px-2 text-sm focus-visible:outline-none"
+              >
+                <option value="">Choisir un rôle...</option>
+                {roles.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.name} ({r.permissions.length} permissions)
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-[11px] text-muted">
+                Les permissions du rôle se cochent automatiquement. Vous pouvez
+                en ajouter d'autres ensuite.
+              </p>
+            </div>
+          )}
           {/* Permissions */}
           <div>
             <div className="flex items-center justify-between mb-2">
