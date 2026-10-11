@@ -570,6 +570,7 @@ function OrderDetailModal({
                 ))}
               </div>
             </div>
+          
           )}
 
           {/* Two columns */}
@@ -750,6 +751,7 @@ function PreparationContent() {
   const [advFilters, setAdvFilters] = useState<AdvancedFilterState>(EMPTY_FILTERS);
   const [serverTotalPages, setServerTotalPages] = useState(1);
   const [agentFilter, setAgentFilter] = useState<string>("");
+  const [printedTab, setPrintedTab] = useState<"todo" | "printed">("todo");
   const [agents, setAgents] = useState<any[]>([]);
   const [serverStats, setServerStats] = useState<any>({ total: 0 });
 
@@ -778,7 +780,10 @@ function PreparationContent() {
         storeIds: selectedStoreIds.join(","),
         page: String(page),
         pageSize: String(PAGE_SIZE),
-        orderStatus: PREP_STATUS_KEYS.join(","),
+        orderStatus: printedTab === "todo"
+        ? "A_PREPARER,ECHANGE"
+        : "EN_PREPARATION,EMBALLE",
+      prepAgentId: "self",
       });
       if (search) params.set("search", search);
       if (period.from) params.set("from", period.from.toISOString());
@@ -797,7 +802,7 @@ function PreparationContent() {
     } finally {
       setLoading(false);
     }
-  }, [selectedStoreIds, page, search, period, agentFilter]);
+  }, [selectedStoreIds, page, search, period, agentFilter, printedTab]);
 
 useEffect(() => {
   fetchOrders();
@@ -1043,6 +1048,29 @@ async function changeStatus(orderId: string, status: OrderStatus) {
           )}
         </div>
         )}
+                
+
+<div className="flex gap-1 border-b border-border bg-surface px-3 py-2 md:px-5">
+  {[
+    { key: "todo", label: "À imprimer" },
+    { key: "printed", label: "Déjà imprimées" },
+  ].map((t) => (
+    <button
+      key={t.key}
+      onClick={() => { setPrintedTab(t.key as any); setPage(1); }}
+      className={cn(
+        "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+        printedTab === t.key
+          ? "bg-primary text-white"
+          : "text-muted hover:bg-surface-sunken"
+      )}
+    >
+      {t.label}
+    </button>
+  ))}
+</div>
+
+{/* Filters */}
        {/* Filters */}
        <div className="border-b border-border bg-surface px-5 py-3 space-y-2">
        <div className="flex w-full min-w-0 items-center gap-3">
