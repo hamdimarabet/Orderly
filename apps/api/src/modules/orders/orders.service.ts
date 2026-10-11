@@ -4,6 +4,7 @@ import { OrderStatus, FinancialStatus, FulfillmentStatus, Prisma } from '@prisma
 import { CosmosService } from '../delivery/cosmos.service';
 import { BundlesService } from '../bundles/bundles.service';
 import { FlowsService } from '../flows/flows.service';
+import { DispatchService } from '../dispatch/dispatch.service';
 @Injectable()
 export class OrdersService {
   constructor(
@@ -11,6 +12,7 @@ export class OrdersService {
     private cosmos: CosmosService,
     private bundles: BundlesService,
     private flows: FlowsService,
+    private dispatch: DispatchService,
   ) {}
 
   async findAll(query: {
@@ -657,6 +659,14 @@ export class OrdersService {
         actor: actorId,
       },
     });
+        // Dispatch to a preparation agent when confirmed
+        if (status === 'A_PREPARER' || status === 'ECHANGE') {
+          this.dispatch.dispatchOne(orderId, 'PREPARATION').catch(() => {});
+        }
+        // Dispatch to a scan agent when a return arrives
+        if (status === 'RETOUR' || status === 'RETOUR_DEPOT') {
+          this.dispatch.dispatchOne(orderId, 'SCAN').catch(() => {});
+        }
         // Trigger marketing flows
         this.flows.emit('order_status_changed', {
           storeId: (order as any).storeId,
