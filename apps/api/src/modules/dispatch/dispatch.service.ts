@@ -370,28 +370,39 @@ export class DispatchService {
   /**
    * Assigns a single order right after it arrives.
    */
-  async dispatchOne(orderId: string) {
+  async dispatchOne(orderId: string, stage = 'CONFIRMATION') {
     const o = await this.prisma.order.findUnique({
       where: { id: orderId },
       include: { lineItems: { select: { sku: true } } },
     });
-    if (!o || o.assignedAgentId) return { ok: false };
+    if (!o) return { ok: false };
+
+    const agentField =
+      stage === 'PREPARATION' ? 'prepAgentId'
+      : stage === 'SCAN' ? 'scanAgentId'
+      : 'assignedAgentId';
+    const nameField =
+      stage === 'PREPARATION' ? 'prepAgentName'
+      : stage === 'SCAN' ? 'scanAgentName'
+      : 'assignedAgentName';
+
+    if ((o as any)[agentField]) return { ok: false, reason: 'Déjà assignée' };
 
     const agent = await this.pickAgent({
       storeId: o.storeId,
       total: Number(o.total),
       city: (o.shippingAddress as any)?.city ?? null,
       skus: o.lineItems.map((li) => li.sku).filter(Boolean) as string[],
-    });
+    }, stage);
 
     if (!agent) return { ok: false, reason: 'Aucun agent disponible' };
 
     await this.prisma.order.update({
       where: { id: orderId },
       data: {
-        assignedAgentId: agent.id,
-        assignedAgentName: agent.name,
-      },
+        [agentField]: agent.id,
+        [nameField]: agent.name,
+      } as any,
     });
 
     return { ok: true, agent };
