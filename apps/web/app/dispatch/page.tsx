@@ -158,7 +158,7 @@ function DispatchContent() {
           {[
             { key: "CONFIRMATION", label: "Confirmation" },
             { key: "PREPARATION", label: "Préparation" },
-            { key: "SCAN", label: "Scan retours" },
+      
           ].map((t) => (
             <button
               key={t.key}
