@@ -38,6 +38,7 @@ function DispatchContent() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
+  const [stage, setStage] = useState<"CONFIRMATION" | "PREPARATION" | "SCAN">("CONFIRMATION");
   const [period, setPeriod] = useState<Period>(getPeriodRange("all"));
   const [redistributing, setRedistributing] = useState(false);
   const [ruleAgent, setRuleAgent] = useState<Agent | null>(null);
@@ -54,6 +55,7 @@ function DispatchContent() {
     setLoading(true);
     try {
       const params = new URLSearchParams();
+      params.set("stage", stage);
       if (period.from) params.set("from", period.from.toISOString());
       if (period.to) params.set("to", period.to.toISOString());
 
@@ -67,7 +69,7 @@ function DispatchContent() {
     } finally {
       setLoading(false);
     }
-  }, [period]);
+  }, [period, stage]);
 
   useEffect(() => {
     fetchAgents();
@@ -80,7 +82,7 @@ function DispatchContent() {
         Authorization: `Bearer ${getToken()}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ isActive: !a.isAvailable }),
+      body: JSON.stringify({ isActive: !a.isAvailable, stage }),
     });
     fetchAgents();
   }
@@ -152,6 +154,26 @@ function DispatchContent() {
             {running ? "Répartition..." : "Répartir maintenant"}
           </Button>
         </header>
+        <div className="flex gap-1 border-b border-border bg-surface px-3 py-2 md:px-5">
+          {[
+            { key: "CONFIRMATION", label: "Confirmation" },
+            { key: "PREPARATION", label: "Préparation" },
+            { key: "SCAN", label: "Scan retours" },
+          ].map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setStage(t.key as any)}
+              className={cn(
+                "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                stage === t.key
+                  ? "bg-primary text-white"
+                  : "text-muted hover:bg-surface-sunken"
+              )}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-surface px-3 py-2 md:px-5 md:py-3">
           <PeriodFilter period={period} onChange={setPeriod} />
           <Button size="sm" variant="secondary" disabled={redistributing} onClick={redistribute}>
@@ -226,6 +248,7 @@ function DispatchContent() {
         <RulesModal
           agent={ruleAgent}
           stores={accessibleStores}
+          stage={stage}
           onClose={() => setRuleAgent(null)}
           onSaved={fetchAgents}
         />
@@ -381,11 +404,13 @@ function RuleBadge({ rule, stores }: { rule: any; stores: { id: string; name: st
 function RulesModal({
   agent,
   stores,
+  stage,
   onClose,
   onSaved,
 }: {
   agent: Agent;
   stores: { id: string; name: string }[];
+  stage: string;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -410,6 +435,7 @@ function RulesModal({
         },
         body: JSON.stringify({
           userId: agent.id,
+          stage,
           storeId: storeId || undefined,
           productSku: productSku || undefined,
           minTotal: minTotal ? parseFloat(minTotal) : undefined,
