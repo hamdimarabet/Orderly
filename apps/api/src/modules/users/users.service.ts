@@ -256,4 +256,28 @@ export class UsersService {
       user: { name: target.name, email: target.email },
     };
   }
+  async setPassword(targetUserId: string, newPassword: string, actorId: string) {
+    const actor = await this.prisma.user.findUnique({
+      where: { id: actorId },
+      select: { role: true },
+    });
+
+    if (actor?.role !== 'SUPER_ADMIN') {
+      return { ok: false, error: 'Seul un super admin peut définir un mot de passe' };
+    }
+
+    if (newPassword.length < 8) {
+      return { ok: false, error: 'Le mot de passe doit faire au moins 8 caractères' };
+    }
+
+    const bcrypt = require('bcrypt');
+    const hash = await bcrypt.hash(newPassword, 10);
+
+    await this.prisma.user.update({
+      where: { id: targetUserId },
+      data: { passwordHash: hash },
+    });
+
+    return { ok: true };
+  }
 }

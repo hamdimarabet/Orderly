@@ -33,6 +33,14 @@ export class UsersController {
   resetPassword(@Param('id') id: string, @Request() req: any) {
     return this.users.resetPassword(id, req.user.id);
   }
+  @Patch(':id/password-admin')
+  setPassword(
+    @Param('id') id: string,
+    @Body() body: { password: string },
+    @Request() req: any,
+  ) {
+    return this.users.setPassword(id, body.password, req.user.id);
+  }
   @Patch('me/profile')
   updateProfile(@Body() body: any, @Request() req: any) {
     return this.users.updateProfile(req.user.id, body);
