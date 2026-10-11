@@ -284,6 +284,18 @@ function PermissionsModal({
   );
   const [newPassword, setNewPassword] = useState("");
   const [pwdMsg, setPwdMsg] = useState("");
+  const [roles, setRoles] = useState<any[]>([]);
+  const [newRoleName, setNewRoleName] = useState("");
+  const [showSaveRole, setShowSaveRole] = useState(false);
+
+  useEffect(() => {
+    fetch(`${API}/users/roles/list`, {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    })
+      .then((r) => r.json())
+      .then((d) => setRoles(Array.isArray(d) ? d : []))
+      .catch(() => {});
+  }, []);
   const [loading, setLoading] = useState(false);
 
   function togglePermission(key: string) {
@@ -336,6 +348,69 @@ function PermissionsModal({
         </div>
 
         <div className="flex-1 overflow-y-auto">
+        <div className="m-5 mb-0 space-y-2">
+            <div className="flex items-center gap-2">
+              <select
+                value=""
+                onChange={(e) => {
+                  const role = roles.find((r) => r.id === e.target.value);
+                  if (role) setPermissions(role.permissions);
+                }}
+                className="h-8 flex-1 rounded-md border border-border bg-surface px-2 text-xs focus-visible:outline-none"
+              >
+                <option value="">Appliquer un rôle...</option>
+                {roles.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.name} ({r.permissions.length})
+                  </option>
+                ))}
+              </select>
+              <button
+                onClick={() => setShowSaveRole((v) => !v)}
+                className="shrink-0 text-xs font-medium text-primary hover:underline"
+              >
+                {showSaveRole ? "Annuler" : "Enregistrer comme rôle"}
+              </button>
+            </div>
+
+            {showSaveRole && (
+              <div className="flex gap-2">
+                <Input
+                  value={newRoleName}
+                  onChange={(e) => setNewRoleName(e.target.value)}
+                  placeholder="Nom du rôle"
+                  className="h-8 flex-1 text-xs"
+                />
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  disabled={!newRoleName.trim()}
+                  onClick={async () => {
+                    const res = await fetch(`${API}/users/roles`, {
+                      method: "POST",
+                      headers: {
+                        Authorization: `Bearer ${getToken()}`,
+                        "Content-Type": "application/json",
+                      },
+                      body: JSON.stringify({
+                        name: newRoleName.trim(),
+                        permissions,
+                      }),
+                    });
+                    const created = await res.json();
+                    setRoles((prev) => {
+                      const without = prev.filter((r) => r.name !== created.name);
+                      return [...without, created];
+                    });
+                    setNewRoleName("");
+                    setShowSaveRole(false);
+                  }}
+                >
+                  Créer
+                </Button>
+              </div>
+            )}
+          </div>
           <div className="rounded-lg border border-border divide-y divide-border m-5">
             {ALL_PERMISSIONS.map((p) => (
               <div
