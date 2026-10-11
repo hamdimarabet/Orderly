@@ -12,7 +12,20 @@ export class UsersController {
   findAll() {
     return this.users.findAll();
   }
+  @Get('roles/list')
+  listRoles() {
+    return this.users.listRoles();
+  }
 
+  @Post('roles')
+  createRole(@Body() body: { name: string; description?: string; permissions: string[] }) {
+    return this.users.createRole(body);
+  }
+
+  @Delete('roles/:id')
+  removeRole(@Param('id') id: string) {
+    return this.users.removeRole(id);
+  }
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.users.findOne(id);

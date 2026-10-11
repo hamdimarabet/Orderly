@@ -280,4 +280,36 @@ export class UsersService {
 
     return { ok: true };
   }
+  async listRoles() {
+    return this.prisma.customRole.findMany({
+      orderBy: { name: 'asc' },
+    });
+  }
+
+  async createRole(data: { name: string; description?: string; permissions: string[] }) {
+    const existing = await this.prisma.customRole.findUnique({
+      where: { name: data.name },
+    });
+    if (existing) {
+      return this.prisma.customRole.update({
+        where: { name: data.name },
+        data: {
+          description: data.description ?? null,
+          permissions: data.permissions,
+        },
+      });
+    }
+
+    return this.prisma.customRole.create({
+      data: {
+        name: data.name,
+        description: data.description ?? null,
+        permissions: data.permissions,
+      },
+    });
+  }
+
+  async removeRole(id: string) {
+    return this.prisma.customRole.delete({ where: { id } });
+  }
 }
