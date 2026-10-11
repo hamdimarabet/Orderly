@@ -207,12 +207,15 @@ export class DispatchService {
    * Picks the best agent for an order.
    * Returns null when nothing matches.
    */
-  async pickAgent(order: {
-    storeId: string;
-    total: number;
-    city?: string | null;
-    skus: string[];
-  }): Promise<{ id: string; name: string } | null> {
+  async pickAgent(
+    order: {
+      storeId: string;
+      total: number;
+      city?: string | null;
+      skus: string[];
+    },
+    stage = 'CONFIRMATION',
+  ): Promise<{ id: string; name: string } | null> {
     // Active agents only
     const agents = await this.prisma.user.findMany({
       where: {
