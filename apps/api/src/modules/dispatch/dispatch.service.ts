@@ -219,8 +219,8 @@ export class DispatchService {
         isActive: true,
         role: { not: 'SUPER_ADMIN' },
         OR: [
-          { availability: { isActive: true } },
-          { availability: null },
+          { availability: { some: { stage, isActive: true } } },
+          { availability: { none: { stage } } },
         ],
       },
       include: { dispatchRules: { where: { isActive: true } } },
@@ -291,9 +291,12 @@ export class DispatchService {
         where: {
           isActive: true,
           role: { not: 'SUPER_ADMIN' },
-          OR: [{ availability: { isActive: true } }, { availability: null }],
+          OR: [
+            { availability: { some: { stage: 'CONFIRMATION', isActive: true } } },
+            { availability: { none: { stage: 'CONFIRMATION' } } },
+          ],
         },
-        include: { dispatchRules: { where: { isActive: true } } },
+        include: { dispatchRules: { where: { isActive: true, stage: 'CONFIRMATION' } } },
       });
   
       if (agents.length === 0) {
