@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Calendar, ChevronDown } from "lucide-react";
 
-export type PeriodKey = "today" | "7d" | "30d" | "all" | "custom";
+export type PeriodKey = "today" | "yesterday" | "7d" | "30d" | "all" | "custom";
 
 export interface Period {
   key: PeriodKey;
@@ -15,6 +15,7 @@ export interface Period {
 
 export const PERIOD_LABELS: Record<PeriodKey, string> = {
   today: "Aujourd'hui",
+  yesterday: "Hier",
   "7d": "7 derniers jours",
   "30d": "30 derniers jours",
   all: "Tout",
@@ -28,6 +29,13 @@ export function getPeriodRange(key: PeriodKey, customFrom?: string, customTo?: s
   switch (key) {
     case "today":
       return { key, from: startOfToday, to: null };
+    case "yesterday": {
+      const from = new Date(startOfToday);
+      from.setDate(from.getDate() - 1);
+      const to = new Date(startOfToday);
+      to.setMilliseconds(-1);
+      return { key, from, to };
+    }
     case "7d": {
       const from = new Date(startOfToday);
       from.setDate(from.getDate() - 7);
@@ -68,7 +76,7 @@ export function PeriodFilter({
   const [customTo, setCustomTo] = useState("");
   const [showCustom, setShowCustom] = useState(false);
 
-  const KEYS: PeriodKey[] = ["today", "7d", "30d", "all"];
+  const KEYS: PeriodKey[] = ["today","yesterday", "7d", "30d", "all"];
 
   return (
     <div className="flex w-full max-w-full flex-wrap items-center gap-1 md:gap-2">
