@@ -28,6 +28,7 @@ export class OrdersService {
     callFilter?: string;
     excludeStatus?: OrderStatus[];
     agentId?: string;
+    prepAgentId?: string;
   }) {
     const {
       storeIds,
@@ -42,6 +43,7 @@ export class OrdersService {
       callFilter,
       excludeStatus,
       agentId,
+      prepAgentId,
     } = query;
 
     const where: Prisma.OrderWhereInput = {
@@ -51,6 +53,7 @@ export class OrdersService {
       ...(financialStatus?.length && { financialStatus: { in: financialStatus } }),
       ...(fulfillmentStatus?.length && { fulfillmentStatus: { in: fulfillmentStatus } }),
       ...(agentId && { assignedAgentId: agentId }),
+      ...(prepAgentId && { prepAgentId }),
       ...((from || to) && {
         sourceCreatedAt: {
           ...(from && { gte: new Date(from) }),

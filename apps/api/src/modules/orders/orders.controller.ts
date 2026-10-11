@@ -27,6 +27,7 @@ export class OrdersController {
     @Query('to') to?: string,
     @Query('excludeStatus') excludeStatus?: string,
     @Query('agentId') agentId?: string,
+    @Query('prepAgentId') prepAgentId?: string,
   ) {
     // Agents without the assign permission only see their own orders
     const user = req?.user;
@@ -45,7 +46,8 @@ export class OrdersController {
       to,
       page: page ? parseInt(page) : 1,
       pageSize: pageSize ? parseInt(pageSize) : 25,
-      agentId: canSeeAll ? agentId : user?.id,
+      agentId: canSeeAll ? agentId : (prepAgentId ? undefined : user?.id),
+      prepAgentId: canSeeAll ? prepAgentId : (prepAgentId ? user?.id : undefined),
     });
   }
   @Get(':id/label')
