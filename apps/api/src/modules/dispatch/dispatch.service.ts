@@ -85,7 +85,9 @@ export class DispatchService {
         name: u.name,
         email: u.email,
         role: u.role,
-        isAvailable: availability?.isActive ?? true,
+        isAvailable: availability
+        ? availability.isActive
+        : stage === 'CONFIRMATION',
         note: availability?.note ?? null,
         rules: u.dispatchRules,
         stats: {
@@ -221,10 +223,16 @@ export class DispatchService {
       where: {
         isActive: true,
         role: { not: 'SUPER_ADMIN' },
-        OR: [
-          { availability: { some: { stage, isActive: true } } },
-          { availability: { none: { stage } } },
-        ],
+        ...(stage === 'CONFIRMATION'
+          ? {
+              OR: [
+                { availability: { some: { stage, isActive: true } } },
+                { availability: { none: { stage } } },
+              ],
+            }
+          : {
+              availability: { some: { stage, isActive: true } },
+            }),
       },
       include: { dispatchRules: { where: { isActive: true } } },
     });
