@@ -11,16 +11,25 @@ import {
     constructor(private dispatch: DispatchService) {}
   
     @Get('agents')
-    listAgents(@Query('from') from?: string, @Query('to') to?: string) {
-      return this.dispatch.listAgents(from, to);
+    listAgents(
+      @Query('stage') stage?: string,
+      @Query('from') from?: string,
+      @Query('to') to?: string,
+    ) {
+      return this.dispatch.listAgents(stage ?? 'CONFIRMATION', from, to);
     }
-  
+
     @Patch('agents/:userId/availability')
     setAvailability(
       @Param('userId') userId: string,
-      @Body() body: { isActive: boolean; note?: string },
+      @Body() body: { isActive: boolean; stage?: string; note?: string },
     ) {
-      return this.dispatch.setAvailability(userId, body.isActive, body.note);
+      return this.dispatch.setAvailability(
+        userId,
+        body.isActive,
+        body.stage ?? 'CONFIRMATION',
+        body.note,
+      );
     }
     @Post('assign-bulk')
   assignBulk(@Body() body: { orderIds: string[]; userId: string }) {
