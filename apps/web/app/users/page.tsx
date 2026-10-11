@@ -279,7 +279,9 @@ function PermissionsModal({
   onSaved: (permissions: string[]) => void;
 }) {
   const [permissions, setPermissions] = useState<string[]>(user.permissions ?? []);
-  const [storeIds, setStoreIds] = useState<string[]>((user as any).storeIds ?? []);
+  const [storeIds, setStoreIds] = useState<string[]>(
+    ((user as any).storeAccess ?? []).map((a: any) => a.storeId)
+  );
   const [newPassword, setNewPassword] = useState("");
   const [pwdMsg, setPwdMsg] = useState("");
   const [loading, setLoading] = useState(false);
