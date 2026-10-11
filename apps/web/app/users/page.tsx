@@ -719,7 +719,18 @@ function UsersContent() {
     });
     fetchUsers();
   }
+  function getRoleLabel(u: User) {
+    if (u.role === "SUPER_ADMIN") return "Super Admin";
 
+    const perms = u.permissions ?? [];
+    const match = roles.find(
+      (r) =>
+        r.permissions.length === perms.length &&
+        r.permissions.every((p: string) => perms.includes(p))
+    );
+
+    return match?.name ?? "Personnalisé";
+  }
   async function changeRole(userId: string, role: User["role"]) {
     await fetch(`${API}/users/${userId}/role`, {
       method: "PATCH",
@@ -930,19 +941,14 @@ function UsersContent() {
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <select
-                          value={u.role}
-                          onChange={(e) => changeRole(u.id, e.target.value as User["role"])}
-                          disabled={u.id === currentUser?.id}
-                          className={cn(
-                            "rounded-full px-2 py-1 text-xs font-medium border-0 cursor-pointer",
-                            ROLE_COLORS[u.role]
-                          )}
-                        >
-                          <option value="SUPER_ADMIN">Super Admin</option>
-                          <option value="STORE_MANAGER">Manager</option>
-                          <option value="STAFF">Staff</option>
-                        </select>
+                        <span className={cn(
+                          "rounded-full px-2.5 py-1 text-[11px] font-medium",
+                          u.role === "SUPER_ADMIN"
+                            ? "bg-purple-100 text-purple-700"
+                            : "bg-primary-soft text-primary"
+                        )}>
+                          {getRoleLabel(u)}
+                        </span>
                       </td>
                       <td className="px-4 py-3">
                         <button
