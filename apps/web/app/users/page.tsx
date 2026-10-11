@@ -179,50 +179,57 @@ function InviteModal({
           {/* Role */}
           <div>
             <label className="mb-2 block text-xs font-medium text-muted">Rôle</label>
-            <div className="flex gap-2">
-              {(["SUPER_ADMIN", "STORE_MANAGER", "STAFF"] as const).map((r) => (
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => {
+                  setRole("SUPER_ADMIN");
+                  setPermissions(ALL_PERMISSIONS.map((p) => p.key));
+                }}
+                className={cn(
+                  "rounded-lg border-2 px-3 py-2 text-xs font-medium transition-colors",
+                  role === "SUPER_ADMIN"
+                    ? "border-primary bg-primary-soft text-primary"
+                    : "border-border text-muted hover:border-border-strong"
+                )}
+              >
+                Super Admin
+              </button>
+
+              {roles.map((r) => (
                 <button
-                  key={r}
-                  onClick={() => setRole(r)}
+                  key={r.id}
+                  onClick={() => {
+                    setRole("STAFF");
+                    setPermissions(r.permissions);
+                  }}
                   className={cn(
-                    "flex-1 rounded-lg border-2 py-2 text-xs font-medium transition-colors",
-                    role === r
+                    "rounded-lg border-2 px-3 py-2 text-xs font-medium transition-colors",
+                    role === "STAFF" &&
+                    r.permissions.length === permissions.length &&
+                    r.permissions.every((p: string) => permissions.includes(p))
                       ? "border-primary bg-primary-soft text-primary"
                       : "border-border text-muted hover:border-border-strong"
                   )}
                 >
-                  {ROLE_LABELS[r]}
+                  {r.name}
                 </button>
               ))}
+
+              <button
+                onClick={() => {
+                  setRole("STAFF");
+                  setPermissions([]);
+                }}
+                className={cn(
+                  "rounded-lg border-2 border-dashed px-3 py-2 text-xs font-medium transition-colors",
+                  "border-border text-muted hover:border-border-strong"
+                )}
+              >
+                Personnalisé
+              </button>
             </div>
           </div>
-          {roles.length > 0 && (
-            <div>
-              <label className="mb-1.5 block text-xs font-medium text-muted">
-                Appliquer un rôle
-              </label>
-              <select
-                value=""
-                onChange={(e) => {
-                  const role = roles.find((r) => r.id === e.target.value);
-                  if (role) setPermissions(role.permissions);
-                }}
-                className="h-9 w-full rounded-md border border-border bg-surface px-2 text-sm focus-visible:outline-none"
-              >
-                <option value="">Choisir un rôle...</option>
-                {roles.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.name} ({r.permissions.length} permissions)
-                  </option>
-                ))}
-              </select>
-              <p className="mt-1 text-[11px] text-muted">
-                Les permissions du rôle se cochent automatiquement. Vous pouvez
-                en ajouter d'autres ensuite.
-              </p>
-            </div>
-          )}
-          {/* Permissions */}
+         
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-xs font-medium text-muted">Permissions</label>
