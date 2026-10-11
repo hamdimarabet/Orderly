@@ -9,12 +9,12 @@ export class DispatchService {
 
   // ---------- AVAILABILITY ----------
 
-  async listAgents(from?: string, to?: string) {
+  async listAgents(stage = 'CONFIRMATION', from?: string, to?: string) {
     const users = await this.prisma.user.findMany({
       where: { isActive: true, role: { not: 'SUPER_ADMIN' } },
       include: {
-        availability: true,
-        dispatchRules: { where: { isActive: true } },
+        availability: { where: { stage } },
+        dispatchRules: { where: { isActive: true, stage } },
       },
       orderBy: { name: 'asc' },
     });
@@ -23,13 +23,20 @@ export class DispatchService {
     if (from) dateFilter.gte = new Date(from);
     if (to) dateFilter.lte = new Date(to);
 
+    const agentField =
+      stage === 'PREPARATION' ? 'prepAgentId'
+      : stage === 'SCAN' ? 'scanAgentId'
+      : 'assignedAgentId';
+
     const orders = await this.prisma.order.findMany({
       where: {
-        assignedAgentId: { not: null },
+        [agentField]: { not: null },
         ...(Object.keys(dateFilter).length > 0 && { sourceCreatedAt: dateFilter }),
-      },
+      } as any,
       select: {
         assignedAgentId: true,
+        prepAgentId: true,
+        scanAgentId: true,
         orderStatus: true,
         callAttempts: true,
         total: true,
@@ -39,48 +46,47 @@ export class DispatchService {
     const stats: Record<string, any> = {};
 
     for (const o of orders) {
-      const id = o.assignedAgentId!;
+      const id = (o as any)[agentField];
+      if (!id) continue;
+
       if (!stats[id]) {
-        stats[id] = {
-          total: 0,
-          confirmed: 0,
-          refused: 0,
-          pending: 0,
-          revenue: 0,
-        };
+        stats[id] = { total: 0, confirmed: 0, refused: 0, pending: 0, revenue: 0 };
       }
 
       const s = stats[id];
       s.total++;
 
-      const attempts = (o.callAttempts as any[]) ?? [];
-      const isConfirmed = attempts.some((a) => a.result === 'ANSWERED_CONFIRMED');
-      const isRefused =
-        attempts.some((a) => a.result === 'ANSWERED_REFUSED') ||
-        o.orderStatus === 'ANNULE';
+      if (stage === 'CONFIRMATION') {
+        const attempts = (o.callAttempts as any[]) ?? [];
+        const isConfirmed = attempts.some((a) => a.result === 'ANSWERED_CONFIRMED');
+        const isRefused =
+          attempts.some((a) => a.result === 'ANSWERED_REFUSED') ||
+          o.orderStatus === 'ANNULE';
 
-      if (isConfirmed) {
-        s.confirmed++;
-        s.revenue += Number(o.total);
-      } else if (isRefused) {
-        s.refused++;
+        if (isConfirmed) { s.confirmed++; s.revenue += Number(o.total); }
+        else if (isRefused) s.refused++;
+        else s.pending++;
+      } else if (stage === 'PREPARATION') {
+        if (['EMBALLE', 'AU_DEPOT_LIVREUR', 'EN_COURS_DE_LIVRAISON', 'LIVRE', 'PAYE'].includes(o.orderStatus)) {
+          s.confirmed++;
+        } else s.pending++;
       } else {
-        s.pending++;
+        if (['RETOUR_RECU'].includes(o.orderStatus)) s.confirmed++;
+        else s.pending++;
       }
     }
 
     return users.map((u) => {
-      const s = stats[u.id] ?? {
-        total: 0, confirmed: 0, refused: 0, pending: 0, revenue: 0,
-      };
+      const s = stats[u.id] ?? { total: 0, confirmed: 0, refused: 0, pending: 0, revenue: 0 };
+      const availability = u.availability[0];
 
       return {
         id: u.id,
         name: u.name,
         email: u.email,
         role: u.role,
-        isAvailable: u.availability?.isActive ?? true,
-        note: u.availability?.note ?? null,
+        isAvailable: availability?.isActive ?? true,
+        note: availability?.note ?? null,
         rules: u.dispatchRules,
         stats: {
           ...s,
@@ -150,11 +156,12 @@ export class DispatchService {
 
     return { ok: true, assigned: result.count, agent: user.name };
   }
-  async setAvailability(userId: string, isActive: boolean, note?: string) {
+  async setAvailability(userId: string, isActive: boolean, stage = 'CONFIRMATION', note?: string) {
     return this.prisma.agentAvailability.upsert({
-      where: { userId },
+      where: { userId_stage: { userId, stage } },
       create: {
         userId,
+        stage,
         isActive,
         note: note ?? null,
         pausedAt: isActive ? null : new Date(),
@@ -171,6 +178,7 @@ export class DispatchService {
 
   async addRule(data: {
     userId: string;
+    stage?: string;
     storeId?: string;
     productSku?: string;
     minTotal?: number;
@@ -180,6 +188,7 @@ export class DispatchService {
     return this.prisma.dispatchRule.create({
       data: {
         userId: data.userId,
+        stage: data.stage ?? 'CONFIRMATION',
         storeId: data.storeId ?? null,
         productSku: data.productSku ?? null,
         minTotal: data.minTotal ?? null,
@@ -188,7 +197,6 @@ export class DispatchService {
       },
     });
   }
-
   async removeRule(id: string) {
     return this.prisma.dispatchRule.delete({ where: { id } });
   }

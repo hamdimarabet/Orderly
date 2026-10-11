@@ -210,6 +210,10 @@ model Order {
   scheduledDeliveryDate DateTime?
   assignedAgentId       String?
   assignedAgentName     String?
+  prepAgentId           String?
+  prepAgentName         String?
+  scanAgentId           String?
+  scanAgentName         String?
   confirmedAt           DateTime?
 
   lineItems         OrderLineItem[]
@@ -407,7 +411,7 @@ model User {
   inviteExpiry DateTime?
   isActive     Boolean   @default(true)
     dispatchRules  DispatchRule[]      @relation("DispatchRules")
-  availability   AgentAvailability?  @relation("Availability")
+   availability   AgentAvailability[] @relation("Availability")
 
   storeAccess  UserStoreAccess[]
   notifications Notification[]
@@ -756,7 +760,7 @@ model DispatchRule {
   id         String   @id @default(cuid())
   userId     String
   user       User     @relation("DispatchRules", fields: [userId], references: [id], onDelete: Cascade)
-
+  stage      String   @default("CONFIRMATION")
   storeId    String?
   productSku String?
   minTotal   Decimal? @db.Decimal(10, 3)
@@ -772,12 +776,16 @@ model DispatchRule {
 
 model AgentAvailability {
   id        String   @id @default(cuid())
-  userId    String   @unique
+  userId    String
   user      User     @relation("Availability", fields: [userId], references: [id], onDelete: Cascade)
 
+  stage     String   @default("CONFIRMATION")
   isActive  Boolean  @default(true)
   pausedAt  DateTime?
   note      String?
 
   updatedAt DateTime @updatedAt
+
+  @@unique([userId, stage])
+  @@index([stage])
 }
