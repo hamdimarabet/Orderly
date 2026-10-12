@@ -39,6 +39,10 @@ function DispatchContent() {
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [stage, setStage] = useState<"CONFIRMATION" | "PREPARATION" | "SCAN">("CONFIRMATION");
+  const [view, setView] = useState<"agents" | "shifts" | "pointage">("agents");
+  const [shifts, setShifts] = useState<any[]>([]);
+  const [editShift, setEditShift] = useState<any>(null);
+  const [clockToday, setClockToday] = useState<any[]>([]);
   const [clockStatus, setClockStatus] = useState<any>(null);
   const [period, setPeriod] = useState<Period>(getPeriodRange("all"));
   const [redistributing, setRedistributing] = useState(false);
@@ -75,6 +79,43 @@ function DispatchContent() {
   useEffect(() => {
     fetchAgents();
   }, [fetchAgents]);
+  const fetchShifts = useCallback(async () => {
+    try {
+      const res = await fetch(`${API}/shifts`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      const data = await res.json();
+      setShifts(Array.isArray(data) ? data : []);
+    } catch {
+      setShifts([]);
+    }
+  }, []);
+
+  const fetchClockToday = useCallback(async () => {
+    try {
+      const res = await fetch(`${API}/shifts/clock/today`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      const data = await res.json();
+      setClockToday(Array.isArray(data) ? data : []);
+    } catch {
+      setClockToday([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (view === "shifts") fetchShifts();
+    if (view === "pointage") fetchClockToday();
+  }, [view, fetchShifts, fetchClockToday]);
+
+  async function removeShift(id: string) {
+    if (!window.confirm("Supprimer ce créneau ?")) return;
+    await fetch(`${API}/shifts/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${getToken()}` },
+    });
+    fetchShifts();
+  }
   const fetchClock = useCallback(async () => {
     try {
       const res = await fetch(`${API}/shifts/clock/status`, {
@@ -183,6 +224,27 @@ function DispatchContent() {
         </header>
         <div className="flex gap-1 border-b border-border bg-surface px-3 py-2 md:px-5">
           {[
+            { key: "agents", label: "Répartition" },
+            { key: "shifts", label: "Créneaux" },
+            { key: "pointage", label: "Pointage" },
+          ].map((v) => (
+            <button
+              key={v.key}
+              onClick={() => setView(v.key as any)}
+              className={cn(
+                "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                view === v.key
+                  ? "bg-primary text-white"
+                  : "text-muted hover:bg-surface-sunken"
+              )}
+            >
+              {v.label}
+            </button>
+          ))}
+        </div>
+        {view === "agents" && (
+        <div className="flex gap-1 border-b border-border bg-surface px-3 py-2 md:px-5">
+          {[
             { key: "CONFIRMATION", label: "Confirmation" },
             { key: "PREPARATION", label: "Préparation" },
       
@@ -200,7 +262,7 @@ function DispatchContent() {
               {t.label}
             </button>
           ))}
-        </div>
+        </div>)}
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-surface px-3 py-2 md:px-5 md:py-3">
           <PeriodFilter period={period} onChange={setPeriod} />
           <Button size="sm" variant="secondary" disabled={redistributing} onClick={redistribute}>
@@ -210,7 +272,16 @@ function DispatchContent() {
         </div>
 
         <div className="flex-1 p-3 md:overflow-y-auto md:p-5">
-          {loading ? (
+          {view === "shifts" ? (
+            <ShiftsView
+              shifts={shifts}
+              onNew={() => setEditShift({ name: "", startTime: "08:00", endTime: "17:00", days: [1,2,3,4,5], assignments: [] })}
+              onEdit={setEditShift}
+              onRemove={removeShift}
+            />
+          ) : view === "pointage" ? (
+            <ClockView entries={clockToday} />
+          ) : loading ? (
             <p className="py-16 text-center text-sm text-muted">Chargement...</p>
           ) : agents.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-24">
@@ -270,7 +341,14 @@ function DispatchContent() {
           )}
         </div>
       </div>
-
+      {editShift && (
+        <ShiftModal
+          shift={editShift}
+          agents={agents}
+          onClose={() => setEditShift(null)}
+          onSaved={() => { setEditShift(null); fetchShifts(); }}
+        />
+      )}
       {ruleAgent && (
         <RulesModal
           agent={ruleAgent}
@@ -614,7 +692,295 @@ function RulesModal({
     </div>
   );
 }
+function ShiftsView({
+  shifts,
+  onNew,
+  onEdit,
+  onRemove,
+}: {
+  shifts: any[];
+  onNew: () => void;
+  onEdit: (s: any) => void;
+  onRemove: (id: string) => void;
+}) {
+  const DAYS = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
 
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-muted">Horaires de travail et agents assignés</p>
+        <Button size="sm" onClick={onNew}>
+          <Plus className="h-3.5 w-3.5" />
+          Nouveau créneau
+        </Button>
+      </div>
+
+      {shifts.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20">
+          <Clock className="h-8 w-8 text-muted-light" />
+          <p className="mt-2 text-sm font-medium">Aucun créneau</p>
+          <p className="mt-1 text-center text-xs text-muted max-w-sm">
+            Définissez les horaires de travail. Le pointage se ferme
+            automatiquement à la fin du créneau.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {shifts.map((s) => (
+            <div key={s.id} className="rounded-xl border border-border bg-surface p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold">{s.name}</p>
+                  <p className="font-mono text-xs text-muted">
+                    {s.startTime} — {s.endTime}
+                  </p>
+                  <div className="mt-1.5 flex flex-wrap gap-1">
+                    {DAYS.map((d, i) => (
+                      <span
+                        key={i}
+                        className={cn(
+                          "rounded px-1.5 py-0.5 text-[10px] font-medium",
+                          s.days.includes(i)
+                            ? "bg-primary-soft text-primary"
+                            : "bg-surface-sunken text-muted-light"
+                        )}
+                      >
+                        {d}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex shrink-0 gap-1">
+                  <button
+                    onClick={() => onEdit(s)}
+                    className="rounded-md p-1.5 text-muted hover:bg-surface-sunken"
+                  >
+                    <Settings2 className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={() => onRemove(s.id)}
+                    className="rounded-md p-1.5 text-muted hover:bg-status-cancelled-bg hover:text-status-cancelled"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-3 flex flex-wrap gap-1.5 border-t border-border pt-3">
+                {s.assignments.length === 0 ? (
+                  <span className="text-[11px] text-muted">Aucun agent assigné</span>
+                ) : (
+                  s.assignments.map((a: any) => (
+                    <span
+                      key={a.id}
+                      className="flex items-center gap-1.5 rounded-full bg-surface-sunken px-2.5 py-1 text-[11px]"
+                    >
+                      <span className="flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[8px] font-bold text-white">
+                        {a.user.name[0]?.toUpperCase()}
+                      </span>
+                      {a.user.name}
+                    </span>
+                  ))
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ClockView({ entries }: { entries: any[] }) {
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-muted">Pointages du jour</p>
+
+      {entries.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20">
+          <Clock className="h-8 w-8 text-muted-light" />
+          <p className="mt-2 text-sm font-medium">Aucun pointage aujourd'hui</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {entries.map((e) => (
+            <div
+              key={e.id}
+              className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface p-3.5"
+            >
+              <div className="flex items-center gap-3">
+                <div className={cn(
+                  "flex h-9 w-9 items-center justify-center rounded-full text-xs font-bold text-white",
+                  e.clockOut ? "bg-slate-400" : "bg-emerald-500"
+                )}>
+                  {e.userName[0]?.toUpperCase()}
+                </div>
+                <div>
+                  <p className="text-sm font-medium">{e.userName}</p>
+                  <p className="font-mono text-[11px] text-muted">
+                    {new Date(e.clockIn).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                    {" — "}
+                    {e.clockOut
+                      ? new Date(e.clockOut).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })
+                      : "en cours"}
+                    {e.autoClosed && " (auto)"}
+                  </p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="font-mono text-sm font-bold">
+                  {Math.floor(e.minutes / 60)}h{String(e.minutes % 60).padStart(2, "0")}
+                </p>
+                {!e.clockOut && (
+                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
+                    En service
+                  </span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+function ShiftModal({
+  shift,
+  agents,
+  onClose,
+  onSaved,
+}: {
+  shift: any;
+  agents: any[];
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [name, setName] = useState(shift.name ?? "");
+  const [startTime, setStartTime] = useState(shift.startTime ?? "08:00");
+  const [endTime, setEndTime] = useState(shift.endTime ?? "17:00");
+  const [days, setDays] = useState<number[]>(shift.days ?? [1, 2, 3, 4, 5]);
+  const [userIds, setUserIds] = useState<string[]>(
+    (shift.assignments ?? []).map((a: any) => a.user?.id ?? a.userId)
+  );
+  const [loading, setLoading] = useState(false);
+
+  const DAYS = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
+
+  async function save() {
+    if (!name.trim()) return;
+    setLoading(true);
+    try {
+      const body = { name: name.trim(), startTime, endTime, days, userIds };
+
+      await fetch(
+        shift.id ? `${API}/shifts/${shift.id}` : `${API}/shifts`,
+        {
+          method: shift.id ? "PATCH" : "POST",
+          headers: {
+            Authorization: `Bearer ${getToken()}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(body),
+        }
+      );
+      onSaved();
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-foreground/30 backdrop-blur-[2px]">
+      <div className="flex h-full w-full flex-col border-border bg-surface shadow-2xl md:h-auto md:max-h-[90vh] md:max-w-md md:rounded-xl md:border">
+        <div className="flex items-center justify-between border-b border-border px-5 py-4">
+          <h2 className="text-sm font-semibold">
+            {shift.id ? "Modifier le créneau" : "Nouveau créneau"}
+          </h2>
+          <button onClick={onClose} className="rounded-md p-1 hover:bg-surface-sunken">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted">Nom</label>
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="ex: Shift matin"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted">Début</label>
+              <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted">Fin</label>
+              <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
+            </div>
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-xs font-medium text-muted">Jours</label>
+            <div className="flex flex-wrap gap-1.5">
+              {DAYS.map((d, i) => (
+                <button
+                  key={i}
+                  onClick={() =>
+                    setDays((prev) =>
+                      prev.includes(i) ? prev.filter((x) => x !== i) : [...prev, i]
+                    )
+                  }
+                  className={cn(
+                    "rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
+                    days.includes(i)
+                      ? "bg-primary text-white"
+                      : "bg-surface-sunken text-muted hover:bg-border"
+                  )}
+                >
+                  {d}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-xs font-medium text-muted">Agents</label>
+            <div className="flex flex-wrap gap-1.5">
+              {agents.map((a) => (
+                <button
+                  key={a.id}
+                  onClick={() =>
+                    setUserIds((prev) =>
+                      prev.includes(a.id) ? prev.filter((x) => x !== a.id) : [...prev, a.id]
+                    )
+                  }
+                  className={cn(
+                    "rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+                    userIds.includes(a.id)
+                      ? "bg-primary text-white"
+                      : "bg-surface-sunken text-muted hover:bg-border"
+                  )}
+                >
+                  {a.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex gap-2 border-t border-border px-5 py-4">
+          <Button variant="secondary" className="flex-1" onClick={onClose}>Annuler</Button>
+          <Button className="flex-1" disabled={loading || !name.trim()} onClick={save}>
+            {loading ? "Enregistrement..." : "Enregistrer"}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
 export default function DispatchPage() {
   return (
     <RouteGuard>
