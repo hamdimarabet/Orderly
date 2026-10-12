@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Clock, X } from "lucide-react";
+import { Clock, Play, Square } from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api";
 
@@ -12,11 +13,28 @@ function getToken() {
   return window.localStorage.getItem("orderly_token");
 }
 
+function fmtTime(iso?: string | null) {
+  if (!iso) return "";
+  return new Date(iso).toLocaleTimeString("fr-FR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function fmtDuration(min: number) {
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return h > 0 ? `${h}h${String(m).padStart(2, "0")}` : `${m} min`;
+}
+
 export function ClockButton() {
   const { user } = useAuth();
   const [status, setStatus] = useState<any>(null);
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -38,6 +56,7 @@ export function ClockButton() {
 
   const clockedIn = status?.clockedIn ?? false;
   const minutes = status?.todayMinutes ?? 0;
+  const since = status?.since;
 
   async function toggle() {
     setBusy(true);
@@ -57,73 +76,46 @@ export function ClockButton() {
     }
   }
 
-  return (
-    <>
-      <button
-        onClick={() => setConfirm(true)}
-        className={cn(
-          "flex h-8 items-center gap-1.5 rounded-full px-3 text-[11px] font-semibold transition-colors",
-          clockedIn
-            ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
-            : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-        )}
-      >
-        <span className={cn(
-          "h-1.5 w-1.5 rounded-full",
-          clockedIn ? "bg-emerald-500" : "bg-slate-400"
-        )} />
-        {clockedIn ? "En service" : "Hors service"}
-        {minutes > 0 && (
-          <span className="opacity-70">
-            {Math.floor(minutes / 60)}h{String(minutes % 60).padStart(2, "0")}
-          </span>
-        )}
-      </button>
-
-      {confirm && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-foreground/30 backdrop-blur-[2px]">
-          <div className="mx-3 w-full max-w-sm rounded-xl border border-border bg-surface shadow-2xl">
-            <div className="flex items-center gap-2.5 border-b border-border px-5 py-4">
+  const modal = confirm && mounted
+    ? createPortal(
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-foreground/40 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl">
+            <div className="px-6 pt-6 text-center">
               <div className={cn(
-                "flex h-9 w-9 items-center justify-center rounded-lg",
-                clockedIn ? "bg-status-cancelled-bg" : "bg-emerald-100"
+                "mx-auto flex h-14 w-14 items-center justify-center rounded-full",
+                clockedIn ? "bg-rose-50" : "bg-emerald-50"
               )}>
-                <Clock className={cn(
-                  "h-4 w-4",
-                  clockedIn ? "text-status-cancelled" : "text-emerald-700"
-                )} />
+                {clockedIn
+                  ? <Square className="h-6 w-6 text-rose-600" />
+                  : <Play className="h-6 w-6 text-emerald-600" />
+                }
               </div>
-              <h2 className="text-sm font-semibold">
-                {clockedIn ? "Terminer votre service ?" : "Commencer votre service ?"}
+
+              <h2 className="mt-4 text-base font-semibold">
+                {clockedIn ? "Terminer votre service" : "Démarrer votre service"}
               </h2>
-            </div>
 
-            <div className="p-5">
-              <p className="text-xs text-muted leading-relaxed">
-                {clockedIn ? (
-                  <>
-                    Vous ne recevrez plus de nouvelles commandes. Celles que vous
-                    n'avez pas traitées seront redistribuées aux agents en service.
-                  </>
-                ) : (
-                  <>
-                    Les nouvelles commandes vous seront assignées automatiquement
-                    selon vos règles de répartition.
-                  </>
-                )}
+              <p className="mt-2 text-sm leading-relaxed text-muted">
+                {clockedIn
+                  ? "Vous ne recevrez plus de nouvelles commandes. Celles non traitées seront redistribuées."
+                  : "Les nouvelles commandes vous seront assignées automatiquement."}
               </p>
-
-              {minutes > 0 && (
-                <p className="mt-3 rounded-lg bg-surface-sunken px-3 py-2 text-xs">
-                  Temps travaillé aujourd'hui :{" "}
-                  <span className="font-mono font-bold">
-                    {Math.floor(minutes / 60)}h{String(minutes % 60).padStart(2, "0")}
-                  </span>
-                </p>
-              )}
             </div>
 
-            <div className="flex gap-2 border-t border-border px-5 py-4">
+            {clockedIn && (
+              <div className="mx-6 mt-5 rounded-xl bg-surface-sunken p-4">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted">Commencé à</span>
+                  <span className="font-mono font-semibold">{fmtTime(since)}</span>
+                </div>
+                <div className="mt-2 flex items-center justify-between text-sm">
+                  <span className="text-muted">Durée</span>
+                  <span className="font-mono font-semibold">{fmtDuration(minutes)}</span>
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-2 p-6">
               <Button
                 variant="secondary"
                 className="flex-1"
@@ -132,16 +124,71 @@ export function ClockButton() {
                 Annuler
               </Button>
               <Button
-                className={cn("flex-1", clockedIn && "bg-status-cancelled hover:bg-status-cancelled/90")}
+                className={cn("flex-1", clockedIn && "bg-rose-600 hover:bg-rose-700")}
                 disabled={busy}
                 onClick={toggle}
               >
-                {busy ? "..." : clockedIn ? "Terminer" : "Commencer"}
+                {busy ? "..." : clockedIn ? "Terminer" : "Démarrer"}
               </Button>
             </div>
           </div>
+        </div>,
+        document.body
+      )
+    : null;
+
+  return (
+    <>
+      <div className={cn(
+        "rounded-xl border p-3",
+        clockedIn
+          ? "border-emerald-200 bg-emerald-50"
+          : "border-border bg-surface-sunken"
+      )}>
+        <div className="flex items-center gap-2">
+          <span className={cn(
+            "h-2 w-2 shrink-0 rounded-full",
+            clockedIn ? "animate-pulse bg-emerald-500" : "bg-slate-400"
+          )} />
+          <p className={cn(
+            "text-xs font-semibold",
+            clockedIn ? "text-emerald-800" : "text-muted"
+          )}>
+            {clockedIn ? "En service" : "Hors service"}
+          </p>
         </div>
-      )}
+
+        {clockedIn ? (
+          <p className="mt-1 text-[11px] text-emerald-700">
+            Depuis {fmtTime(since)} · {fmtDuration(minutes)}
+          </p>
+        ) : minutes > 0 ? (
+          <p className="mt-1 text-[11px] text-muted">
+            Aujourd'hui : {fmtDuration(minutes)}
+          </p>
+        ) : (
+          <p className="mt-1 text-[11px] text-muted">
+            Démarrez pour recevoir des commandes
+          </p>
+        )}
+
+        <button
+          onClick={() => setConfirm(true)}
+          className={cn(
+            "mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-lg py-2 text-[11px] font-semibold transition-colors",
+            clockedIn
+              ? "bg-white text-rose-600 hover:bg-rose-50"
+              : "bg-emerald-600 text-white hover:bg-emerald-700"
+          )}
+        >
+          {clockedIn
+            ? <><Square className="h-3 w-3" /> Terminer mon service</>
+            : <><Play className="h-3 w-3" /> Démarrer mon service</>
+          }
+        </button>
+      </div>
     </>
   );
 }
+
+export { ClockButton as ClockCard };

@@ -189,7 +189,7 @@ export function Sidebar({ stores, selectedStoreIds, onChangeSelectedStores }: Si
           <span className="text-sm font-semibold">Orderly</span>
         </div>
         <div className="flex items-center gap-1">
-        <ClockButton />
+        
           <div className="hidden md:block">
             <NotificationCenter />
           </div>
@@ -346,7 +346,11 @@ export function Sidebar({ stores, selectedStoreIds, onChangeSelectedStores }: Si
           );
         })}
       </nav>
+      
 
+      <div className="border-t border-border p-3">
+        <ClockButton />
+      </div>
       {/* Footer */}
       <div className="border-t border-border px-3 py-2.5">
         <p className="truncate text-xs font-medium">{user?.name}</p>
