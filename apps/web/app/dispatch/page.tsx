@@ -113,7 +113,7 @@ function DispatchContent() {
           Authorization: `Bearer ${getToken()}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ storeIds: selectedStoreIds }),
+        body: JSON.stringify({ storeIds: selectedStoreIds, stage }),
       });
       const data = await res.json();
 

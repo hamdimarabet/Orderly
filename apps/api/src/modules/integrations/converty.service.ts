@@ -486,6 +486,11 @@ export class ConvertyService {
     // Assign an agent automatically (non-blocking)
     if ((created as any)?.id) {
       this.dispatch.dispatchOne((created as any).id).catch(() => {});
+
+      // Converty can send orders already confirmed
+      if (['A_PREPARER', 'ECHANGE'].includes(orderStatus as string)) {
+        this.dispatch.dispatchOne((created as any).id, 'PREPARATION').catch(() => {});
+      }
     }
 
     return { created: true };

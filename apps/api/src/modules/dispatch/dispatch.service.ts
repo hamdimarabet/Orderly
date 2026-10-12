@@ -286,13 +286,20 @@ export class DispatchService {
   /**
    * Assigns every unassigned order waiting for confirmation.
    */
-  async dispatchPending(storeIds?: string[]) {
+  async dispatchPending(storeIds?: string[], stage = 'CONFIRMATION') {
+    const agentField = stage === 'PREPARATION' ? 'prepAgentId' : 'assignedAgentId';
+    const nameField = stage === 'PREPARATION' ? 'prepAgentName' : 'assignedAgentName';
+    const pendingStatuses =
+      stage === 'PREPARATION'
+        ? ['A_PREPARER', 'ECHANGE', 'EN_PREPARATION']
+        : ['NOUVEAU', 'CONFIRMATION_EN_COURS'];
+
     const orders = await this.prisma.order.findMany({
       where: {
-        assignedAgentId: null,
-        orderStatus: { in: ['NOUVEAU', 'CONFIRMATION_EN_COURS'] },
+        [agentField]: null,
+        orderStatus: { in: pendingStatuses as any },
         ...(storeIds?.length && { storeId: { in: storeIds } }),
-      },
+      } as any,
       include: { lineItems: { select: { sku: true } } },
       orderBy: { sourceCreatedAt: 'asc' },
     });
@@ -302,12 +309,16 @@ export class DispatchService {
         where: {
           isActive: true,
           role: { not: 'SUPER_ADMIN' },
-          OR: [
-            { availability: { some: { stage: 'CONFIRMATION', isActive: true } } },
-            { availability: { none: { stage: 'CONFIRMATION' } } },
-          ],
+          ...(stage === 'CONFIRMATION'
+            ? {
+                OR: [
+                  { availability: { some: { stage, isActive: true } } },
+                  { availability: { none: { stage } } },
+                ],
+              }
+            : { availability: { some: { stage, isActive: true } } }),
         },
-        include: { dispatchRules: { where: { isActive: true, stage: 'CONFIRMATION' } } },
+        include: { dispatchRules: { where: { isActive: true, stage } } },
       });
   
       if (agents.length === 0) {
@@ -318,19 +329,20 @@ export class DispatchService {
       today.setHours(0, 0, 0, 0);
   
       const counts = await this.prisma.order.groupBy({
-        by: ['assignedAgentId'],
+        by: [agentField as any],
         where: {
-          assignedAgentId: { not: null },
-          orderStatus: { in: ['NOUVEAU', 'CONFIRMATION_EN_COURS'] },
+          [agentField]: { not: null },
+          orderStatus: { in: pendingStatuses as any },
           sourceCreatedAt: { gte: today },
-        },
+        } as any,
         _count: { id: true },
       });
-  
+
       const load: Record<string, number> = {};
       agents.forEach((a) => { load[a.id] = 0; });
-      counts.forEach((c) => {
-        if (c.assignedAgentId) load[c.assignedAgentId] = c._count.id;
+      counts.forEach((c: any) => {
+        const id = c[agentField];
+        if (id) load[id] = c._count.id;
       });
   
       let assigned = 0;
@@ -368,7 +380,10 @@ export class DispatchService {
       for (const u of updates) {
         await this.prisma.order.update({
           where: { id: u.id },
-          data: { assignedAgentId: u.agentId, assignedAgentName: u.agentName },
+          data: {
+            [agentField]: u.agentId,
+            [nameField]: u.agentName,
+          } as any,
         });
       }
 

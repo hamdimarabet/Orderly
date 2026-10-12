@@ -46,8 +46,8 @@ import {
     }
   
     @Post('run')
-    run(@Body() body: { storeIds?: string[] }) {
-      return this.dispatch.dispatchPending(body?.storeIds);
+    run(@Body() body: { storeIds?: string[]; stage?: string }) {
+      return this.dispatch.dispatchPending(body?.storeIds, body?.stage ?? 'CONFIRMATION');
     }
   
     @Post('redistribute')
