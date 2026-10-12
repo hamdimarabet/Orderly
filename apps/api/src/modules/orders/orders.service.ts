@@ -1266,7 +1266,20 @@ export class OrdersService {
           .map((li) => ({ sku: li.sku!, quantity: li.quantity }));
         this.bundles.deductStock(order.storeId, lineItems).catch(() => {});
       }
+        // Deduct bundle stock in background
+        if (data.status === 'A_PREPARER' || data.status === 'CONFIRME') {
+          const lineItems = order.lineItems
+            .filter((li) => li.sku)
+            .map((li) => ({ sku: li.sku!, quantity: li.quantity }));
+          this.bundles.deductStock(order.storeId, lineItems).catch(() => {});
+        }
   
+        // Dispatch to a preparation agent when confirmed
+        if (['A_PREPARER', 'CONFIRME', 'ECHANGE'].includes(data.status)) {
+          this.dispatch.dispatchOne(orderId, 'PREPARATION').catch(() => {});
+        }
+  
+        
       return {
         ...order,
         storeName: order.store.name,
