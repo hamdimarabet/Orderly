@@ -11,7 +11,7 @@ import { PeriodFilter, getPeriodRange, type Period } from "@/components/stats/pe
 import { cn } from "@/lib/utils";
 import {
   Plus, X, Users, Play, Pause, Trash2, Shuffle,
-  Store as StoreIcon, Package, Coins, MapPin, Settings2,
+  Store as StoreIcon, Package, Coins, MapPin, Settings2,Clock,
 } from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api";
@@ -39,6 +39,7 @@ function DispatchContent() {
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [stage, setStage] = useState<"CONFIRMATION" | "PREPARATION" | "SCAN">("CONFIRMATION");
+  const [clockStatus, setClockStatus] = useState<any>(null);
   const [period, setPeriod] = useState<Period>(getPeriodRange("all"));
   const [redistributing, setRedistributing] = useState(false);
   const [ruleAgent, setRuleAgent] = useState<Agent | null>(null);
@@ -74,7 +75,32 @@ function DispatchContent() {
   useEffect(() => {
     fetchAgents();
   }, [fetchAgents]);
+  const fetchClock = useCallback(async () => {
+    try {
+      const res = await fetch(`${API}/shifts/clock/status`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      setClockStatus(await res.json());
+    } catch {}
+  }, []);
 
+  useEffect(() => {
+    fetchClock();
+  }, [fetchClock]);
+
+  async function toggleClock() {
+    const endpoint = clockStatus?.clockedIn ? "clock-out" : "clock-in";
+    await fetch(`${API}/shifts/${endpoint}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${getToken()}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({}),
+    });
+    fetchClock();
+    fetchAgents();
+  }
   async function toggleAvailability(a: Agent) {
     await fetch(`${API}/dispatch/agents/${a.id}/availability`, {
       method: "PATCH",
@@ -149,6 +175,23 @@ function DispatchContent() {
               {available.length > 1 ? "s" : ""} · {totalToday} commandes aujourd'hui
             </p>
           </div>
+          <button
+            onClick={toggleClock}
+            className={cn(
+              "flex h-9 items-center gap-2 rounded-lg px-4 text-xs font-semibold transition-colors",
+              clockStatus?.clockedIn
+                ? "bg-status-cancelled text-white"
+                : "bg-emerald-500 text-white"
+            )}
+          >
+            <Clock className="h-3.5 w-3.5" />
+            {clockStatus?.clockedIn ? "Terminer" : "Commencer"}
+            {clockStatus?.clockedIn && clockStatus.todayMinutes > 0 && (
+              <span className="rounded-full bg-white/25 px-1.5 py-0.5 text-[10px]">
+                {Math.floor(clockStatus.todayMinutes / 60)}h{String(clockStatus.todayMinutes % 60).padStart(2, "0")}
+              </span>
+            )}
+          </button>
           <Button size="sm" disabled={running} onClick={runDispatch}>
             <Shuffle className={cn("h-3.5 w-3.5", running && "animate-spin")} />
             {running ? "Répartition..." : "Répartir maintenant"}
