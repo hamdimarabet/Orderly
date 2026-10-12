@@ -32,7 +32,7 @@ interface Agent {
 }
 
 function DispatchContent() {
-  const { canAccessStore } = useAuth();
+  const { canAccessStore, user: currentUser } = useAuth();
   const { stores } = useStores();
   const [selectedStoreIds, setSelectedStoreIds] = useState<string[]>([]);
   const [agents, setAgents] = useState<Agent[]>([]);
@@ -175,23 +175,25 @@ function DispatchContent() {
               {available.length > 1 ? "s" : ""} · {totalToday} commandes aujourd'hui
             </p>
           </div>
-          <button
-            onClick={toggleClock}
-            className={cn(
-              "flex h-9 items-center gap-2 rounded-lg px-4 text-xs font-semibold transition-colors",
-              clockStatus?.clockedIn
-                ? "bg-status-cancelled text-white"
-                : "bg-emerald-500 text-white"
-            )}
-          >
-            <Clock className="h-3.5 w-3.5" />
-            {clockStatus?.clockedIn ? "Terminer" : "Commencer"}
-            {clockStatus?.clockedIn && clockStatus.todayMinutes > 0 && (
-              <span className="rounded-full bg-white/25 px-1.5 py-0.5 text-[10px]">
-                {Math.floor(clockStatus.todayMinutes / 60)}h{String(clockStatus.todayMinutes % 60).padStart(2, "0")}
-              </span>
-            )}
-          </button>
+          {currentUser?.role !== "SUPER_ADMIN" && (
+            <button
+              onClick={toggleClock}
+              className={cn(
+                "flex h-9 items-center gap-2 rounded-lg px-4 text-xs font-semibold transition-colors",
+                clockStatus?.clockedIn
+                  ? "bg-status-cancelled text-white"
+                  : "bg-emerald-500 text-white"
+              )}
+            >
+              <Clock className="h-3.5 w-3.5" />
+              {clockStatus?.clockedIn ? "Terminer" : "Commencer"}
+              {clockStatus?.clockedIn && clockStatus.todayMinutes > 0 && (
+                <span className="rounded-full bg-white/25 px-1.5 py-0.5 text-[10px]">
+                  {Math.floor(clockStatus.todayMinutes / 60)}h{String(clockStatus.todayMinutes % 60).padStart(2, "0")}
+                </span>
+              )}
+            </button>
+          )}
           <Button size="sm" disabled={running} onClick={runDispatch}>
             <Shuffle className={cn("h-3.5 w-3.5", running && "animate-spin")} />
             {running ? "Répartition..." : "Répartir maintenant"}
