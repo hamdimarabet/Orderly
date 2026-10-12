@@ -420,7 +420,8 @@ model User {
   isActive     Boolean   @default(true)
     dispatchRules  DispatchRule[]      @relation("DispatchRules")
    availability   AgentAvailability[] @relation("Availability")
-
+  shiftAssignments ShiftAssignment[] @relation("ShiftAssignments")
+  clockEntries     ClockEntry[]      @relation("ClockEntries")
   storeAccess  UserStoreAccess[]
   notifications Notification[]
   channelMembers ChannelMember[]
@@ -796,4 +797,42 @@ model AgentAvailability {
 
   @@unique([userId, stage])
   @@index([stage])
+}
+
+model Shift {
+  id        String   @id @default(cuid())
+  name      String
+  startTime String
+  endTime   String
+  days      Int[]
+  isActive  Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  assignments ShiftAssignment[]
+}
+
+model ShiftAssignment {
+  id      String @id @default(cuid())
+  shiftId String
+  shift   Shift  @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  userId  String
+  user    User   @relation("ShiftAssignments", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([shiftId, userId])
+  @@index([userId])
+}
+
+model ClockEntry {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation("ClockEntries", fields: [userId], references: [id], onDelete: Cascade)
+
+  clockIn   DateTime  @default(now())
+  clockOut  DateTime?
+  autoClosed Boolean  @default(false)
+
+  @@index([userId, clockIn])
+  @@index([clockOut])
 }
