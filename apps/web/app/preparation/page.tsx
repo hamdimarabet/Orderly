@@ -750,7 +750,10 @@ function PreparationContent() {
   const [period, setPeriod] = useState<Period>(getPeriodRange("7d"));
   const [advFilters, setAdvFilters] = useState<AdvancedFilterState>(EMPTY_FILTERS);
   const [serverTotalPages, setServerTotalPages] = useState(1);
-  const [agentFilter, setAgentFilter] = useState<string>("");
+  const { user: currentUser } = useAuth();
+  const [agentFilter, setAgentFilter] = useState<string>(
+    currentUser?.role === "SUPER_ADMIN" ? "" : (currentUser?.id ?? "")
+  );
   const [printedTab, setPrintedTab] = useState<"todo" | "printed">("todo");
   const [agents, setAgents] = useState<any[]>([]);
   const [serverStats, setServerStats] = useState<any>({ total: 0 });
@@ -783,12 +786,12 @@ function PreparationContent() {
         orderStatus: printedTab === "todo"
         ? "A_PREPARER,ECHANGE"
         : "EN_PREPARATION,EMBALLE",
-      prepAgentId: "self",
+  
       });
       if (search) params.set("search", search);
       if (period.from) params.set("from", period.from.toISOString());
       if (period.to) params.set("to", period.to.toISOString());
-      if (agentFilter) params.set("agentId", agentFilter);
+      if (agentFilter) params.set("prepAgentId", agentFilter);
 
       const res = await fetch(`${API}/orders?${params}`, {
         headers: { Authorization: `Bearer ${getToken()}` },
