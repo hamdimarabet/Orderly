@@ -348,7 +348,7 @@ export function Sidebar({ stores, selectedStoreIds, onChangeSelectedStores }: Si
       </nav>
       
 
-      <div className="border-t border-border p-3">
+      <div className="relative z-10 shrink-0 border-t border-border p-3">
         <ClockButton />
       </div>
       {/* Footer */}
