@@ -1937,16 +1937,13 @@ function ConfirmationContent() {
               <option key={a.id} value={a.id}>{a.name}</option>
             ))}
                     </select>
-          <select
+                    <select
             value={attemptFilter}
             onChange={(e) => { setAttemptFilter(e.target.value); setPage(1); }}
             className="h-9 shrink-0 rounded-md border border-border bg-surface px-2 text-xs focus-visible:outline-none"
           >
-            <option value="">Toutes tentatives</option>
-            <option value="0">Jamais appelé</option>
-            {[1,2,3,4,5,6,7,8,9].map((n) => (
-              <option key={n} value={n}>Tentative {n}</option>
-            ))}
+            <option value="">Toutes les commandes</option>
+            <option value="0">En tentative</option>
           </select>
           <div className="-mx-3 flex gap-1 overflow-x-auto px-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:mx-0 md:px-0">
 

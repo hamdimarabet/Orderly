@@ -97,14 +97,24 @@ export class OrdersService {
         },
       }),
     ]);
-    // Filter by attempt count when requested
-    let finalOrders = orders;
-    if (attemptLevel !== undefined) {
-      finalOrders = orders.filter((o) => {
-        const attempts = (o.callAttempts as any[]) ?? [];
-        return attempts.length === attemptLevel;
-      });
-    }
+      // Orders with call attempts that are still not confirmed or refused
+      let finalOrders = orders;
+      if (attemptLevel !== undefined) {
+        finalOrders = orders.filter((o) => {
+          const attempts = (o.callAttempts as any[]) ?? [];
+          if (attempts.length === 0) return false;
+  
+          const settled =
+            attempts.some((a) =>
+              ['ANSWERED_CONFIRMED', 'ANSWERED_REFUSED'].includes(a.result),
+            ) || o.orderStatus === 'ANNULE';
+  
+          if (settled) return false;
+  
+          // attemptLevel 0 means "any level"
+          return attemptLevel === 0 || attempts.length === attemptLevel;
+        });
+      }
     // Stats on the whole filtered set, not just the current page
     let confirmed = 0, refused = 0, aVerifier = 0, revenue = 0, attemptsTotal = 0;
 
