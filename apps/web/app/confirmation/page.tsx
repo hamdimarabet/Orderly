@@ -1696,7 +1696,7 @@ function ConfirmationContent() {
     total: 0, confirmed: 0, refused: 0, aVerifier: 0, pending: 0, revenue: 0, avgAttempts: "0",
   });
   const [filter, setFilter] = useState<"all" | "pending" | "confirmed" | "refused" | "a_verifier">("all");
-  const [agentFilter, setAgentFilter] = useState<string>("");
+  const [agentFilter, setAgentFilter] = useState<string>("");   
   const [agents, setAgents] = useState<any[]>([]);
 
   useEffect(() => {
