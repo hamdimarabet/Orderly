@@ -76,8 +76,8 @@ export function ClockButton() {
     }
   }
 
-  const modal = confirm
-  ? (
+  const modal = confirm && mounted && typeof document !== "undefined"
+  ? createPortal(
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-foreground/40 p-4 backdrop-blur-sm">
           <div className="w-full max-w-sm overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl">
             <div className="px-6 pt-6 text-center">
@@ -132,7 +132,8 @@ export function ClockButton() {
               </Button>
             </div>
           </div>
-          </div>
+          </div>,
+        document.body
       )
     : null;
     return (
