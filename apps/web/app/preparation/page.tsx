@@ -76,7 +76,7 @@ async function apiChangeStatus(orderId: string, status: OrderStatus) {
   });
 }
 
-const PAGE_SIZE = 25;
+const PAGE_SIZE = 100;
 
 // Flux: A_PREPARER → (imprimer) → EN_PREPARATION → (scan) → EMBALLE → (scan livreur) → AU_DEPOT_LIVREUR
 const PREP_STATUS_KEYS: OrderStatus[] = [
@@ -747,7 +747,7 @@ function PreparationContent() {
   const [showCreate, setShowCreate] = useState(false);
   const [archiveOrder, setArchiveOrder] = useState<Order | null>(null);
   const [printing, setPrinting] = useState<string | null>(null);
-  const [period, setPeriod] = useState<Period>(getPeriodRange("all"));
+  const [period, setPeriod] = useState<Period>(getPeriodRange("7d"));
   const [advFilters, setAdvFilters] = useState<AdvancedFilterState>(EMPTY_FILTERS);
   const [serverTotalPages, setServerTotalPages] = useState(1);
   const [agentFilter, setAgentFilter] = useState<string>("");

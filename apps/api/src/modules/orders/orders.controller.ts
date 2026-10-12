@@ -46,10 +46,8 @@ export class OrdersController {
       to,
       page: page ? parseInt(page) : 1,
       pageSize: pageSize ? parseInt(pageSize) : 25,
-      agentId: prepAgentId ? undefined : (canSeeAll ? agentId : user?.id),
-      prepAgentId: prepAgentId === 'self'
-        ? (canSeeAll ? undefined : user?.id)
-        : (canSeeAll ? prepAgentId : undefined),
+      agentId,
+      prepAgentId: prepAgentId === 'self' ? undefined : prepAgentId,
     });
   }
   @Get(':id/label')

@@ -1652,7 +1652,7 @@ function OrderModal({
   );
 }
 
-const PAGE_SIZE = 25;
+const PAGE_SIZE = 100;
 
 function ConfirmationContent() {
   const { canAccessStore, hasPermission } = useAuth();
@@ -1696,7 +1696,10 @@ function ConfirmationContent() {
     total: 0, confirmed: 0, refused: 0, aVerifier: 0, pending: 0, revenue: 0, avgAttempts: "0",
   });
   const [filter, setFilter] = useState<"all" | "pending" | "confirmed" | "refused" | "a_verifier">("all");
-  const [agentFilter, setAgentFilter] = useState<string>("");
+  const { user: currentUser } = useAuth();
+  const [agentFilter, setAgentFilter] = useState<string>(
+    currentUser?.role === "SUPER_ADMIN" ? "" : (currentUser?.id ?? "")
+  );
   const [agents, setAgents] = useState<any[]>([]);
 
   useEffect(() => {
@@ -1707,7 +1710,7 @@ function ConfirmationContent() {
       .then((d) => setAgents(Array.isArray(d) ? d : []))
       .catch(() => {});
   }, []);
-  const [period, setPeriod] = useState<Period>(getPeriodRange("all"));
+  const [period, setPeriod] = useState<Period>(getPeriodRange("7d"));
   const [advFilters, setAdvFilters] = useState<AdvancedFilterState>(EMPTY_FILTERS);
   const accessibleStores = stores.filter((s) => canAccessStore(s.id));
   const activeStore = accessibleStores[0];

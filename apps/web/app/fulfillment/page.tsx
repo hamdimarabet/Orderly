@@ -75,7 +75,7 @@ const DELIVERY_STATUS_KEYS: OrderStatus[] = [
   "RETOUR_RECU",
   "A_VERIFIER",
 ];
-const PAGE_SIZE = 25;
+const PAGE_SIZE = 100;
 const STATUS_COLORS: Record<string, string> = {
   CONFIRME: "bg-status-new-bg text-status-new",
   EN_PREPARATION: "bg-status-processing-bg text-status-processing",
@@ -322,7 +322,7 @@ function FulfillmentContent() {
   const [filter, setFilter] = useState<OrderStatus | "all">("all");
   const [page, setPage] = useState(1);
   const [showImport, setShowImport] = useState(false);
-  const [period, setPeriod] = useState<Period>(getPeriodRange("all"));
+  const [period, setPeriod] = useState<Period>(getPeriodRange("7d"));
   const [advFilters, setAdvFilters] = useState<AdvancedFilterState>(EMPTY_FILTERS);
   const [serverTotalPages, setServerTotalPages] = useState(1);
   const [serverStats, setServerStats] = useState<any>({ total: 0 });
