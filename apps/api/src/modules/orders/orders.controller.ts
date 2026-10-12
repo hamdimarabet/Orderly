@@ -28,6 +28,7 @@ export class OrdersController {
     @Query('excludeStatus') excludeStatus?: string,
     @Query('agentId') agentId?: string,
     @Query('prepAgentId') prepAgentId?: string,
+    @Query('attemptLevel') attemptLevel?: string,
   ) {
     // Agents without the assign permission only see their own orders
     const user = req?.user;
@@ -48,6 +49,7 @@ export class OrdersController {
       pageSize: pageSize ? parseInt(pageSize) : 25,
       agentId,
       prepAgentId: prepAgentId === 'self' ? undefined : prepAgentId,
+      attemptLevel: attemptLevel ? parseInt(attemptLevel) : undefined,
     });
   }
   @Get(':id/label')

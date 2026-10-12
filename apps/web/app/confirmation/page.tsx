@@ -1696,7 +1696,8 @@ function ConfirmationContent() {
     total: 0, confirmed: 0, refused: 0, aVerifier: 0, pending: 0, revenue: 0, avgAttempts: "0",
   });
   const [filter, setFilter] = useState<"all" | "pending" | "confirmed" | "refused" | "a_verifier">("all");
-  const [agentFilter, setAgentFilter] = useState<string>("");   
+  const [agentFilter, setAgentFilter] = useState<string>("");
+  const [attemptFilter, setAttemptFilter] = useState<string>(""); 
   const [agents, setAgents] = useState<any[]>([]);
 
   useEffect(() => {
@@ -1732,6 +1733,7 @@ function ConfirmationContent() {
       if (period.from) params.set("from", period.from.toISOString());
       if (period.to) params.set("to", period.to.toISOString());
       if (agentFilter) params.set("agentId", agentFilter);
+      if (attemptFilter) params.set("attemptLevel", attemptFilter);
 
       const res = await fetch(`${API}/orders?${params}`, {
         headers: { Authorization: `Bearer ${getToken()}` },
@@ -1746,7 +1748,7 @@ function ConfirmationContent() {
     } finally {
       setLoading(false);
     }
-  }, [selectedStoreIds, page, search, period, agentFilter]);
+  }, [selectedStoreIds, page, search, period, agentFilter, attemptFilter]);
 
   // Load customer stats for badges
   // Load customer stats for badges
@@ -1934,8 +1936,20 @@ function ConfirmationContent() {
             {agents.map((a) => (
               <option key={a.id} value={a.id}>{a.name}</option>
             ))}
+                    </select>
+          <select
+            value={attemptFilter}
+            onChange={(e) => { setAttemptFilter(e.target.value); setPage(1); }}
+            className="h-9 shrink-0 rounded-md border border-border bg-surface px-2 text-xs focus-visible:outline-none"
+          >
+            <option value="">Toutes tentatives</option>
+            <option value="0">Jamais appelé</option>
+            {[1,2,3,4,5,6,7,8,9].map((n) => (
+              <option key={n} value={n}>Tentative {n}</option>
+            ))}
           </select>
           <div className="-mx-3 flex gap-1 overflow-x-auto px-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:mx-0 md:px-0">
+
             {[
               { key: "all", label: "Tous", count: orders.length },
               { key: "pending", label: "En attente", count: pendingCount },

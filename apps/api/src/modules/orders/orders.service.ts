@@ -29,6 +29,7 @@ export class OrdersService {
     excludeStatus?: OrderStatus[];
     agentId?: string;
     prepAgentId?: string;
+    attemptLevel?: number;
   }) {
     const {
       storeIds,
@@ -44,6 +45,7 @@ export class OrdersService {
       excludeStatus,
       agentId,
       prepAgentId,
+      attemptLevel,
     } = query;
 
     const where: Prisma.OrderWhereInput = {
@@ -95,7 +97,14 @@ export class OrdersService {
         },
       }),
     ]);
-
+    // Filter by attempt count when requested
+    let finalOrders = orders;
+    if (attemptLevel !== undefined) {
+      finalOrders = orders.filter((o) => {
+        const attempts = (o.callAttempts as any[]) ?? [];
+        return attempts.length === attemptLevel;
+      });
+    }
     // Stats on the whole filtered set, not just the current page
     let confirmed = 0, refused = 0, aVerifier = 0, revenue = 0, attemptsTotal = 0;
 
@@ -116,7 +125,7 @@ export class OrdersService {
     const statsTotal = statsRows.length;
 
     return {
-      orders: orders.map((o) => ({
+      orders: finalOrders.map((o) => ({
         ...o,
         storeName: o.store.name,
         trackingNumber: o.fulfillments[0]?.trackingNumber ?? null,
