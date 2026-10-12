@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
 import { useStores } from "@/lib/stores-context";
 import { NotificationCenter } from "@/components/layout/notification-center";
+import { ClockButton } from "@/components/layout/clock-button";
 import {
   LayoutGrid, Phone, Package, Truck, RotateCcw, QrCode, Archive,
   Users, MessageSquare, AlertCircle, ShoppingBag, TrendingUp,
@@ -188,7 +189,8 @@ export function Sidebar({ stores, selectedStoreIds, onChangeSelectedStores }: Si
           <span className="text-sm font-semibold">Orderly</span>
         </div>
         <div className="flex items-center gap-1">
-        <div className="hidden md:block">
+        <ClockButton />
+          <div className="hidden md:block">
             <NotificationCenter />
           </div>
           <div className="relative">
