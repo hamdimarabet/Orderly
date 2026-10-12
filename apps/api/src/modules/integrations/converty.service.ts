@@ -488,7 +488,8 @@ export class ConvertyService {
       this.dispatch.dispatchOne((created as any).id).catch(() => {});
 
       // Converty can send orders already confirmed
-      if (['A_PREPARER', 'ECHANGE'].includes(orderStatus as string)) {
+      const finalStatus = isExchange ? 'ECHANGE' : mapped;
+      if (['A_PREPARER', 'ECHANGE'].includes(finalStatus as string)) {
         this.dispatch.dispatchOne((created as any).id, 'PREPARATION').catch(() => {});
       }
     }
