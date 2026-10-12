@@ -1234,7 +1234,7 @@ async function changeStatus(orderId: string, status: OrderStatus) {
                   <th className="px-4 py-2.5">Commande</th>
                   <th className="px-4 py-2.5">Date</th>
                   <th className="px-4 py-2.5">Client</th>
-                  <th className="px-4 py-2.5">Téléphone</th>
+                  <th className="px-4 py-2.5">Assigné à</th>
                   <th className="px-4 py-2.5">Articles</th>
                   <th className="px-4 py-2.5">Montant</th>
                   <th className="px-4 py-2.5">Livreur</th>
@@ -1273,7 +1273,18 @@ async function changeStatus(orderId: string, status: OrderStatus) {
                       <p className="font-medium truncate max-w-[130px]">{order.customerName ?? "—"}</p>
                     </td>
                     <td className="px-4 py-3">
-                      <span className="font-mono text-xs">{order.customerPhone ?? "—"}</span>
+                      {(order as any).prepAgentName ? (
+                        <div className="flex items-center gap-1.5">
+                          <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-[9px] font-bold text-white">
+                            {(order as any).prepAgentName[0]?.toUpperCase()}
+                          </div>
+                          <span className="truncate max-w-[80px] text-xs">
+                            {(order as any).prepAgentName}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-light">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-xs text-muted">
                       {order.lineItems?.map((li) => (
