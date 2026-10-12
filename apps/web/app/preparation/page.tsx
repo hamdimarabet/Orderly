@@ -751,9 +751,7 @@ function PreparationContent() {
   const [advFilters, setAdvFilters] = useState<AdvancedFilterState>(EMPTY_FILTERS);
   const [serverTotalPages, setServerTotalPages] = useState(1);
   const { user: currentUser } = useAuth();
-  const [agentFilter, setAgentFilter] = useState<string>(
-    currentUser?.role === "SUPER_ADMIN" ? "" : (currentUser?.id ?? "")
-  );
+  const [agentFilter, setAgentFilter] = useState<string>("");
   const [printedTab, setPrintedTab] = useState<"todo" | "printed">("todo");
   const [agents, setAgents] = useState<any[]>([]);
   const [serverStats, setServerStats] = useState<any>({ total: 0 });
