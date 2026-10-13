@@ -39,10 +39,20 @@ function DispatchContent() {
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [stage, setStage] = useState<"CONFIRMATION" | "PREPARATION" | "SCAN">("CONFIRMATION");
-  const [view, setView] = useState<"agents" | "shifts" | "pointage">("agents");
+  const [view, setView] = useState<"agents" | "shifts" | "pointage" | "relances">("agents");
   const [shifts, setShifts] = useState<any[]>([]);
   const [editShift, setEditShift] = useState<any>(null);
   const [clockToday, setClockToday] = useState<any[]>([]);
+  const [retryConfig, setRetryConfig] = useState<any>(null);
+
+  const fetchRetryConfig = useCallback(async () => {
+    try {
+      const res = await fetch(`${API}/retry/config`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      setRetryConfig(await res.json());
+    } catch {}
+  }, []);
   const [clockStatus, setClockStatus] = useState<any>(null);
   const [period, setPeriod] = useState<Period>(getPeriodRange("all"));
   const [redistributing, setRedistributing] = useState(false);
@@ -106,7 +116,8 @@ function DispatchContent() {
   useEffect(() => {
     if (view === "shifts") fetchShifts();
     if (view === "pointage") fetchClockToday();
-  }, [view, fetchShifts, fetchClockToday]);
+    if (view === "relances") fetchRetryConfig();
+  }, [view, fetchShifts, fetchClockToday, fetchRetryConfig]);
 
   async function removeShift(id: string) {
     if (!window.confirm("Supprimer ce créneau ?")) return;
@@ -227,6 +238,7 @@ function DispatchContent() {
             { key: "agents", label: "Répartition" },
             { key: "shifts", label: "Créneaux" },
             { key: "pointage", label: "Pointage" },
+            { key: "relances", label: "Relances" },
           ].map((v) => (
             <button
               key={v.key}
@@ -281,6 +293,8 @@ function DispatchContent() {
             />
           ) : view === "pointage" ? (
             <ClockView entries={clockToday} />
+          ) : view === "relances" ? (
+            <RetryView config={retryConfig} onSaved={fetchRetryConfig} />
           ) : loading ? (
             <p className="py-16 text-center text-sm text-muted">Chargement...</p>
           ) : agents.length === 0 ? (
@@ -977,6 +991,140 @@ function ShiftModal({
             {loading ? "Enregistrement..." : "Enregistrer"}
           </Button>
         </div>
+      </div>
+    </div>
+  );
+}
+function RetryView({
+  config,
+  onSaved,
+}: {
+  config: any;
+  onSaved: () => void;
+}) {
+  const [isActive, setIsActive] = useState(config?.isActive ?? false);
+  const [maxAttempts, setMaxAttempts] = useState(String(config?.maxAttempts ?? 9));
+  const [minGapMinutes, setMinGapMinutes] = useState(String(config?.minGapMinutes ?? 120));
+  const [cancelAfterMax, setCancelAfterMax] = useState(config?.cancelAfterMax ?? true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    if (!config) return;
+    setIsActive(config.isActive ?? false);
+    setMaxAttempts(String(config.maxAttempts ?? 9));
+    setMinGapMinutes(String(config.minGapMinutes ?? 120));
+    setCancelAfterMax(config.cancelAfterMax ?? true);
+  }, [config]);
+
+  async function save() {
+    setSaving(true);
+    try {
+      await fetch(`${API}/retry/config`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          isActive,
+          maxAttempts: parseInt(maxAttempts) || 9,
+          minGapMinutes: parseInt(minGapMinutes) || 120,
+          cancelAfterMax,
+        }),
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+      onSaved();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="max-w-lg space-y-4">
+      <p className="text-xs text-muted">
+        Les commandes sans réponse reviennent automatiquement dans le cycle,
+        pendant les heures de travail définies dans Créneaux.
+      </p>
+
+      <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-surface p-4">
+        <input
+          type="checkbox"
+          checked={isActive}
+          onChange={(e) => setIsActive(e.target.checked)}
+          className="mt-0.5 h-4 w-4 shrink-0 rounded border-border-strong accent-primary"
+        />
+        <div>
+          <p className="text-sm font-medium">Activer les relances automatiques</p>
+          <p className="mt-0.5 text-xs text-muted">
+            Sans cela, les commandes non confirmées restent en attente
+            jusqu'à ce qu'un agent les reprenne manuellement.
+          </p>
+        </div>
+      </label>
+
+      <div className="space-y-4 rounded-xl border border-border bg-surface p-4">
+        <div>
+          <label className="mb-1 block text-xs font-medium text-muted">
+            Nombre maximum de tentatives
+          </label>
+          <Input
+            type="number"
+            value={maxAttempts}
+            onChange={(e) => setMaxAttempts(e.target.value)}
+            min={1}
+            max={20}
+            className="h-9"
+          />
+          <p className="mt-1 text-[11px] text-muted">
+            Au-delà, la commande n'est plus relancée
+          </p>
+        </div>
+
+        <div>
+          <label className="mb-1 block text-xs font-medium text-muted">
+            Délai minimum entre deux appels (minutes)
+          </label>
+          <Input
+            type="number"
+            value={minGapMinutes}
+            onChange={(e) => setMinGapMinutes(e.target.value)}
+            min={15}
+            step={15}
+            className="h-9"
+          />
+          <p className="mt-1 text-[11px] text-muted">
+            {Math.floor((parseInt(minGapMinutes) || 120) / 60)}h
+            {String((parseInt(minGapMinutes) || 120) % 60).padStart(2, "0")} entre chaque tentative
+          </p>
+        </div>
+
+        <label className="flex cursor-pointer items-start gap-3">
+          <input
+            type="checkbox"
+            checked={cancelAfterMax}
+            onChange={(e) => setCancelAfterMax(e.target.checked)}
+            className="mt-0.5 h-4 w-4 shrink-0 rounded border-border-strong accent-primary"
+          />
+          <div>
+            <p className="text-xs font-medium">Annuler après le maximum</p>
+            <p className="mt-0.5 text-[11px] text-muted">
+              La commande passe en Annulé avec le motif « Injoignable »
+            </p>
+          </div>
+        </label>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <Button disabled={saving} onClick={save}>
+          {saving ? "Enregistrement..." : "Enregistrer"}
+        </Button>
+        {saved && (
+          <span className="text-xs font-medium text-status-delivered">
+            Enregistré
+          </span>
+        )}
       </div>
     </div>
   );
