@@ -167,7 +167,9 @@ model Order {
   id                String            @id @default(cuid())
   storeId           String
   store             Store             @relation(fields: [storeId], references: [id])
-
+  nextRetryAt     DateTime?
+  retryCount      Int       @default(0)
+    @@index([nextRetryAt])
   externalOrderId   String
   orderNumber       String
 
@@ -835,4 +837,17 @@ model ClockEntry {
 
   @@index([userId, clockIn])
   @@index([clockOut])
+}
+model RetryConfig {
+  id              String   @id @default(cuid())
+  storeId         String?  @unique
+
+  isActive        Boolean  @default(false)
+  attemptsPerDay  Int      @default(3)
+  maxAttempts     Int      @default(9)
+  minGapMinutes   Int      @default(120)
+  cancelAfterMax  Boolean  @default(true)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }

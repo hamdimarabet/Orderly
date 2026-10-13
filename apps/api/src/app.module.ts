@@ -21,6 +21,7 @@ import { FlowsModule } from './modules/flows/flows.module';
 import { ReviewsModule } from './modules/reviews/reviews.module';
 import { DispatchModule } from './modules/dispatch/dispatch.module';
 import { ShiftsModule } from './modules/shifts/shifts.module';
+import { RetryModule } from './modules/retry/retry.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -44,6 +45,7 @@ import { ShiftsModule } from './modules/shifts/shifts.module';
     ReviewsModule,
     DispatchModule,
     ShiftsModule,
+    RetryModule,
   ],
 })
 export class AppModule {}
