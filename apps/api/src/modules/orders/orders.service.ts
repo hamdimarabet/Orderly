@@ -5,6 +5,7 @@ import { CosmosService } from '../delivery/cosmos.service';
 import { BundlesService } from '../bundles/bundles.service';
 import { FlowsService } from '../flows/flows.service';
 import { DispatchService } from '../dispatch/dispatch.service';
+import { RetryService } from '../retry/retry.service';
 @Injectable()
 export class OrdersService {
   constructor(
@@ -13,6 +14,7 @@ export class OrdersService {
     private bundles: BundlesService,
     private flows: FlowsService,
     private dispatch: DispatchService,
+    private retry: RetryService,
   ) {}
 
   async findAll(query: {
@@ -1297,6 +1299,12 @@ export class OrdersService {
         if (['A_PREPARER', 'CONFIRME', 'ECHANGE'].includes(data.status)) {
           this.dispatch.dispatchOne(orderId, 'PREPARATION').catch(() => {});
         }
+  
+        // Schedule the next retry when the call did not settle the order
+        if (data.status === 'CONFIRMATION_EN_COURS') {
+          this.retry.scheduleRetry(orderId).catch(() => {});
+        }
+        
   
         
       return {

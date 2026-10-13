@@ -6,9 +6,10 @@ import { DeliveryModule } from '../delivery/delivery.module';
 import { BundlesModule } from '../bundles/bundles.module';
 import { FlowsModule } from '../flows/flows.module';
 import { DispatchModule } from '../dispatch/dispatch.module';
+import { RetryModule } from '../retry/retry.module';
 
 @Module({
-  imports: [DeliveryModule, BundlesModule, FlowsModule, DispatchModule],
+  imports: [DeliveryModule, BundlesModule, FlowsModule, DispatchModule,RetryModule,],
   providers: [OrdersService, BordereauService],
   controllers: [OrdersController],
   exports: [OrdersService],
