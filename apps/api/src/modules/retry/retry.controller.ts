@@ -8,7 +8,10 @@ import {
   @Controller('retry')
   export class RetryController {
     constructor(private retry: RetryService) {}
-  
+    @Post('reassign-idle')
+  reassignIdle() {
+    return this.retry.reassignIdle();
+  }
     @Get('config')
     getConfig(@Query('storeId') storeId?: string) {
       return this.retry.getConfig(storeId);

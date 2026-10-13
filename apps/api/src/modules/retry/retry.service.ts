@@ -248,4 +248,55 @@ export class RetryService {
 
     return { ok: true, requeued, cancelled };
   }
+    /**
+   * Moves orders left untouched for too long back into the pool.
+   */
+    async reassignIdle() {
+        const config = await this.getConfig(undefined);
+        if (!config.isActive || !config.reassignAfterMin || config.reassignAfterMin <= 0) {
+          return { ok: false, reason: 'Réassignation désactivée' };
+        }
+    
+        const cutoff = new Date(Date.now() - config.reassignAfterMin * 60000);
+    
+        const idle = await this.prisma.order.findMany({
+          where: {
+            assignedAgentId: { not: null },
+            assignedAt: { lte: cutoff },
+            orderStatus: { in: ['NOUVEAU', 'CONFIRMATION_EN_COURS'] },
+          },
+          select: { id: true, assignedAgentId: true },
+          take: 100,
+        });
+    
+        let moved = 0;
+    
+        for (const o of idle) {
+          const previous = o.assignedAgentId;
+    
+          await this.prisma.order.update({
+            where: { id: o.id },
+            data: {
+              assignedAgentId: null,
+              assignedAgentName: null,
+              assignedAt: null,
+            },
+          });
+    
+          const result = await this.dispatch.dispatchOne(o.id).catch(() => null);
+    
+          // Give it back when nobody else is available
+          if (!result?.ok) {
+            await this.prisma.order.update({
+              where: { id: o.id },
+              data: { assignedAgentId: previous, assignedAt: new Date() },
+            });
+            continue;
+          }
+    
+          moved++;
+        }
+    
+        return { ok: true, moved };
+      }
 }

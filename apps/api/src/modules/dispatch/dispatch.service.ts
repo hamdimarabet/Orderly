@@ -376,16 +376,17 @@ export class DispatchService {
         assigned++;
       }
   
-      // Write in batches
-      for (const u of updates) {
-        await this.prisma.order.update({
-          where: { id: u.id },
-          data: {
-            [agentField]: u.agentId,
-            [nameField]: u.agentName,
-          } as any,
-        });
-      }
+        // Write in batches
+        for (const u of updates) {
+          await this.prisma.order.update({
+            where: { id: u.id },
+            data: {
+              [agentField]: u.agentId,
+              [nameField]: u.agentName,
+              ...(stage === 'CONFIRMATION' && { assignedAt: new Date() }),
+            } as any,
+          });
+        }
 
     return { ok: true, assigned, unassigned: unassigned.length, orders: unassigned };
   }
@@ -425,6 +426,7 @@ export class DispatchService {
       data: {
         [agentField]: agent.id,
         [nameField]: agent.name,
+        ...(stage === 'CONFIRMATION' && { assignedAt: new Date() }),
       } as any,
     });
 

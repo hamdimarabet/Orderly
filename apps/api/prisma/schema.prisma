@@ -172,7 +172,7 @@ model Order {
     @@index([nextRetryAt])
   externalOrderId   String
   orderNumber       String
-
+  assignedAt      DateTime?
   financialStatus   FinancialStatus   @default(PENDING)
   fulfillmentStatus FulfillmentStatus @default(UNFULFILLED)
   orderStatus       OrderStatus       @default(NOUVEAU)
@@ -841,7 +841,7 @@ model ClockEntry {
 model RetryConfig {
   id              String   @id @default(cuid())
   storeId         String?  @unique
-
+  reassignAfterMin Int     @default(0)
   isActive        Boolean  @default(false)
   attemptsPerDay  Int      @default(3)
   maxAttempts     Int      @default(9)

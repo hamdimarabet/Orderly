@@ -28,4 +28,16 @@ export class RetryCronService {
       this.running = false;
     }
   }
+    // Every 15 minutes
+    @Cron('0 */15 * * * *')
+    async reassign() {
+      try {
+        const result = await this.retry.reassignIdle();
+        if (result.moved && result.moved > 0) {
+          this.logger.log(`${result.moved} commandes réassignées`);
+        }
+      } catch (e: any) {
+        this.logger.error(`Reassign failed: ${e?.message}`);
+      }
+    }
 }

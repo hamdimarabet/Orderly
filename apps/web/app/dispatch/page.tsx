@@ -1006,6 +1006,7 @@ function RetryView({
   const [maxAttempts, setMaxAttempts] = useState(String(config?.maxAttempts ?? 9));
   const [minGapMinutes, setMinGapMinutes] = useState(String(config?.minGapMinutes ?? 120));
   const [cancelAfterMax, setCancelAfterMax] = useState(config?.cancelAfterMax ?? true);
+  const [reassignAfterMin, setReassignAfterMin] = useState(String(config?.reassignAfterMin ?? 0));
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -1015,6 +1016,7 @@ function RetryView({
     setMaxAttempts(String(config.maxAttempts ?? 9));
     setMinGapMinutes(String(config.minGapMinutes ?? 120));
     setCancelAfterMax(config.cancelAfterMax ?? true);
+    setReassignAfterMin(String(config.reassignAfterMin ?? 0));
   }, [config]);
 
   async function save() {
@@ -1031,6 +1033,7 @@ function RetryView({
           maxAttempts: parseInt(maxAttempts) || 9,
           minGapMinutes: parseInt(minGapMinutes) || 120,
           cancelAfterMax,
+          reassignAfterMin: parseInt(reassignAfterMin) || 0,
         }),
       });
       setSaved(true);
@@ -1115,7 +1118,24 @@ function RetryView({
           </div>
         </label>
       </div>
-
+      <div>
+          <label className="mb-1 block text-xs font-medium text-muted">
+            Réassigner après inactivité (minutes)
+          </label>
+          <Input
+            type="number"
+            value={reassignAfterMin}
+            onChange={(e) => setReassignAfterMin(e.target.value)}
+            min={0}
+            step={15}
+            className="h-9"
+          />
+          <p className="mt-1 text-[11px] text-muted">
+            {parseInt(reassignAfterMin) > 0
+              ? `Une commande non traitée après ${reassignAfterMin} min repart vers un autre agent`
+              : "Désactivé"}
+          </p>
+        </div>
       <div className="flex items-center gap-3">
         <Button disabled={saving} onClick={save}>
           {saving ? "Enregistrement..." : "Enregistrer"}
