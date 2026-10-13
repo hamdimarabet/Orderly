@@ -72,7 +72,13 @@ export class OrdersService {
         ],
       }),
     };
-
+    // Orders with attempts still waiting for an answer
+    if (attemptLevel !== undefined) {
+      Object.assign(where, {
+        orderStatus: { in: ['NOUVEAU', 'CONFIRMATION_EN_COURS'] },
+        NOT: { callAttempts: { equals: [] } },
+      });
+    }
     const [orders, total, statsRows] = await Promise.all([
       this.prisma.order.findMany({
         where,
@@ -99,24 +105,7 @@ export class OrdersService {
         },
       }),
     ]);
-      // Orders with call attempts that are still not confirmed or refused
-      let finalOrders = orders;
-      if (attemptLevel !== undefined) {
-        finalOrders = orders.filter((o) => {
-          const attempts = (o.callAttempts as any[]) ?? [];
-          if (attempts.length === 0) return false;
-  
-          const settled =
-            attempts.some((a) =>
-              ['ANSWERED_CONFIRMED', 'ANSWERED_REFUSED'].includes(a.result),
-            ) || o.orderStatus === 'ANNULE';
-  
-          if (settled) return false;
-  
-          // attemptLevel 0 means "any level"
-          return attemptLevel === 0 || attempts.length === attemptLevel;
-        });
-      }
+    
     // Stats on the whole filtered set, not just the current page
     let confirmed = 0, refused = 0, aVerifier = 0, revenue = 0, attemptsTotal = 0;
 
@@ -137,7 +126,7 @@ export class OrdersService {
     const statsTotal = statsRows.length;
 
     return {
-      orders: finalOrders.map((o) => ({
+      orders: orders.map((o) => ({
         ...o,
         storeName: o.store.name,
         trackingNumber: o.fulfillments[0]?.trackingNumber ?? null,
