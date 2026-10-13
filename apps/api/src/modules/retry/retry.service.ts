@@ -36,6 +36,7 @@ export class RetryService {
     maxAttempts?: number;
     minGapMinutes?: number;
     cancelAfterMax?: boolean;
+    reassignAfterMin?: number;
   }) {
     const storeId = data.storeId ?? null;
     const existing = await this.prisma.retryConfig.findFirst({ where: { storeId } });
@@ -49,6 +50,7 @@ export class RetryService {
           ...(data.maxAttempts !== undefined && { maxAttempts: data.maxAttempts }),
           ...(data.minGapMinutes !== undefined && { minGapMinutes: data.minGapMinutes }),
           ...(data.cancelAfterMax !== undefined && { cancelAfterMax: data.cancelAfterMax }),
+          ...(data.reassignAfterMin !== undefined && { reassignAfterMin: data.reassignAfterMin }),
         },
       });
     }
@@ -61,6 +63,7 @@ export class RetryService {
         maxAttempts: data.maxAttempts ?? 9,
         minGapMinutes: data.minGapMinutes ?? 120,
         cancelAfterMax: data.cancelAfterMax ?? true,
+        reassignAfterMin: data.reassignAfterMin ?? 0,
       },
     });
   }

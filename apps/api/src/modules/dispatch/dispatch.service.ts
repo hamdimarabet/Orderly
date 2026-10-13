@@ -447,4 +447,80 @@ export class DispatchService {
 
     return { ok: true };
   }
+    /**
+   * Splits pending orders between the agents assigned to a shift,
+   * whether they clocked in or not.
+   */
+    async dispatchToShiftAgents(shiftId: string) {
+      const shift = await this.prisma.shift.findUnique({
+        where: { id: shiftId },
+        include: {
+          assignments: {
+            include: {
+              user: {
+                include: { dispatchRules: { where: { isActive: true, stage: 'CONFIRMATION' } } },
+              },
+            },
+          },
+        },
+      });
+  
+      if (!shift) return { ok: false, reason: 'Créneau introuvable' };
+  
+      const agents = shift.assignments
+        .map((a) => a.user)
+        .filter((u) => u.isActive && u.role !== 'SUPER_ADMIN');
+  
+      if (agents.length === 0) return { ok: false, reason: 'Aucun agent assigné' };
+  
+      const orders = await this.prisma.order.findMany({
+        where: {
+          assignedAgentId: null,
+          orderStatus: { in: ['NOUVEAU', 'CONFIRMATION_EN_COURS'] },
+        },
+        include: { lineItems: { select: { sku: true } } },
+        orderBy: { sourceCreatedAt: 'asc' },
+      });
+  
+      if (orders.length === 0) return { ok: true, assigned: 0 };
+  
+      const load: Record<string, number> = {};
+      agents.forEach((a) => { load[a.id] = 0; });
+  
+      let assigned = 0;
+  
+      for (const o of orders) {
+        const payload = {
+          storeId: o.storeId,
+          total: Number(o.total),
+          city: (o.shippingAddress as any)?.city ?? null,
+          skus: o.lineItems.map((li) => li.sku).filter(Boolean) as string[],
+        };
+  
+        const matching = agents.filter((a) =>
+          a.dispatchRules.some((r) => this.ruleMatches(r, payload)),
+        );
+        const catchAll = agents.filter((a) => a.dispatchRules.length === 0);
+        const pool = matching.length > 0 ? matching : catchAll;
+  
+        if (pool.length === 0) continue;
+  
+        pool.sort((a, b) => (load[a.id] ?? 0) - (load[b.id] ?? 0));
+        const chosen = pool[0];
+  
+        load[chosen.id] = (load[chosen.id] ?? 0) + 1;
+  
+        await this.prisma.order.update({
+          where: { id: o.id },
+          data: {
+            assignedAgentId: chosen.id,
+            assignedAgentName: chosen.name,
+            assignedAt: new Date(),
+          },
+        });
+        assigned++;
+      }
+  
+      return { ok: true, assigned, agents: agents.length };
+    }
 }
