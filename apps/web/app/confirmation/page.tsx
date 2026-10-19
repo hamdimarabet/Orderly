@@ -1942,9 +1942,9 @@ function ConfirmationContent() {
           <div className="-mx-3 flex gap-1 overflow-x-auto px-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:mx-0 md:px-0">
 
           {[
-              { key: "all", label: "Tous", count: orders.length },
+                           { key: "all", label: "Tous", count: statsTotal },
               { key: "pending", label: "En attente", count: pendingCount },
-              { key: "tentative", label: "En tentative", count: null },
+              { key: "tentative", label: "En tentative", count: serverStats.tentative ?? 0 },
               { key: "confirmed", label: "Confirmés", count: confirmedCount },
               { key: "refused", label: "Refusés", count: refusedCount },
               { key: "a_verifier", label: "À vérifier", count: aVerifierCount },

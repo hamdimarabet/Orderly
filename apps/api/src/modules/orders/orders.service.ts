@@ -72,14 +72,18 @@ export class OrdersService {
         ],
       }),
     };
-    // Orders with attempts still waiting for an answer
-    if (attemptLevel !== undefined) {
-      Object.assign(where, {
-        orderStatus: { in: ['NOUVEAU', 'CONFIRMATION_EN_COURS'] },
-        NOT: { callAttempts: { equals: [] } },
-      });
-    }
-    const [orders, total, statsRows] = await Promise.all([
+       // Stats always use the unfiltered scope
+       const statsWhere = { ...where };
+
+       // Orders with attempts still waiting for an answer
+       if (attemptLevel !== undefined) {
+         Object.assign(where, {
+           orderStatus: { in: ['NOUVEAU', 'CONFIRMATION_EN_COURS'] },
+           NOT: { callAttempts: { equals: [] } },
+         });
+       }
+   
+       const [orders, total, statsRows, tentativeCount] = await Promise.all([
       this.prisma.order.findMany({
         where,
         include: {
@@ -97,11 +101,18 @@ export class OrdersService {
       }),
       this.prisma.order.count({ where }),
       this.prisma.order.findMany({
-        where,
+        where: statsWhere,
         select: {
           orderStatus: true,
           callAttempts: true,
           total: true,
+        },
+      }),
+      this.prisma.order.count({
+        where: {
+          ...statsWhere,
+          orderStatus: { in: ['NOUVEAU', 'CONFIRMATION_EN_COURS'] },
+          NOT: { callAttempts: { equals: [] } },
         },
       }),
     ]);
@@ -144,6 +155,7 @@ export class OrdersService {
         refused,
         aVerifier,
         pending: statsTotal - confirmed - refused - aVerifier,
+        tentative: tentativeCount,
         revenue: Math.round(revenue),
         avgAttempts: statsTotal > 0 ? (attemptsTotal / statsTotal).toFixed(1) : '0',
       },
