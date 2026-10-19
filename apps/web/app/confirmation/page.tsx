@@ -1695,7 +1695,7 @@ function ConfirmationContent() {
   const [serverStats, setServerStats] = useState<any>({
     total: 0, confirmed: 0, refused: 0, aVerifier: 0, pending: 0, revenue: 0, avgAttempts: "0",
   });
-  const [filter, setFilter] = useState<"all" | "pending" | "confirmed" | "refused" | "a_verifier">("all");
+  const [filter, setFilter] = useState<"all" | "pending" | "tentative" | "confirmed" | "refused" | "a_verifier">("all");
   const [agentFilter, setAgentFilter] = useState<string>("");
   const [attemptFilter, setAttemptFilter] = useState<string>(""); 
   const [agents, setAgents] = useState<any[]>([]);
@@ -1838,6 +1838,7 @@ function ConfirmationContent() {
     const attempts = Array.isArray(o.callAttempts) ? o.callAttempts as CallAttempt[] : [];
     const confirmed = attempts.some((a) => a.result === "ANSWERED_CONFIRMED");
     const refused = attempts.some((a) => a.result === "ANSWERED_REFUSED");
+    if (filter === "tentative") return true;
     if (filter === "confirmed") return confirmed;
     if (filter === "refused") return refused || o.orderStatus === "ANNULE";
     if (filter === "pending") return !confirmed && !refused && o.orderStatus !== "ANNULE";
@@ -1937,35 +1938,34 @@ function ConfirmationContent() {
               <option key={a.id} value={a.id}>{a.name}</option>
             ))}
                     </select>
-                    <select
-            value={attemptFilter}
-            onChange={(e) => { setAttemptFilter(e.target.value); setPage(1); }}
-            className="h-9 shrink-0 rounded-md border border-border bg-surface px-2 text-xs focus-visible:outline-none"
-          >
-            <option value="">Toutes les commandes</option>
-            <option value="0">En tentative</option>
-          </select>
+
           <div className="-mx-3 flex gap-1 overflow-x-auto px-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:mx-0 md:px-0">
 
-            {[
+          {[
               { key: "all", label: "Tous", count: orders.length },
               { key: "pending", label: "En attente", count: pendingCount },
+              { key: "tentative", label: "En tentative", count: null },
               { key: "confirmed", label: "Confirmés", count: confirmedCount },
               { key: "refused", label: "Refusés", count: refusedCount },
               { key: "a_verifier", label: "À vérifier", count: aVerifierCount },
             ].map((tab) => (
               <button
                 key={tab.key}
-                onClick={() => { setFilter(tab.key as any); setPage(1); }}
+                onClick={() => {
+                  setFilter(tab.key as any);
+                  setAttemptFilter(tab.key === "tentative" ? "0" : "");
+                  setPage(1);
+                }}
                 className={cn(
                   "flex shrink-0 items-center gap-1 rounded px-2 py-1 text-[10px] font-medium transition-colors md:gap-1.5 md:rounded-md md:px-3 md:py-1.5 md:text-xs",
                   filter === tab.key ? "bg-primary-soft text-primary" : "text-muted hover:bg-surface-sunken"
                 )}
               >
-                {tab.label}
+                                {tab.label}
+                {tab.count !== null && (
                 <span className={cn("rounded-full px-1.5 py-0.5 text-[10px]", filter === tab.key ? "bg-primary text-white" : "bg-surface-sunken")}>
                   {tab.count}
-                </span>
+                </span>)}
               </button>
             ))}
             </div>
