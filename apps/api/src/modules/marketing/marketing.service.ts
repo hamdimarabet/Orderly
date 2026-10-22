@@ -44,14 +44,14 @@ export class MarketingService {
     name: string;
     description?: string;
     rules: SegmentRules;
-    storeId?: string | null;
+    storeIds?: string[];
   }) {
     return this.prisma.segment.create({
       data: {
         name: data.name,
         description: data.description ?? null,
         rules: data.rules as any,
-        storeId: data.storeId ?? null,
+        storeIds: data.storeIds ?? [],
       },
     });
   }
@@ -60,7 +60,7 @@ export class MarketingService {
     name?: string;
     description?: string;
     rules?: SegmentRules;
-    storeId?: string | null;
+    storeIds?: string[];
   }) {
     return this.prisma.segment.update({
       where: { id },
@@ -68,7 +68,7 @@ export class MarketingService {
         ...(data.name && { name: data.name }),
         ...(data.description !== undefined && { description: data.description }),
         ...(data.rules && { rules: data.rules as any }),
-        ...(data.storeId !== undefined && { storeId: data.storeId }),
+        ...(data.storeIds !== undefined && { storeIds: data.storeIds }),
       },
     });
   }
@@ -77,9 +77,9 @@ export class MarketingService {
     return this.prisma.segment.delete({ where: { id } });
   }
 
-  async previewSegment(rules: SegmentRules, storeId?: string) {
+  async previewSegment(rules: SegmentRules, storeIds?: string[]) {
     const customers = await this.orders.getCustomers(
-      storeId ? { storeIds: [storeId] } : {},
+      storeIds?.length ? { storeIds } : {},
     );
     const matched = this.matchCustomers(customers, rules);
     return {
@@ -135,9 +135,9 @@ export class MarketingService {
     if (data.segmentId) {
       const segment = await this.prisma.segment.findUnique({ where: { id: data.segmentId } });
       if (segment) {
-        const storeId = (segment as any).storeId;
+        const storeIds = (segment as any).storeIds ?? [];
         const customers = await this.orders.getCustomers(
-          storeId ? { storeIds: [storeId] } : {},
+          storeIds.length ? { storeIds } : {},
         );
         recipientCount = this.matchCustomers(customers, segment.rules as SegmentRules).length;
       }
@@ -164,8 +164,21 @@ export class MarketingService {
     if (!campaign) throw new Error('Campaign not found');
     if (!campaign.segmentId || !campaign.segment) throw new Error('No segment selected');
 
-    const customers = await this.orders.getCustomers({});
+    const storeIds = (campaign.segment as any).storeIds ?? [];
+    const customers = await this.orders.getCustomers(
+      storeIds.length ? { storeIds } : {},
+    );
     const matched = this.matchCustomers(customers, campaign.segment.rules as SegmentRules);
+
+    // Sender name per store
+    const stores = await this.prisma.store.findMany({
+      select: { id: true, credentials: true },
+    });
+    const senderByStore: Record<string, string> = {};
+    stores.forEach((s) => {
+      const sender = (s.credentials as any)?.smsSender;
+      if (sender) senderByStore[s.id] = sender;
+    });
 
     await this.prisma.campaign.update({
       where: { id },
@@ -178,8 +191,8 @@ export class MarketingService {
     for (const c of matched) {
       const personalized = this.renderTemplate(campaign.message, c);
       try {
-        // TODO: plug real SMS provider here
-        const ok = await this.sendSms(c.displayPhone, personalized);
+        const sender = c.storeId ? senderByStore[c.storeId] : undefined;
+        const ok = await this.messaging.sendSms(c.displayPhone, personalized, sender);
         await this.prisma.campaignSend.create({
           data: {
             campaignId: id,
