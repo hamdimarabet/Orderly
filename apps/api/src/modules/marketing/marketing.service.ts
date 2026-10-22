@@ -40,23 +40,35 @@ export class MarketingService {
     }));
   }
 
-  async createSegment(data: { name: string; description?: string; rules: SegmentRules }) {
+  async createSegment(data: {
+    name: string;
+    description?: string;
+    rules: SegmentRules;
+    storeId?: string | null;
+  }) {
     return this.prisma.segment.create({
       data: {
         name: data.name,
         description: data.description ?? null,
         rules: data.rules as any,
+        storeId: data.storeId ?? null,
       },
     });
   }
 
-  async updateSegment(id: string, data: { name?: string; description?: string; rules?: SegmentRules }) {
+  async updateSegment(id: string, data: {
+    name?: string;
+    description?: string;
+    rules?: SegmentRules;
+    storeId?: string | null;
+  }) {
     return this.prisma.segment.update({
       where: { id },
       data: {
         ...(data.name && { name: data.name }),
         ...(data.description !== undefined && { description: data.description }),
         ...(data.rules && { rules: data.rules as any }),
+        ...(data.storeId !== undefined && { storeId: data.storeId }),
       },
     });
   }
@@ -65,8 +77,10 @@ export class MarketingService {
     return this.prisma.segment.delete({ where: { id } });
   }
 
-  async previewSegment(rules: SegmentRules) {
-    const customers = await this.orders.getCustomers({});
+  async previewSegment(rules: SegmentRules, storeId?: string) {
+    const customers = await this.orders.getCustomers(
+      storeId ? { storeIds: [storeId] } : {},
+    );
     const matched = this.matchCustomers(customers, rules);
     return {
       size: matched.length,
@@ -121,7 +135,10 @@ export class MarketingService {
     if (data.segmentId) {
       const segment = await this.prisma.segment.findUnique({ where: { id: data.segmentId } });
       if (segment) {
-        const customers = await this.orders.getCustomers({});
+        const storeId = (segment as any).storeId;
+        const customers = await this.orders.getCustomers(
+          storeId ? { storeIds: [storeId] } : {},
+        );
         recipientCount = this.matchCustomers(customers, segment.rules as SegmentRules).length;
       }
     }

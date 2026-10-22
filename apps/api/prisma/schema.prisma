@@ -471,7 +471,7 @@ model Segment {
 
   campaigns   Campaign[]
   flows       AutomationFlow[]
-
+  storeId     String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
