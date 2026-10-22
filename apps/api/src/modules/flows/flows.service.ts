@@ -316,11 +316,22 @@ export class FlowsService {
         case 'whatsapp': {
           if (!context.customerPhone) break;
   
+          // Sender name comes from the store
+          let sender: string | undefined;
+          if (context.storeId) {
+            const store = await this.prisma.store.findUnique({
+              where: { id: context.storeId },
+              select: { credentials: true },
+            });
+            sender = (store?.credentials as any)?.smsSender || undefined;
+          }
+  
           const message = this.renderTemplate(d.message ?? '', context);
           const sent = await this.messaging.send(
             node.type,
             context.customerPhone,
             message,
+            sender,
           );
   
           if (!sent) {

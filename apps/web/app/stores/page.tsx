@@ -401,6 +401,9 @@ function StoreCard({
   const [detectOffer, setDetectOffer] = useState(
     (store as any).credentials?.detectOfferFromCustomerName === true
   );
+  const [smsSender, setSmsSender] = useState(
+    (store as any).credentials?.smsSender ?? ""
+  );
   const isShopify = store.sourceType === "SHOPIFY";
   const isConverty = store.sourceType === "MARKETPLACE";
   const isCustom = !isShopify && !isConverty;
@@ -461,7 +464,10 @@ function StoreCard({
         ? `integrations/shopify/${store.id}/setup`
         : `integrations/converty/${store.id}/credentials`;
 
-      const body: any = { detectOfferFromCustomerName: detectOffer };
+        const body: any = {
+          detectOfferFromCustomerName: detectOffer,
+          smsSender: smsSender.trim(),
+        };
       if (editClientId.trim()) body.clientId = editClientId.trim();
       if (editSecret.trim()) body.clientSecret = editSecret.trim();
 
@@ -623,6 +629,20 @@ function StoreCard({
                 {showEditSecret ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
               </button>
             </div>
+          </div>
+          <div>
+            <label className="mb-1 block text-[11px] font-medium text-muted">
+              Expéditeur SMS
+            </label>
+            <Input
+              value={smsSender}
+              onChange={(e) => setSmsSender(e.target.value)}
+              placeholder="ex: MeDay"
+              className="h-8 text-xs"
+            />
+            <p className="mt-1 text-[10px] text-muted">
+              Nom affiché au client. Doit être validé chez votre fournisseur SMS.
+            </p>
           </div>
           <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-border bg-surface p-2.5">
             <input

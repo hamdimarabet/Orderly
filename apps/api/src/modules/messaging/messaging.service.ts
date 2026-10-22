@@ -14,30 +14,34 @@ export class MessagingService {
     return raw.startsWith('+') ? raw : `+${digits}`;
   }
 
-  async sendSms(phone: string, message: string): Promise<boolean> {
+  async sendSms(phone: string, message: string, sender?: string): Promise<boolean> {
     const apiKey = process.env.SMS_API_KEY;
-    const apiUrl = process.env.SMS_API_URL;
-    const to = this.normalizePhone(phone);
+    const from = sender ?? process.env.SMS_SENDER ?? '';
+    const to = this.normalizePhone(phone).replace('+', '');
 
-    if (!apiKey || !apiUrl) {
+    if (!apiKey) {
       this.logger.warn(`[SMS simulé] ${to} : ${message}`);
       return false;
     }
 
     try {
-      const res = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({ to, message }),
+      const params = new URLSearchParams({
+        fct: 'sms',
+        key: apiKey,
+        mobile: to,
+        sms: message,
       });
+      if (from) params.set('sender', from);
 
-      if (!res.ok) {
-        this.logger.warn(`SMS failed for ${to}: HTTP ${res.status}`);
+      const res = await fetch(`https://api.l2t.io/tn/v0/api/api.aspx?${params}`);
+      const body = await res.text();
+      const code = body.match(/<status_code>(\d+)<\/status_code>/)?.[1];
+
+      if (code !== '200') {
+        this.logger.warn(`SMS failed for ${to}: code ${code ?? 'inconnu'}`);
+        return false;
       }
-      return res.ok;
+      return true;
     } catch (e: any) {
       this.logger.error(`SMS error for ${to}: ${e?.message}`);
       return false;
@@ -83,9 +87,14 @@ export class MessagingService {
     }
   }
 
-  async send(channel: string, phone: string, message: string): Promise<boolean> {
+  async send(
+    channel: string,
+    phone: string,
+    message: string,
+    sender?: string,
+  ): Promise<boolean> {
     return channel === 'whatsapp'
       ? this.sendWhatsApp(phone, message)
-      : this.sendSms(phone, message);
+      : this.sendSms(phone, message, sender);
   }
 }
