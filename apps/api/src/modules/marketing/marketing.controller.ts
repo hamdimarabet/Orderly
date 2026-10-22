@@ -20,8 +20,8 @@ export class MarketingController {
   }
 
   @Post('segments/preview')
-  previewSegment(@Body() body: { rules: SegmentRules; storeId?: string }) {
-    return this.marketing.previewSegment(body.rules, body.storeId);
+  previewSegment(@Body() body: { rules: SegmentRules; storeIds?: string[] }) {
+    return this.marketing.previewSegment(body.rules, body.storeIds);
   }
 
   @Post('segments/seed')
