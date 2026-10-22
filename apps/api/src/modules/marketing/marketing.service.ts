@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { OrdersService } from '../orders/orders.service';
+import { MessagingService } from '../messaging/messaging.service';
 
 export interface SegmentRules {
   minOrders?: number;
@@ -21,6 +22,7 @@ export class MarketingService {
   constructor(
     private prisma: PrismaService,
     private orders: OrdersService,
+    private messaging: MessagingService,
   ) {}
 
   // ---------- SEGMENTS ----------
@@ -221,26 +223,7 @@ export class MarketingService {
   }
 
   private async sendSms(phone: string, message: string): Promise<boolean> {
-    const apiKey = process.env.SMS_API_KEY;
-    const apiUrl = process.env.SMS_API_URL;
-    if (!apiKey || !apiUrl) {
-      // Provider not configured — simulate
-      console.log(`[SMS SIMULÉ] ${phone} : ${message}`);
-      return false;
-    }
-    try {
-      const res = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({ to: phone, message }),
-      });
-      return res.ok;
-    } catch {
-      return false;
-    }
+    return this.messaging.sendSms(phone, message);
   }
 
   // ---------- FLOWS ----------

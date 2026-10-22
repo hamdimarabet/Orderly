@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { MessagingService } from '../messaging/messaging.service';
 
 type NodeType =
   | 'trigger'
@@ -31,7 +32,10 @@ interface FlowEdge {
 export class FlowsService {
   private readonly logger = new Logger('Flows');
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private messaging: MessagingService,
+  ) {}
 
   // ---------- CRUD ----------
 
@@ -309,12 +313,21 @@ export class FlowsService {
 
     switch (node.type) {
       case 'sms':
-      case 'whatsapp': {
-        const message = this.renderTemplate(d.message ?? '', context);
-        // TODO: plug real SMS/WhatsApp provider here
-        this.logger.log(`[${node.type}] to ${context.customerPhone}: ${message}`);
-        break;
-      }
+        case 'whatsapp': {
+          if (!context.customerPhone) break;
+  
+          const message = this.renderTemplate(d.message ?? '', context);
+          const sent = await this.messaging.send(
+            node.type,
+            context.customerPhone,
+            message,
+          );
+  
+          if (!sent) {
+            this.logger.warn(`${node.type} non envoyé à ${context.customerPhone}`);
+          }
+          break;
+        }
 
       case 'tag': {
         if (!context.orderId) break;

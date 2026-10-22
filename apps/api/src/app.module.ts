@@ -22,6 +22,7 @@ import { ReviewsModule } from './modules/reviews/reviews.module';
 import { DispatchModule } from './modules/dispatch/dispatch.module';
 import { ShiftsModule } from './modules/shifts/shifts.module';
 import { RetryModule } from './modules/retry/retry.module';
+import { MessagingModule } from './modules/messaging/messaging.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -46,6 +47,7 @@ import { RetryModule } from './modules/retry/retry.module';
     DispatchModule,
     ShiftsModule,
     RetryModule,
+    MessagingModule,
   ],
 })
 export class AppModule {}
