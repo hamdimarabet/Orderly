@@ -87,12 +87,15 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 function SegmentModal({
+  stores,
   onClose,
   onSaved,
 }: {
+  stores: { id: string; name: string }[];
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const [storeId, setStoreId] = useState("");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [minOrders, setMinOrders] = useState("");
@@ -118,7 +121,7 @@ function SegmentModal({
       const res = await fetch(`${API}/marketing/segments/preview`, {
         method: "POST",
         headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ rules: buildRules() }),
+        body: JSON.stringify({ rules: buildRules(), storeId: storeId || undefined }),
       });
       setPreview(await res.json());
     } catch {}
@@ -130,7 +133,7 @@ function SegmentModal({
       await fetch(`${API}/marketing/segments`, {
         method: "POST",
         headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ name, description, rules: buildRules() }),
+        body: JSON.stringify({ name, description, rules: buildRules(), storeId: storeId || null }),
       });
       onSaved();
       onClose();
@@ -150,6 +153,19 @@ function SegmentModal({
         </div>
 
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted">Magasin</label>
+            <select
+              value={storeId}
+              onChange={(e) => setStoreId(e.target.value)}
+              className="h-9 w-full rounded-md border border-border bg-surface px-2 text-sm focus-visible:outline-none"
+            >
+              <option value="">Tous les magasins</option>
+              {stores.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-muted">Nom du segment</label>
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="ex: Gros acheteurs Tunis" autoFocus />
@@ -804,7 +820,7 @@ function MarketingContent() {
         </div>
       </div>
 
-      {showSegment && <SegmentModal onClose={() => setShowSegment(false)} onSaved={fetchAll} />}
+      {showSegment && <SegmentModal stores={accessibleStores} onClose={() => setShowSegment(false)} onSaved={fetchAll} />}
       {showCampaign && <CampaignModal segments={segments} onClose={() => setShowCampaign(false)} onSaved={fetchAll} />}
       {showFlow && <FlowModal segments={segments} onClose={() => setShowFlow(false)} onSaved={fetchAll} />}
     </div>
