@@ -467,7 +467,7 @@ function MarketingContent() {
   const { canAccessStore } = useAuth();
   const { stores } = useStores();
   const [selectedStoreIds, setSelectedStoreIds] = useState<string[]>([]);
-  const [tab, setTab] = useState<"segments" | "campaigns" | "flows">("segments");
+  const [tab, setTab] = useState<"segments" | "campaigns">("segments");
 
   const [segments, setSegments] = useState<Segment[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -607,7 +607,6 @@ function MarketingContent() {
           {[
             { key: "segments", label: "Segments", icon: Users, count: segments.length },
             { key: "campaigns", label: "Campagnes", icon: Megaphone, count: campaigns.length },
-            { key: "flows", label: "Automatisations", icon: Zap, count: flows.length },
           ].map((t) => {
             const Icon = t.icon;
             return (
@@ -628,6 +627,14 @@ function MarketingContent() {
               </button>
             );
           })}
+
+          <a
+            href="/flows"
+            className="ml-auto flex items-center gap-1.5 self-center text-xs font-medium text-primary hover:underline"
+          >
+            <Zap className="h-3.5 w-3.5" />
+            Automatisations
+          </a>
         </div>
 
         <div className="flex-1 p-3 md:overflow-auto md:p-5">
