@@ -95,7 +95,7 @@ function SegmentModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const [storeId, setStoreId] = useState("");
+  const [storeIds, setStoreIds] = useState<string[]>([]);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [minOrders, setMinOrders] = useState("");
@@ -121,7 +121,7 @@ function SegmentModal({
       const res = await fetch(`${API}/marketing/segments/preview`, {
         method: "POST",
         headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ rules: buildRules(), storeId: storeId || undefined }),
+        body: JSON.stringify({ rules: buildRules(), storeIds }),
       });
       setPreview(await res.json());
     } catch {}
@@ -133,7 +133,7 @@ function SegmentModal({
       await fetch(`${API}/marketing/segments`, {
         method: "POST",
         headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ name, description, rules: buildRules(), storeId: storeId || null }),
+        body: JSON.stringify({ name, description, rules: buildRules(), storeIds }),
       });
       onSaved();
       onClose();
@@ -153,18 +153,35 @@ function SegmentModal({
         </div>
 
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
-          <div>
-            <label className="mb-1 block text-xs font-medium text-muted">Magasin</label>
-            <select
-              value={storeId}
-              onChange={(e) => setStoreId(e.target.value)}
-              className="h-9 w-full rounded-md border border-border bg-surface px-2 text-sm focus-visible:outline-none"
-            >
-              <option value="">Tous les magasins</option>
-              {stores.map((s) => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
-            </select>
+        <div>
+            <label className="mb-1.5 block text-xs font-medium text-muted">Magasins</label>
+            <div className="flex flex-wrap gap-2">
+              {stores.map((s) => {
+                const active = storeIds.includes(s.id);
+                return (
+                  <button
+                    key={s.id}
+                    onClick={() =>
+                      setStoreIds((prev) =>
+                        active ? prev.filter((x) => x !== s.id) : [...prev, s.id]
+                      )
+                    }
+                    className={cn(
+                      "rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+                      active
+                        ? "bg-primary text-white"
+                        : "bg-surface-sunken text-muted hover:bg-border"
+                    )}
+                  >
+                    {s.name}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-1 text-[11px] text-muted">
+              Aucun sélectionné = tous les magasins. Chaque client reçoit
+              le SMS avec l'expéditeur de son magasin.
+            </p>
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-muted">Nom du segment</label>
