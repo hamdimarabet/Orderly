@@ -461,7 +461,12 @@ model Notification {
   @@index([userId, createdAt])
 }
 // ----------- MARKETING -----------
+model AppSetting {
+  key       String   @id
+  value     Json
 
+  updatedAt DateTime @updatedAt
+}
 model Segment {
   id          String   @id @default(cuid())
   name        String
