@@ -511,7 +511,7 @@ function MarketingContent() {
   const [showCampaign, setShowCampaign] = useState(false);
   const [showFlow, setShowFlow] = useState(false);
   const [sending, setSending] = useState<string | null>(null);
-
+  const [viewSegment, setViewSegment] = useState<any>(null);
   const accessibleStores = stores.filter((s) => canAccessStore(s.id));
 
   useEffect(() => {
@@ -683,7 +683,11 @@ function MarketingContent() {
             ) : (
               <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                 {segments.map((s) => (
-                  <div key={s.id} className="rounded-xl border border-border bg-surface p-4">
+                                  <div
+                                  key={s.id}
+                                  onClick={() => setViewSegment(s)}
+                                  className="cursor-pointer rounded-xl border border-border bg-surface p-4 transition-colors hover:border-primary"
+                                >
                     <div className="flex items-start justify-between">
                       <div className="min-w-0">
                         <p className="truncate text-sm font-semibold">{s.name}</p>
@@ -692,7 +696,7 @@ function MarketingContent() {
                         )}
                       </div>
                       {!s.isSystem && (
-                        <button onClick={() => del("segments", s.id)} className="text-muted hover:text-status-cancelled">
+                                               <button onClick={(e) => { e.stopPropagation(); del("segments", s.id); }} className="text-muted hover:text-status-cancelled">
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       )}
@@ -836,14 +840,104 @@ function MarketingContent() {
           </div>
         </div>
       </div>
-
+      {viewSegment && (
+        <SegmentCustomersModal
+          segment={viewSegment}
+          onClose={() => setViewSegment(null)}
+        />
+      )}
       {showSegment && <SegmentModal stores={accessibleStores} onClose={() => setShowSegment(false)} onSaved={fetchAll} />}
       {showCampaign && <CampaignModal segments={segments} onClose={() => setShowCampaign(false)} onSaved={fetchAll} />}
       {showFlow && <FlowModal segments={segments} onClose={() => setShowFlow(false)} onSaved={fetchAll} />}
     </div>
   );
 }
+function SegmentCustomersModal({
+  segment,
+  onClose,
+}: {
+  segment: any;
+  onClose: () => void;
+}) {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`${API}/marketing/segments/${segment.id}/customers`, {
+          headers: { Authorization: `Bearer ${getToken()}` },
+        });
+        setData(await res.json());
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [segment.id]);
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-foreground/30 backdrop-blur-[2px]">
+      <div className="flex h-full w-full flex-col border-border bg-surface shadow-2xl md:h-auto md:max-h-[85vh] md:max-w-3xl md:rounded-xl md:border">
+        <div className="flex items-center justify-between border-b border-border px-5 py-4">
+          <div>
+            <h2 className="text-sm font-semibold">{segment.name}</h2>
+            <p className="text-xs text-muted">
+              {loading ? "Chargement..." : `${data?.total ?? 0} clients`}
+            </p>
+          </div>
+          <button onClick={onClose} className="rounded-md p-1 hover:bg-surface-sunken">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto">
+          {loading ? (
+            <p className="py-16 text-center text-sm text-muted">Chargement...</p>
+          ) : (data?.customers ?? []).length === 0 ? (
+            <p className="py-16 text-center text-sm text-muted">
+              Aucun client ne correspond à ce segment
+            </p>
+          ) : (
+            <table className="w-full border-collapse text-sm">
+              <thead className="sticky top-0 bg-surface-sunken">
+                <tr className="border-b border-border text-left text-xs font-medium text-muted">
+                  <th className="px-4 py-2.5">Client</th>
+                  <th className="px-4 py-2.5">Téléphone</th>
+                  <th className="px-4 py-2.5">Gouvernorat</th>
+                  <th className="px-4 py-2.5">Commandes</th>
+                  <th className="px-4 py-2.5">Valeur</th>
+                  <th className="px-4 py-2.5">Dernier achat</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.customers.map((c: any, i: number) => (
+                  <tr key={i} className="border-b border-border">
+                    <td className="px-4 py-2.5 text-xs font-medium">{c.name}</td>
+                    <td className="px-4 py-2.5 font-mono text-xs">{c.phone}</td>
+                    <td className="px-4 py-2.5 text-xs text-muted">{c.city ?? "—"}</td>
+                    <td className="px-4 py-2.5 font-mono text-xs">{c.totalOrders}</td>
+                    <td className="px-4 py-2.5 font-mono text-xs">
+                      {Math.round(c.lifetimeValue)} TND
+                    </td>
+                    <td className="px-4 py-2.5 text-xs text-muted">
+                      {c.daysSinceLast != null ? `il y a ${c.daysSinceLast}j` : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        <div className="border-t border-border px-5 py-4">
+          <Button variant="secondary" className="w-full" onClick={onClose}>
+            Fermer
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
 export default function MarketingPage() {
   return (
     <RouteGuard>
