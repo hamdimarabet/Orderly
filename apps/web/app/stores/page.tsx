@@ -404,6 +404,16 @@ function StoreCard({
   const [smsSender, setSmsSender] = useState(
     (store as any).credentials?.smsSender ?? ""
   );
+  const [smsSenders, setSmsSenders] = useState<string[]>([]);
+
+  useEffect(() => {
+    fetch(`${API}/settings/sms-senders`, {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    })
+      .then((r) => r.json())
+      .then((d) => setSmsSenders(Array.isArray(d) ? d : []))
+      .catch(() => {});
+  }, []);
   const isShopify = store.sourceType === "SHOPIFY";
   const isConverty = store.sourceType === "MARKETPLACE";
   const isCustom = !isShopify && !isConverty;
@@ -634,14 +644,18 @@ function StoreCard({
             <label className="mb-1 block text-[11px] font-medium text-muted">
               Expéditeur SMS
             </label>
-            <Input
+            <select
               value={smsSender}
               onChange={(e) => setSmsSender(e.target.value)}
-              placeholder="ex: MeDay"
-              className="h-8 text-xs"
-            />
+              className="h-8 w-full rounded-md border border-border bg-surface px-2 text-xs focus-visible:outline-none"
+            >
+              <option value="">Aucun</option>
+              {smsSenders.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
             <p className="mt-1 text-[10px] text-muted">
-              Nom affiché au client. Doit être validé chez votre fournisseur SMS.
+              Gérez la liste dans Paramètres → SMS
             </p>
           </div>
           <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-border bg-surface p-2.5">
