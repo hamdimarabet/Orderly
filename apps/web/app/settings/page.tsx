@@ -8,7 +8,7 @@ import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { User, Bell, Shield, Palette, Building2, Check } from "lucide-react";
+import { User, Bell, Shield, Palette, Building2, Check ,MessageSquare ,Trash2} from "lucide-react";
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api";
 const TABS = [
   { key: "profile", label: "Profile", icon: User },
@@ -16,6 +16,7 @@ const TABS = [
   { key: "security", label: "Security", icon: Shield },
   { key: "appearance", label: "Appearance", icon: Palette },
   { key: "company", label: "Company", icon: Building2 },
+  { key: "sms", label: "SMS", icon: MessageSquare },
 ] as const;
 
 type Tab = (typeof TABS)[number]["key"];
@@ -405,6 +406,7 @@ function SettingsContent() {
           </nav>
           <div className="flex-1 p-4 md:max-w-2xl md:overflow-y-auto md:p-8">
             {tab === "profile" && <ProfileTab user={user} />}
+            {tab === "sms" && <SmsTab />}
             {tab === "notifications" && <NotificationsTab />}
             {tab === "security" && <SecurityTab />}
             {tab === "appearance" && <AppearanceTab />}
@@ -415,7 +417,103 @@ function SettingsContent() {
     </div>
   );
 }
+function SmsTab() {
+  const [senders, setSenders] = useState<string[]>([]);
+  const [newSender, setNewSender] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saved, setSaved] = useState(false);
 
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`${API}/settings/sms-senders`, {
+          headers: { Authorization: `Bearer ${window.localStorage.getItem("orderly_token")}` },
+        });
+        const data = await res.json();
+        setSenders(Array.isArray(data) ? data : []);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  async function save(next: string[]) {
+    setSenders(next);
+    await fetch(`${API}/settings/sms-senders`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${window.localStorage.getItem("orderly_token")}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ senders: next }),
+    });
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  }
+
+  function add() {
+    const name = newSender.trim();
+    if (!name || senders.includes(name)) return;
+    save([...senders, name]);
+    setNewSender("");
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-sm font-semibold">Expéditeurs SMS</h2>
+        <p className="mt-0.5 text-xs text-muted">
+          Les noms validés chez votre fournisseur SMS. Ils seront proposés
+          dans la configuration de chaque magasin.
+        </p>
+      </div>
+
+      <div className="rounded-lg border border-border p-5 space-y-3">
+        {loading ? (
+          <p className="text-xs text-muted">Chargement...</p>
+        ) : senders.length === 0 ? (
+          <p className="text-xs text-muted">Aucun expéditeur configuré</p>
+        ) : (
+          <div className="space-y-2">
+            {senders.map((s) => (
+              <div
+                key={s}
+                className="flex items-center justify-between rounded-lg bg-surface-sunken px-3 py-2"
+              >
+                <span className="text-sm font-medium">{s}</span>
+                <button
+                  onClick={() => save(senders.filter((x) => x !== s))}
+                  className="text-muted hover:text-status-cancelled"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="flex gap-2 pt-2">
+          <Input
+            value={newSender}
+            onChange={(e) => setNewSender(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && add()}
+            placeholder="ex: MeDay"
+            className="h-9 flex-1 text-sm"
+          />
+          <Button size="sm" disabled={!newSender.trim()} onClick={add}>
+            Ajouter
+          </Button>
+        </div>
+
+        {saved && (
+          <p className="text-[11px] font-medium text-status-delivered">
+            Enregistré
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
 export default function SettingsPage() {
   return (
     <RouteGuard>
