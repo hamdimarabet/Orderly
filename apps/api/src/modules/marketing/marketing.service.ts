@@ -341,4 +341,32 @@ export class MarketingService {
     }
     return { created: created.length };
   }
+  async getSegmentCustomers(id: string) {
+    const segment = await this.prisma.segment.findUnique({ where: { id } });
+    if (!segment) return { customers: [] };
+
+    const storeIds = (segment as any).storeIds ?? [];
+    const customers = await this.orders.getCustomers(
+      storeIds.length ? { storeIds } : {},
+    );
+
+    const matched = this.matchCustomers(
+      customers,
+      segment.rules as SegmentRules,
+    );
+
+    return {
+      name: segment.name,
+      total: matched.length,
+      customers: matched.map((c: any) => ({
+        name: c.name,
+        phone: c.displayPhone,
+        city: c.city,
+        totalOrders: c.totalOrders,
+        lifetimeValue: c.lifetimeValue,
+        daysSinceLast: c.daysSinceLast,
+        storeName: c.storeName,
+      })),
+    };
+  }
 }
