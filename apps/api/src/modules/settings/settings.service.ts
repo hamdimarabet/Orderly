@@ -20,7 +20,7 @@ export class SettingsService {
 
   async getSmsSenders(): Promise<string[]> {
     const value = await this.get('sms_senders');
-    return Array.isArray(value) ? value : [];
+    return Array.isArray(value) ? (value as string[]) : [];
   }
 
   async setSmsSenders(senders: string[]) {
