@@ -170,6 +170,7 @@ model Order {
   nextRetryAt     DateTime?
   retryCount      Int       @default(0)
     @@index([nextRetryAt])
+      @@index([customerId])
   externalOrderId   String
   orderNumber       String
   assignedAt      DateTime?
@@ -198,7 +199,8 @@ model Order {
   shippingTotal     Decimal           @db.Decimal(10, 2) @default(0)
   total             Decimal           @db.Decimal(10, 2)
   totalRefunded     Decimal           @db.Decimal(10, 2) @default(0)
-
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id])
   tags              String[]
   notes             String?
   internalNote      String?
@@ -855,4 +857,95 @@ model RetryConfig {
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+model Customer {
+  id           String  @id @default(cuid())
+
+  // identity
+  phone        String  @unique     // normalized digits only — the key
+  displayPhone String
+  phone2       String?
+  name         String
+  email        String?
+  city         String?
+  address      String?
+  storeIds     String[]
+
+  // personal — real columns because crons/filters query them
+  birthday      DateTime?
+  birthdayDay   Int?      // 1-31  \ split so "birthday in 7 days"
+  birthdayMonth Int?      // 1-12  / can use an index
+  gender        String?
+  language      String?
+  callFrom      String?   // "18:00"
+  callTo        String?
+
+  // admin-defined fields, unlimited
+  custom        Json     @default("{}")
+
+  // computed rollups
+  totalOrders      Int      @default(0)
+  confirmed        Int      @default(0)
+  refused          Int      @default(0)
+  delivered        Int      @default(0)
+  returned         Int      @default(0)
+  confirmationRate Int      @default(0)
+  deliveryRate     Int      @default(0)
+  returnRate       Int      @default(0)
+  lifetimeValue    Decimal  @default(0) @db.Decimal(12, 3)
+  totalOrdered     Decimal  @default(0) @db.Decimal(12, 3)
+  avgBasket        Decimal  @default(0) @db.Decimal(12, 3)
+  firstOrderAt     DateTime?
+  lastOrderAt      DateTime?
+  rhythmDays       Int?
+  nextDueAt        DateTime?
+  tier             String   @default("NEW")
+  isBlocked        Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orders Order[]
+  notes  CustomerNote[]
+
+  @@index([nextDueAt])
+  @@index([birthdayMonth, birthdayDay])
+  @@index([lastOrderAt])
+  @@index([tier])
+  @@index([city])
+}
+
+model CustomerNote {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  authorId   String?
+  authorName String?
+  body       String   @db.Text
+  kind       String   @default("NOTE")   // NOTE | CALL | SYSTEM
+  createdAt  DateTime @default(now())
+
+  @@index([customerId, createdAt])
+}
+
+model CustomerField {
+  id       String   @id @default(cuid())
+  key      String   @unique            // "skin_type"
+  label    String                      // "Type de peau"
+  type     String   @default("TEXT")   // TEXT | LONGTEXT | NUMBER | DATE | SELECT | MULTISELECT | BOOLEAN
+  options  String[] @default([])
+  helpText String?
+  storeIds String[] @default([])       // empty = all stores
+
+  position     Int     @default(0)
+  showInList   Boolean @default(false)
+  showOnOrder  Boolean @default(false)
+  askOnConfirm Boolean @default(false)
+  isFilterable Boolean @default(true)
+  isActive     Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive, position])
 }

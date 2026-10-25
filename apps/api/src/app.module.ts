@@ -24,6 +24,7 @@ import { ShiftsModule } from './modules/shifts/shifts.module';
 import { RetryModule } from './modules/retry/retry.module';
 import { MessagingModule } from './modules/messaging/messaging.module';
 import { SettingsModule } from './modules/settings/settings.module';
+import { CustomersModule } from './modules/customers/customers.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -50,6 +51,7 @@ import { SettingsModule } from './modules/settings/settings.module';
     RetryModule,
     MessagingModule,
     SettingsModule,
+    CustomersModule,
   ],
 })
 export class AppModule {}
