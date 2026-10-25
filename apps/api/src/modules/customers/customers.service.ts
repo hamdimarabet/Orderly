@@ -228,10 +228,10 @@ export class CustomersService {
           id: { notIn: bought.length ? bought : ['-'] },
           ...(customer.storeIds.length ? { storeId: { in: customer.storeIds } } : {}),
         },
-        select: { id: true, name: true },
+        select: { id: true, name: true, imageUrl: true },
         take: 6,
       })
-      .catch(() => [] as { id: string; name: string }[]);
+      .catch(() => [] as { id: string; name: string; imageUrl: string | null }[]);
 
     return {
       ...customer,
@@ -244,7 +244,11 @@ export class CustomersService {
         isRefused: REFUSED.includes(o.orderStatus as string),
       })),
       notes,
-      neverTried: neverTried.map((p: any) => ({ id: p.id, title: p.name ?? p.title })),
+      neverTried: neverTried.map((p: any) => ({
+        id: p.id,
+        title: p.name,
+        imageUrl: p.imageUrl ?? null,
+      })),
     };
   }
 
