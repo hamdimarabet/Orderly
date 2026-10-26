@@ -125,7 +125,7 @@ async function main() {
     const dates = list.map(dateOf).filter(Boolean)
       .sort((a, b) => a.getTime() - b.getTime());
 
-    // only parcels actually received — a return is not consumption
+    // ONLY parcels actually received — LIVRE / PAYE
     const deliveredDates = list
       .filter((o) => DELIVERED.includes(o.orderStatus as string))
       .map(dateOf).filter(Boolean)

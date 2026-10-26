@@ -79,6 +79,7 @@ export class CustomersService {
    * A return in the LAST 3 orders drops her — an old one from two years ago
    * does not condemn her forever.
    */
+  /** delivered parcels only — LIVRE / PAYE */
   private tierOf(delivered: number, returnRate: number, recent: string[]): string {
     const last3 = recent.slice(-3);
     if (last3.some((s) => RETURNED.includes(s))) return 'WATCH';
@@ -539,9 +540,9 @@ export class CustomersService {
       .filter(Boolean)
       .sort((a, b) => a.getTime() - b.getTime());
 
-    // ONLY parcels she actually received — this is what drives the rhythm.
-    // A returned or cancelled order is not consumption: she never got the product,
-    // so it tells us nothing about when she runs out.
+    // ONLY parcels she actually received — LIVRE / PAYE.
+    // A confirmed order is not a delivered one: she has nothing in her hands,
+    // so it says nothing about when she runs out.
     const deliveredDates = orders
       .filter((o) => DELIVERED.includes(o.orderStatus as string))
       .map(dateOf)

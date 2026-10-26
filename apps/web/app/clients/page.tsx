@@ -91,15 +91,15 @@ function reasonFor(bucket: string, c: Customer): string {
   const sinceDelivered = daysSince(c.lastDeliveredAt);
   switch (bucket) {
     case "due":
-      return `rythme ${c.rhythmDays}j · dernier colis reçu il y a ${sinceDelivered}j`;
+      return `rythme ${c.rhythmDays}j · dernier colis livré il y a ${sinceDelivered}j`;
     case "birthdays":
       return c.birthday
         ? `anniversaire le ${new Date(c.birthday).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}`
         : "";
     case "lost":
-      return `1 seul colis reçu · il y a ${sinceDelivered}j`;
+      return `1 seul colis livré · il y a ${sinceDelivered}j`;
     case "sleeping":
-      return `${sinceDelivered}j sans colis (rythme ${c.rhythmDays}j)`;
+      return `${sinceDelivered}j sans livraison (rythme ${c.rhythmDays}j)`;
     case "newbie":
       return `1ère livraison il y a ${sinceDelivered}j`;
     default:
@@ -272,7 +272,7 @@ function CustomerDetail({
                 {c.rhythmDays ? `${c.rhythmDays}j` : "—"}
               </p>
               <p className="text-[10px] text-muted">
-                {since != null ? `dernier colis il y a ${since}j` : "aucun colis reçu"}
+                {since != null ? `dernier colis livré il y a ${since}j` : "aucune livraison"}
               </p>
             </div>
           </div>
