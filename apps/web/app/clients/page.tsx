@@ -87,20 +87,21 @@ const BUCKETS = [
 ] as const;
 
 function reasonFor(bucket: string, c: Customer): string {
-  const since = daysSince(c.lastOrderAt);
+  // everything here is based on parcels actually RECEIVED, not orders placed
+  const sinceDelivered = daysSince(c.lastDeliveredAt);
   switch (bucket) {
     case "due":
-      return `rythme ${c.rhythmDays}j · dernière commande il y a ${since}j`;
+      return `rythme ${c.rhythmDays}j · dernier colis reçu il y a ${sinceDelivered}j`;
     case "birthdays":
       return c.birthday
         ? `anniversaire le ${new Date(c.birthday).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}`
         : "";
     case "lost":
-      return `1 seule commande · il y a ${since}j`;
+      return `1 seul colis reçu · il y a ${sinceDelivered}j`;
     case "sleeping":
-      return `${since}j sans commande (rythme ${c.rhythmDays}j)`;
+      return `${sinceDelivered}j sans colis (rythme ${c.rhythmDays}j)`;
     case "newbie":
-      return `1ère livraison il y a ${since}j`;
+      return `1ère livraison il y a ${sinceDelivered}j`;
     default:
       return "";
   }
@@ -124,6 +125,7 @@ interface Customer {
   confirmationRate: number; deliveryRate: number; returnRate: number;
   lifetimeValue: any; avgBasket: any;
   firstOrderAt: string | null; lastOrderAt: string | null;
+  firstDeliveredAt: string | null; lastDeliveredAt: string | null;
   rhythmDays: number | null; nextDueAt: string | null;
   tier: string; isBlocked: boolean;
   orders?: any[]; notes?: any[]; neverTried?: any[];
@@ -206,7 +208,7 @@ function CustomerDetail({
   }
 
   const tier = c ? TIERS[c.tier] ?? TIERS.NEW : TIERS.NEW;
-  const since = c ? daysSince(c.lastOrderAt) : null;
+  const since = c ? daysSince(c.lastDeliveredAt) : null;
   const isDue = c?.nextDueAt ? new Date(c.nextDueAt) <= new Date() : false;
 
   return (
@@ -270,7 +272,7 @@ function CustomerDetail({
                 {c.rhythmDays ? `${c.rhythmDays}j` : "—"}
               </p>
               <p className="text-[10px] text-muted">
-                {since != null ? `dernière il y a ${since}j` : "—"}
+                {since != null ? `dernier colis il y a ${since}j` : "aucun colis reçu"}
               </p>
             </div>
           </div>
@@ -666,7 +668,15 @@ function ClientsContent() {
       <div className="flex min-w-0 max-w-full flex-1 flex-col overflow-y-auto overflow-x-hidden pt-14 md:overflow-y-hidden md:pt-0">
         <header className="flex min-h-14 w-full shrink-0 items-center justify-between gap-2 border-b border-border bg-surface px-3 py-2 md:h-14 md:px-5 md:py-0">
           <h1 className="text-base font-semibold">Clients</h1>
-          <p className="text-xs text-muted">{total} clients</p>
+          <div className="flex items-center gap-3">
+            <p className="text-xs text-muted">{total} clients</p>
+            <a
+              href="/clients/champs"
+              className="rounded-md border border-border px-2.5 py-1 text-xs font-medium text-muted hover:bg-surface-sunken"
+            >
+              Champs
+            </a>
+          </div>
         </header>
 
         {/* view tabs */}

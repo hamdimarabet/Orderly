@@ -50,10 +50,11 @@ function medianGap(datesAsc: Date[]): number | null {
   return gaps.length % 2 ? gaps[mid] : Math.round((gaps[mid - 1] + gaps[mid]) / 2);
 }
 
-function tierOf(delivered: number, returned: number, recent: string[]): string {
-  if (returned > 0) return 'WATCH';
+function tierOf(delivered: number, returnRate: number, recent: string[]): string {
   const last3 = recent.slice(-3);
-  if (delivered >= 5 && !last3.some((s) => RETURNED.includes(s))) return 'GOLD';
+  if (last3.some((s) => RETURNED.includes(s))) return 'WATCH';
+  if (returnRate > 30) return 'WATCH';
+  if (delivered >= 5) return 'GOLD';
   if (delivered >= 2) return 'SILVER';
   return 'NEW';
 }
@@ -119,16 +120,23 @@ async function main() {
       .reduce((s, o) => s + num(o.total), 0);
     const totalOrdered = list.reduce((s, o) => s + num(o.total), 0);
 
-    const dates = list
-      .map((o) => o.sourceCreatedAt ?? o.createdAt)
-      .filter(Boolean)
-      .sort((a: Date, b: Date) => a.getTime() - b.getTime());
+    const dateOf = (o: any) => (o.sourceCreatedAt ?? o.createdAt) as Date;
+
+    const dates = list.map(dateOf).filter(Boolean)
+      .sort((a, b) => a.getTime() - b.getTime());
+
+    // only parcels actually received — a return is not consumption
+    const deliveredDates = list
+      .filter((o) => DELIVERED.includes(o.orderStatus as string))
+      .map(dateOf).filter(Boolean)
+      .sort((a, b) => a.getTime() - b.getTime());
 
     const firstOrderAt = dates[0] ?? null;
     const lastOrderAt  = dates[dates.length - 1] ?? null;
-    const rhythmDays   = medianGap(dates as Date[]);
-    const nextDueAt = rhythmDays && lastOrderAt
-      ? new Date(lastOrderAt.getTime() + rhythmDays * 86_400_000)
+    const lastDeliveredAt = deliveredDates[deliveredDates.length - 1] ?? null;
+    const rhythmDays   = medianGap(deliveredDates);
+    const nextDueAt = rhythmDays && lastDeliveredAt
+      ? new Date(lastDeliveredAt.getTime() + rhythmDays * 86_400_000)
       : null;
 
     if (totalOrders > 1) repeat++; else oneOff++;
@@ -155,9 +163,11 @@ async function main() {
       avgBasket: totalOrders ? (totalOrdered / totalOrders).toFixed(3) : '0',
       firstOrderAt,
       lastOrderAt,
+      firstDeliveredAt: deliveredDates[0] ?? null,
+      lastDeliveredAt,
       rhythmDays,
       nextDueAt,
-      tier: tierOf(delivered, returned, statuses),
+      tier: tierOf(delivered, finished ? Math.round((returned / finished) * 100) : 0, statuses),
     });
   }
 

@@ -74,10 +74,16 @@ export class CustomersService {
     return gaps.length % 2 ? gaps[mid] : Math.round((gaps[mid - 1] + gaps[mid]) / 2);
   }
 
-  private tierOf(delivered: number, returned: number, recent: string[]): string {
-    if (returned > 0) return 'WATCH';
+  /**
+   * Tiers are about delivery behaviour, not spend.
+   * A return in the LAST 3 orders drops her — an old one from two years ago
+   * does not condemn her forever.
+   */
+  private tierOf(delivered: number, returnRate: number, recent: string[]): string {
     const last3 = recent.slice(-3);
-    if (delivered >= 5 && !last3.some((s) => RETURNED.includes(s))) return 'GOLD';
+    if (last3.some((s) => RETURNED.includes(s))) return 'WATCH';
+    if (returnRate > 30) return 'WATCH';
+    if (delivered >= 5) return 'GOLD';
     if (delivered >= 2) return 'SILVER';
     return 'NEW';
   }
@@ -106,12 +112,11 @@ export class CustomersService {
         return { OR: pairs, isBlocked: false };
       }
 
-      // bought once, took delivery, never came back
+      // received one parcel, took it, never came back
       case 'lost':
         return {
-          totalOrders: 1,
-          delivered: { gte: 1 },
-          lastOrderAt: { lte: daysAgo(60) },
+          delivered: 1,
+          lastDeliveredAt: { lte: daysAgo(60) },
           isBlocked: false,
         };
 
@@ -126,9 +131,8 @@ export class CustomersService {
       // first parcel delivered recently — the cheapest second sale there is
       case 'newbie':
         return {
-          totalOrders: 1,
-          delivered: { gte: 1 },
-          lastOrderAt: { gte: daysAgo(21) },
+          delivered: 1,
+          lastDeliveredAt: { gte: daysAgo(21) },
           isBlocked: false,
         };
 
@@ -527,13 +531,26 @@ export class CustomersService {
       .reduce((s, o) => s + num(o.total), 0);
     const totalOrdered = orders.reduce((s, o) => s + num(o.total), 0);
 
+    const dateOf = (o: any) => (o.sourceCreatedAt ?? o.createdAt) as Date;
+
+    // every order — used for "silent since"
     const dates = orders
-      .map((o) => o.sourceCreatedAt ?? o.createdAt)
+      .map(dateOf)
       .filter(Boolean)
-      .sort((a: Date, b: Date) => a.getTime() - b.getTime()) as Date[];
+      .sort((a, b) => a.getTime() - b.getTime());
+
+    // ONLY parcels she actually received — this is what drives the rhythm.
+    // A returned or cancelled order is not consumption: she never got the product,
+    // so it tells us nothing about when she runs out.
+    const deliveredDates = orders
+      .filter((o) => DELIVERED.includes(o.orderStatus as string))
+      .map(dateOf)
+      .filter(Boolean)
+      .sort((a, b) => a.getTime() - b.getTime());
 
     const lastOrderAt = dates[dates.length - 1] ?? null;
-    const rhythmDays = this.medianGap(dates);
+    const lastDeliveredAt = deliveredDates[deliveredDates.length - 1] ?? null;
+    const rhythmDays = this.medianGap(deliveredDates);
 
     return this.prisma.customer.update({
       where: { id: customerId },
@@ -552,11 +569,17 @@ export class CustomersService {
         avgBasket: totalOrders ? (totalOrdered / totalOrders).toFixed(3) : '0',
         firstOrderAt: dates[0] ?? null,
         lastOrderAt,
+        firstDeliveredAt: deliveredDates[0] ?? null,
+        lastDeliveredAt,
         rhythmDays,
-        nextDueAt: rhythmDays && lastOrderAt
-          ? new Date(lastOrderAt.getTime() + rhythmDays * 86_400_000)
+        nextDueAt: rhythmDays && lastDeliveredAt
+          ? new Date(lastDeliveredAt.getTime() + rhythmDays * 86_400_000)
           : null,
-        tier: this.tierOf(delivered, returned, statuses),
+        tier: this.tierOf(
+          delivered,
+          finished ? Math.round((returned / finished) * 100) : 0,
+          statuses,
+        ),
       },
     });
   }

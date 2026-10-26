@@ -870,7 +870,8 @@ model Customer {
   city         String?
   address      String?
   storeIds     String[]
-
+  firstDeliveredAt DateTime?
+  lastDeliveredAt  DateTime?
   // personal — real columns because crons/filters query them
   birthday      DateTime?
   birthdayDay   Int?      // 1-31  \ split so "birthday in 7 days"
@@ -913,6 +914,7 @@ model Customer {
   @@index([lastOrderAt])
   @@index([tier])
   @@index([city])
+    @@index([lastDeliveredAt])
 }
 
 model CustomerNote {
