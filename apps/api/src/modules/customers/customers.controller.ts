@@ -40,6 +40,11 @@ import {
       return this.customers.stats(storeIds ? storeIds.split(',') : undefined);
     }
   
+    @Get('worklist')
+    worklist(@Query('storeIds') storeIds?: string) {
+      return this.customers.worklist(storeIds ? storeIds.split(',') : undefined);
+    }
+  
     @Get('due')
     dueToday(@Query('storeIds') storeIds?: string, @Query('limit') limit?: string) {
       return this.customers.dueToday(
@@ -73,6 +78,7 @@ import {
       }
   
       const filters: CustomerFilters = {
+        bucket: q.bucket,
         search: q.search,
         storeIds: q.storeIds ? String(q.storeIds).split(',') : undefined,
         tier: q.tier,

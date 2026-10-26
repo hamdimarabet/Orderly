@@ -12,7 +12,12 @@ const CONFIRMED = [
   ...DELIVERED, ...RETURNED,
 ];
 
+/** the worklist buckets — people with a reason to be called today */
+export const BUCKETS = ['due', 'birthdays', 'lost', 'sleeping', 'newbie'] as const;
+export type Bucket = (typeof BUCKETS)[number];
+
 export interface CustomerFilters {
+  bucket?: Bucket | string;
   search?: string;
   storeIds?: string[];
   tier?: string;
@@ -78,6 +83,72 @@ export class CustomersService {
   }
 
   // =========================================================================
+  // WORKLIST BUCKETS
+  // =========================================================================
+
+  /** the where-clause behind each bucket */
+  bucketWhere(bucket: string): any {
+    const now = new Date();
+    const daysAgo = (n: number) => new Date(Date.now() - n * 86_400_000);
+
+    switch (bucket) {
+      // past her own buying cycle
+      case 'due':
+        return { nextDueAt: { not: null, lte: now }, isBlocked: false };
+
+      // birthday today or in the next 7 days
+      case 'birthdays': {
+        const pairs: any[] = [];
+        for (let i = 0; i <= 7; i++) {
+          const x = new Date(Date.now() + i * 86_400_000);
+          pairs.push({ birthdayMonth: x.getMonth() + 1, birthdayDay: x.getDate() });
+        }
+        return { OR: pairs, isBlocked: false };
+      }
+
+      // bought once, took delivery, never came back
+      case 'lost':
+        return {
+          totalOrders: 1,
+          delivered: { gte: 1 },
+          lastOrderAt: { lte: daysAgo(60) },
+          isBlocked: false,
+        };
+
+      // good customers more than 30 days past due
+      case 'sleeping':
+        return {
+          tier: { in: ['GOLD', 'SILVER'] },
+          nextDueAt: { not: null, lte: daysAgo(30) },
+          isBlocked: false,
+        };
+
+      // first parcel delivered recently — the cheapest second sale there is
+      case 'newbie':
+        return {
+          totalOrders: 1,
+          delivered: { gte: 1 },
+          lastOrderAt: { gte: daysAgo(21) },
+          isBlocked: false,
+        };
+
+      default:
+        return {};
+    }
+  }
+
+  /** counts for the cards at the top of the Aujourd'hui tab */
+  async worklist(storeIds?: string[]) {
+    const base = storeIds?.length ? { storeIds: { hasSome: storeIds } } : {};
+    const counts = await Promise.all(
+      BUCKETS.map((b) =>
+        this.prisma.customer.count({ where: { AND: [base, this.bucketWhere(b)] } }),
+      ),
+    );
+    return Object.fromEntries(BUCKETS.map((b, i) => [b, counts[i]])) as Record<Bucket, number>;
+  }
+
+  // =========================================================================
   // LIST  (server-side filtering, sorting, pagination)
   // =========================================================================
 
@@ -85,6 +156,8 @@ export class CustomersService {
     const page = Math.max(1, f.page ?? 1);
     const pageSize = Math.min(200, f.pageSize ?? 50);
     const AND: any[] = [];
+
+    if (f.bucket) AND.push(this.bucketWhere(String(f.bucket)));
 
     if (f.search?.trim()) {
       const q = f.search.trim();

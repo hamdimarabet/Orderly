@@ -9,8 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import {
-  Search, ChevronLeft, ChevronRight, Users, X, Phone, MapPin, Package,
-  AlertTriangle, Star, Cake, Clock, Save, Plus, MessageSquare, SlidersHorizontal,
+  Search, ChevronLeft, ChevronRight, Users, X, Package,
+  AlertTriangle, Star, Cake, Clock, Save, Plus, SlidersHorizontal,
+  Gift, UserPlus, Moon, HeartCrack, PhoneCall,
 } from "lucide-react";
 import { ORDER_STATUS_LABELS, OrderStatus } from "@/types/order";
 
@@ -41,6 +42,69 @@ const TIERS: Record<string, { label: string; cls: string }> = {
   WATCH:  { label: "Risque", cls: "bg-status-cancelled-bg text-status-cancelled" },
   NEW:    { label: "Nouveau", cls: "bg-surface-sunken text-muted" },
 };
+
+const BUCKETS = [
+  {
+    key: "due",
+    label: "À relancer",
+    hint: "Elle a dépassé son propre cycle d'achat",
+    icon: Clock,
+    cls: "bg-primary-soft text-primary",
+    active: "bg-primary text-white",
+  },
+  {
+    key: "birthdays",
+    label: "Anniversaires",
+    hint: "Anniversaire aujourd'hui ou dans les 7 jours",
+    icon: Gift,
+    cls: "bg-pink-50 text-pink-600",
+    active: "bg-pink-600 text-white",
+  },
+  {
+    key: "sleeping",
+    label: "Bons clients endormis",
+    hint: "Gold ou Silver, plus de 30 jours de retard",
+    icon: Moon,
+    cls: "bg-yellow-50 text-yellow-700",
+    active: "bg-yellow-600 text-white",
+  },
+  {
+    key: "newbie",
+    label: "Nouveaux à fidéliser",
+    hint: "1ère livraison reçue il y a moins de 21 jours",
+    icon: UserPlus,
+    cls: "bg-status-delivered-bg text-status-delivered",
+    active: "bg-status-delivered text-white",
+  },
+  {
+    key: "lost",
+    label: "Jamais revenus",
+    hint: "Une seule commande livrée, plus de 60 jours",
+    icon: HeartCrack,
+    cls: "bg-purple-50 text-purple-600",
+    active: "bg-purple-600 text-white",
+  },
+] as const;
+
+function reasonFor(bucket: string, c: Customer): string {
+  const since = daysSince(c.lastOrderAt);
+  switch (bucket) {
+    case "due":
+      return `rythme ${c.rhythmDays}j · dernière commande il y a ${since}j`;
+    case "birthdays":
+      return c.birthday
+        ? `anniversaire le ${new Date(c.birthday).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}`
+        : "";
+    case "lost":
+      return `1 seule commande · il y a ${since}j`;
+    case "sleeping":
+      return `${since}j sans commande (rythme ${c.rhythmDays}j)`;
+    case "newbie":
+      return `1ère livraison il y a ${since}j`;
+    default:
+      return "";
+  }
+}
 
 interface FieldDef {
   id: string; key: string; label: string; type: string; options: string[];
@@ -519,6 +583,9 @@ function ClientsContent() {
   const [sortBy, setSortBy] = useState("value");
   const [detailId, setDetailId] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
+  const [view, setView] = useState<"today" | "all">("today");
+  const [bucket, setBucket] = useState<string>("due");
+  const [work, setWork] = useState<Record<string, number>>({});
 
   const [filters, setFilters] = useState<any>({
     tier: "", dueOnly: false, birthdayMonth: "", minOrders: "", minLtv: "", custom: {} as Record<string, string>,
@@ -542,6 +609,7 @@ function ClientsContent() {
   const buildParams = useCallback(() => {
     const p = new URLSearchParams();
     if (selectedStoreIds.length) p.set("storeIds", selectedStoreIds.join(","));
+    if (view === "today" && bucket) p.set("bucket", bucket);
     if (search.trim()) p.set("search", search.trim());
     if (filters.tier) p.set("tier", filters.tier);
     if (filters.dueOnly) p.set("dueOnly", "true");
@@ -555,7 +623,7 @@ function ClientsContent() {
     p.set("page", String(page));
     p.set("pageSize", String(PAGE_SIZE));
     return p;
-  }, [selectedStoreIds, search, filters, sortBy, page]);
+  }, [selectedStoreIds, search, filters, sortBy, page, view, bucket]);
 
   const fetchCustomers = useCallback(async () => {
     if (selectedStoreIds.length === 0) return;
@@ -577,10 +645,11 @@ function ClientsContent() {
 
   useEffect(() => {
     if (!selectedStoreIds.length) return;
-    fetch(`${API}/customers/stats?storeIds=${selectedStoreIds.join(",")}`, { headers: authHeaders() })
-      .then((r) => r.json())
-      .then(setStats)
-      .catch(() => {});
+    const ids = selectedStoreIds.join(",");
+    fetch(`${API}/customers/stats?storeIds=${ids}`, { headers: authHeaders() })
+      .then((r) => r.json()).then(setStats).catch(() => {});
+    fetch(`${API}/customers/worklist?storeIds=${ids}`, { headers: authHeaders() })
+      .then((r) => r.json()).then(setWork).catch(() => {});
   }, [selectedStoreIds]);
 
   const listFields = fields.filter((f) => f.showInList).slice(0, 2);
@@ -600,35 +669,81 @@ function ClientsContent() {
           <p className="text-xs text-muted">{total} clients</p>
         </header>
 
-        {/* stats */}
-        <div className="grid grid-cols-2 gap-1.5 border-b border-border bg-surface p-2 md:grid-cols-4 md:gap-3 md:p-4">
-          <div className="rounded-lg bg-surface-sunken px-4 py-3">
-            <p className="text-[11px] font-medium text-muted">Total clients</p>
-            <p className="mt-1 text-2xl font-bold">{stats.total}</p>
-          </div>
-          <div className="rounded-lg bg-primary-soft px-4 py-3">
-            <p className="text-[11px] font-medium text-primary">Valeur cumulée</p>
-            <p className="mt-1 font-mono text-2xl font-bold text-primary">{money(stats.lifetimeValue)}</p>
-          </div>
-          <div className="rounded-lg bg-purple-50 px-4 py-3">
-            <p className="text-[11px] font-medium text-purple-600">Ont recommandé</p>
-            <p className="mt-1 text-2xl font-bold text-purple-600">{stats.repeat}</p>
-          </div>
-          <button
-            onClick={() => { setFilters({ ...filters, dueOnly: !filters.dueOnly }); setPage(1); }}
-            className={cn(
-              "rounded-lg px-4 py-3 text-left transition-colors",
-              filters.dueOnly ? "bg-primary text-white" : "bg-yellow-50 hover:bg-yellow-100"
-            )}
-          >
-            <p className={cn("text-[11px] font-medium", filters.dueOnly ? "text-white" : "text-yellow-700")}>
-              À relancer
-            </p>
-            <p className={cn("mt-1 text-2xl font-bold", filters.dueOnly ? "text-white" : "text-yellow-700")}>
-              {stats.due}
-            </p>
-          </button>
+        {/* view tabs */}
+        <div className="flex gap-1 border-b border-border bg-surface px-3 pt-2 md:px-5">
+          {([
+            ["today", "Aujourd'hui"],
+            ["all", "Tous les clients"],
+          ] as const).map(([k, label]) => (
+            <button
+              key={k}
+              onClick={() => { setView(k as any); setPage(1); }}
+              className={cn(
+                "rounded-t-md px-4 py-2 text-sm font-medium transition-colors",
+                view === k
+                  ? "bg-surface-sunken text-foreground"
+                  : "text-muted hover:text-foreground"
+              )}
+            >
+              {label}
+            </button>
+          ))}
         </div>
+
+        {/* ---------- AUJOURD'HUI : the worklist ---------- */}
+        {view === "today" && (
+          <div className="border-b border-border bg-surface px-3 py-3 md:px-5">
+            <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
+              {BUCKETS.map((b) => {
+                const Icon = b.icon;
+                const on = bucket === b.key;
+                const n = work[b.key] ?? 0;
+                return (
+                  <button
+                    key={b.key}
+                    onClick={() => { setBucket(b.key); setPage(1); }}
+                    title={b.hint}
+                    className={cn(
+                      "rounded-lg px-3 py-2.5 text-left transition-colors",
+                      on ? b.active : cn(b.cls, "hover:opacity-80")
+                    )}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <Icon className="h-3.5 w-3.5 shrink-0" />
+                      <p className="truncate text-[11px] font-medium">{b.label}</p>
+                    </div>
+                    <p className="mt-1 text-2xl font-bold">{n}</p>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-2 text-[11px] text-muted">
+              {BUCKETS.find((b) => b.key === bucket)?.hint}
+            </p>
+          </div>
+        )}
+
+        {/* ---------- TOUS : headline numbers ---------- */}
+        {view === "all" && (
+          <div className="grid grid-cols-2 gap-1.5 border-b border-border bg-surface p-2 md:grid-cols-4 md:gap-3 md:p-4">
+            <div className="rounded-lg bg-surface-sunken px-4 py-3">
+              <p className="text-[11px] font-medium text-muted">Total clients</p>
+              <p className="mt-1 text-2xl font-bold">{stats.total}</p>
+            </div>
+            <div className="rounded-lg bg-primary-soft px-4 py-3">
+              <p className="text-[11px] font-medium text-primary">Valeur cumulée</p>
+              <p className="mt-1 font-mono text-2xl font-bold text-primary">{money(stats.lifetimeValue)}</p>
+            </div>
+            <div className="rounded-lg bg-purple-50 px-4 py-3">
+              <p className="text-[11px] font-medium text-purple-600">Ont recommandé</p>
+              <p className="mt-1 text-2xl font-bold text-purple-600">{stats.repeat}</p>
+            </div>
+            <div className="rounded-lg bg-yellow-50 px-4 py-3">
+              <p className="text-[11px] font-medium text-yellow-700">À relancer</p>
+              <p className="mt-1 text-2xl font-bold text-yellow-700">{stats.due}</p>
+            </div>
+          </div>
+        )}
 
         {/* search + sort */}
         <div className="flex flex-col gap-2 border-b border-border bg-surface px-3 py-3 md:flex-row md:items-center md:gap-3 md:px-5">
@@ -776,7 +891,9 @@ function ClientsContent() {
                             {isDue && <Clock className="h-3 w-3 shrink-0 text-primary" />}
                           </div>
                           <p className="font-mono text-xs text-slate-400">{c.displayPhone}</p>
-                          <p className="text-[11px] text-slate-400">{c.city ?? "—"}</p>
+                          <p className="text-[11px] text-slate-400">
+                            {view === "today" ? reasonFor(bucket, c) : (c.city ?? "—")}
+                          </p>
                         </div>
                         <div className="shrink-0 text-right">
                           <p className="font-mono text-base font-bold text-primary">{money(c.lifetimeValue)}</p>
@@ -811,6 +928,7 @@ function ClientsContent() {
                 <thead className="sticky top-0 z-10 bg-surface">
                   <tr className="border-b border-border text-left text-xs font-medium text-muted">
                     <th className="px-4 py-2.5">Client</th>
+                    {view === "today" && <th className="px-4 py-2.5">Pourquoi</th>}
                     <th className="px-4 py-2.5">Niveau</th>
                     <th className="px-4 py-2.5">Ville</th>
                     <th className="px-4 py-2.5">Commandes</th>
@@ -820,6 +938,7 @@ function ClientsContent() {
                     <th className="px-4 py-2.5">Rythme</th>
                     <th className="px-4 py-2.5">Dernière</th>
                     {listFields.map((f) => <th key={f.id} className="px-4 py-2.5">{f.label}</th>)}
+                    <th className="px-4 py-2.5"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -847,6 +966,11 @@ function ClientsContent() {
                             </div>
                           </div>
                         </td>
+                        {view === "today" && (
+                          <td className="px-4 py-3">
+                            <p className="text-xs font-medium text-foreground">{reasonFor(bucket, c)}</p>
+                          </td>
+                        )}
                         <td className="px-4 py-3">
                           <span className={cn("rounded px-2 py-1 text-[11px] font-bold", tier.cls)}>{tier.label}</span>
                         </td>
@@ -892,6 +1016,16 @@ function ClientsContent() {
                             {String(c.custom?.[f.key] ?? "—")}
                           </td>
                         ))}
+                        <td className="px-4 py-3">
+                          <a
+                            href={`tel:${c.displayPhone}`}
+                            onClick={(e) => e.stopPropagation()}
+                            title="Appeler"
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border text-muted hover:bg-primary-soft hover:text-primary"
+                          >
+                            <PhoneCall className="h-3.5 w-3.5" />
+                          </a>
+                        </td>
                       </tr>
                     );
                   })}
