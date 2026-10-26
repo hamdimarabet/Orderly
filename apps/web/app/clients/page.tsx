@@ -254,9 +254,9 @@ function CustomerDetail({
               <p className="font-mono text-base font-bold text-primary">{money(c.lifetimeValue)}</p>
             </div>
             <div className="rounded-lg bg-surface-sunken px-3 py-2">
-              <p className="text-[10px] font-medium text-muted">Commandes</p>
-              <p className="text-base font-bold">{c.totalOrders}</p>
-              <p className="text-[10px] text-muted">{c.delivered} livrées</p>
+              <p className="text-[10px] font-medium text-muted">Colis livrés</p>
+              <p className="text-base font-bold">{c.delivered}</p>
+              <p className="text-[10px] text-muted">sur {c.totalOrders} commandes</p>
             </div>
             <div className="rounded-lg bg-status-delivered-bg px-3 py-2">
               <p className="text-[10px] font-medium text-status-delivered">Confirmation</p>
@@ -590,7 +590,7 @@ function ClientsContent() {
   const [work, setWork] = useState<Record<string, number>>({});
 
   const [filters, setFilters] = useState<any>({
-    tier: "", dueOnly: false, birthdayMonth: "", minOrders: "", minLtv: "", custom: {} as Record<string, string>,
+    tier: "", dueOnly: false, birthdayMonth: "", minDelivered: "", minLtv: "", custom: {} as Record<string, string>,
   });
 
   const accessibleStores = stores.filter((s) => canAccessStore(s.id));
@@ -616,7 +616,7 @@ function ClientsContent() {
     if (filters.tier) p.set("tier", filters.tier);
     if (filters.dueOnly) p.set("dueOnly", "true");
     if (filters.birthdayMonth) p.set("birthdayMonth", filters.birthdayMonth);
-    if (filters.minOrders) p.set("minOrders", filters.minOrders);
+    if (filters.minDelivered) p.set("minDelivered", filters.minDelivered);
     if (filters.minLtv) p.set("minLtv", filters.minLtv);
     for (const [k, v] of Object.entries(filters.custom ?? {})) {
       if (v) p.set(`custom[${k}]`, String(v));
@@ -778,7 +778,7 @@ function ClientsContent() {
           <div className="flex gap-1 overflow-x-auto">
             {[
               { key: "value", label: "Valeur" },
-              { key: "orders", label: "Commandes" },
+              { key: "orders", label: "Livraisons" },
               { key: "due", label: "À relancer" },
               { key: "recent", label: "Récents" },
             ].map((s) => (
@@ -825,12 +825,12 @@ function ClientsContent() {
               </select>
             </FilterBox>
 
-            <FilterBox label="Min. commandes">
+            <FilterBox label="Min. colis livrés">
               <Input
                 type="number"
                 className="w-28"
-                value={filters.minOrders}
-                onChange={(e) => { setFilters({ ...filters, minOrders: e.target.value }); setPage(1); }}
+                value={filters.minDelivered}
+                onChange={(e) => { setFilters({ ...filters, minDelivered: e.target.value }); setPage(1); }}
               />
             </FilterBox>
 
@@ -863,7 +863,7 @@ function ClientsContent() {
               size="sm"
               variant="outline"
               onClick={() => {
-                setFilters({ tier: "", dueOnly: false, birthdayMonth: "", minOrders: "", minLtv: "", custom: {} });
+                setFilters({ tier: "", dueOnly: false, birthdayMonth: "", minDelivered: "", minLtv: "", custom: {} });
                 setPage(1);
               }}
             >
@@ -912,16 +912,16 @@ function ClientsContent() {
                       </div>
                       <div className="grid grid-cols-4 gap-1 bg-sky-50 px-3 py-2 text-center">
                         <div>
-                          <p className="font-mono text-sm font-bold">{c.totalOrders}</p>
-                          <p className="text-[9px] text-slate-500">commandes</p>
+                          <p className="font-mono text-sm font-bold text-status-delivered">{c.delivered}</p>
+                          <p className="text-[9px] text-slate-500">livrés</p>
                         </div>
                         <div>
                           <p className="font-mono text-sm font-bold">{c.confirmationRate}%</p>
                           <p className="text-[9px] text-slate-500">confirm.</p>
                         </div>
                         <div>
-                          <p className="font-mono text-sm font-bold text-status-delivered">{c.delivered}</p>
-                          <p className="text-[9px] text-slate-500">livrées</p>
+                          <p className="font-mono text-sm font-bold">{c.totalOrders}</p>
+                          <p className="text-[9px] text-slate-500">commandes</p>
                         </div>
                         <div>
                           <p className="font-mono text-sm font-bold">{c.rhythmDays ? `${c.rhythmDays}j` : "—"}</p>
@@ -941,7 +941,7 @@ function ClientsContent() {
                     {view === "today" && <th className="px-4 py-2.5">Pourquoi</th>}
                     <th className="px-4 py-2.5">Niveau</th>
                     <th className="px-4 py-2.5">Ville</th>
-                    <th className="px-4 py-2.5">Commandes</th>
+                    <th className="px-4 py-2.5">Livrés</th>
                     <th className="px-4 py-2.5">Confirm.</th>
                     <th className="px-4 py-2.5">Retours</th>
                     <th className="px-4 py-2.5">Valeur</th>
@@ -986,8 +986,8 @@ function ClientsContent() {
                         </td>
                         <td className="px-4 py-3 text-xs text-muted">{c.city ?? "—"}</td>
                         <td className="px-4 py-3">
-                          <span className="font-mono text-sm font-semibold">{c.totalOrders}</span>
-                          <span className="ml-1 text-[11px] text-muted">({c.delivered})</span>
+                          <span className="font-mono text-sm font-semibold">{c.delivered}</span>
+                          <span className="ml-1 text-[11px] text-muted">/ {c.totalOrders} cmd</span>
                         </td>
                         <td className="px-4 py-3">
                           <span className={cn(

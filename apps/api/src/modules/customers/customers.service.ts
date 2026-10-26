@@ -24,6 +24,7 @@ export interface CustomerFilters {
   city?: string;
   minOrders?: number;
   maxOrders?: number;
+  minDelivered?: number;   // colis réellement livrés
   minLtv?: number;
   maxLtv?: number;
   maxReturnRate?: number;
@@ -182,6 +183,7 @@ export class CustomersService {
 
     if (f.minOrders != null) AND.push({ totalOrders: { gte: f.minOrders } });
     if (f.maxOrders != null) AND.push({ totalOrders: { lte: f.maxOrders } });
+    if (f.minDelivered != null) AND.push({ delivered: { gte: f.minDelivered } });
     if (f.minLtv != null) AND.push({ lifetimeValue: { gte: f.minLtv } });
     if (f.maxLtv != null) AND.push({ lifetimeValue: { lte: f.maxLtv } });
     if (f.maxReturnRate != null) AND.push({ returnRate: { lte: f.maxReturnRate } });
@@ -217,7 +219,7 @@ export class CustomersService {
     const where = AND.length ? { AND } : {};
 
     const orderBy =
-      f.sortBy === 'orders' ? { totalOrders: 'desc' as const }
+      f.sortBy === 'orders' ? { delivered: 'desc' as const }   // livraisons, pas commandes
       : f.sortBy === 'recent' ? { lastOrderAt: 'desc' as const }
       : f.sortBy === 'rate'   ? { confirmationRate: 'desc' as const }
       : f.sortBy === 'due'    ? { nextDueAt: 'asc' as const }
