@@ -2,16 +2,23 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { RouteGuard } from "@/components/auth/route-guard";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
   QrCode, CheckCircle2, XCircle, Package,
-  RotateCcw, Trash2, Lock,
+  RotateCcw, Trash2, Lock, Zap,
 } from "lucide-react";
 import { OrderStatus, ORDER_STATUS_LABELS } from "@/types/order";
 import { CameraScanner } from "@/components/scanner/camera-scanner";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api";
+
+/** Une douchette tape un code entier en moins de 50 ms par caractère. */
+const SCANNER_MAX_GAP_MS = 50;
+/** Nombre de frappes rapides consécutives avant de considérer que c'est une douchette. */
+const SCANNER_MIN_FAST_KEYS = 3;
+/** Délai sans frappe avant validation automatique. */
+const SETTLE_MS = 90;
+const MIN_CODE_LENGTH = 4;
 
 function getToken() {
   return window.localStorage.getItem("orderly_token");
@@ -70,7 +77,6 @@ function beep(ok: boolean) {
 
 function extractCode(raw: string): string {
   const v = raw.trim();
-  // URL containing barcode=XXXX
   const m = v.match(/barcode=([^&\s]+)/i);
   if (m) return m[1];
   return v;
@@ -82,12 +88,15 @@ function ScannerContent() {
   const [entries, setEntries] = useState<ScanEntry[]>([]);
   const [busy, setBusy] = useState(false);
   const [cameraOn, setCameraOn] = useState(false);
+  const [gunDetected, setGunDetected] = useState(false);
+
   const inputRef = useRef<HTMLInputElement>(null);
   const processingRef = useRef(false);
 
-  useEffect(() => {
-    if (!cameraOn) inputRef.current?.focus();
-  }, [cameraOn, entries.length]);
+  // --- détection douchette -------------------------------------------------
+  const lastKeyAt = useRef(0);
+  const fastKeys = useRef(0);
+  const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleCode = useCallback(
     async (raw: string) => {
@@ -135,7 +144,7 @@ function ScannerContent() {
               orderNumber: order.orderNumber,
               customer: order.customerName,
               status: "already",
-              message: "Deja dans ce statut",
+              message: "Déjà dans ce statut",
               at: now,
             },
             ...p,
@@ -187,19 +196,59 @@ function ScannerContent() {
       } catch {
         beep(false);
         setEntries((p) => [
-          { id: entryId, code, status: "error", message: "Erreur reseau", at: now },
+          { id: entryId, code, status: "error", message: "Erreur réseau", at: now },
           ...p,
         ]);
       } finally {
         setInput("");
+        fastKeys.current = 0;
         setBusy(false);
         setTimeout(() => {
           processingRef.current = false;
-        }, 400);
+          inputRef.current?.focus();
+        }, 350);
       }
     },
     [mode]
   );
+
+  /**
+   * Validation automatique : si les caractères arrivent à la vitesse d'une
+   * douchette, on valide dès que la saisie s'arrête — sans Entrée.
+   * Une saisie au clavier (plus lente) garde le comportement normal.
+   */
+  useEffect(() => {
+    if (settleTimer.current) clearTimeout(settleTimer.current);
+    if (busy || cameraOn) return;
+    if (input.trim().length < MIN_CODE_LENGTH) return;
+    if (fastKeys.current < SCANNER_MIN_FAST_KEYS) return;
+
+    settleTimer.current = setTimeout(() => {
+      handleCode(input);
+    }, SETTLE_MS);
+
+    return () => {
+      if (settleTimer.current) clearTimeout(settleTimer.current);
+    };
+  }, [input, busy, cameraOn, handleCode]);
+
+  /** Garde le curseur dans le champ — plus besoin de cliquer dedans. */
+  useEffect(() => {
+    if (cameraOn) return;
+
+    const onKey = (e: KeyboardEvent) => {
+      const el = document.activeElement as HTMLElement | null;
+      const typing =
+        el &&
+        (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
+      if (typing) return;
+      if (e.key.length === 1 || e.key === "Enter") inputRef.current?.focus();
+    };
+
+    window.addEventListener("keydown", onKey);
+    inputRef.current?.focus();
+    return () => window.removeEventListener("keydown", onKey);
+  }, [cameraOn, entries.length]);
 
   const okCount = entries.filter((e) => e.status === "ok").length;
   const errCount = entries.filter((e) => e.status !== "ok").length;
@@ -217,7 +266,7 @@ function ScannerContent() {
         </a>
       </header>
 
-      <div className="mx-auto max-w-lg p-4 space-y-4">
+      <div className="mx-auto max-w-lg space-y-4 p-4">
         {/* Mode */}
         <div>
           <p className="mb-2 text-xs font-medium text-muted">Action appliquée à chaque scan</p>
@@ -240,28 +289,55 @@ function ScannerContent() {
           </div>
         </div>
 
-        {/* Input */}
-        <div className="rounded-xl border border-border bg-surface p-4 space-y-3">
+        {/* Saisie */}
+        <div className="space-y-3 rounded-xl border border-border bg-surface p-4">
           <input
             ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter") handleCode(input);
+              const now = Date.now();
+              const gap = now - lastKeyAt.current;
+              lastKeyAt.current = now;
+
+              if (e.key === "Enter") {
+                e.preventDefault();
+                handleCode(input);
+                return;
+              }
+
+              if (e.key.length === 1) {
+                if (gap < SCANNER_MAX_GAP_MS) {
+                  fastKeys.current += 1;
+                  if (fastKeys.current >= SCANNER_MIN_FAST_KEYS && !gunDetected) {
+                    setGunDetected(true);
+                  }
+                } else {
+                  fastKeys.current = 0;
+                }
+              }
             }}
-            placeholder="Scanner ou saisir le code..."
+            placeholder="Scannez le colis..."
             disabled={busy}
+            autoFocus
             className="w-full rounded-md border border-border bg-surface-sunken px-3 py-3 text-center font-mono text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50"
           />
 
           <CameraScanner onScan={handleCode} active={cameraOn} onToggle={setCameraOn} />
 
-          <p className="text-center text-[11px] text-muted">
-            Scanner USB : gardez le curseur dans le champ · Téléphone : activez la caméra
-          </p>
+          {gunDetected && !cameraOn ? (
+            <p className="flex items-center justify-center gap-1.5 text-center text-[11px] font-medium text-status-delivered">
+              <Zap className="h-3 w-3" />
+              Douchette détectée — validation automatique, pas besoin d&apos;Entrée
+            </p>
+          ) : (
+            <p className="text-center text-[11px] text-muted">
+              Douchette : scannez, c&apos;est validé tout seul · Téléphone : activez la caméra
+            </p>
+          )}
         </div>
 
-        {/* Counters */}
+        {/* Compteurs */}
         {entries.length > 0 && (
           <div className="grid grid-cols-3 gap-2">
             <div className="rounded-lg bg-surface-sunken px-3 py-2 text-center">
@@ -281,7 +357,7 @@ function ScannerContent() {
           </div>
         )}
 
-        {/* History */}
+        {/* Historique */}
         {entries.length > 0 && (
           <div className="rounded-xl border border-border bg-surface">
             <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
