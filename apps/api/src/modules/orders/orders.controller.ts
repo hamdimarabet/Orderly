@@ -18,6 +18,7 @@ export class OrdersController {
     @Request() req?: any,
     @Query('storeIds') storeIds?: string,
     @Query('orderStatus') orderStatus?: string,
+    @Query('statsStatus') statsStatus?: string,
     @Query('financialStatus') financialStatus?: string,
     @Query('fulfillmentStatus') fulfillmentStatus?: string,
     @Query('search') search?: string,
@@ -39,6 +40,7 @@ export class OrdersController {
     return this.orders.findAll({
       storeIds: storeIds ? storeIds.split(',') : undefined,
       orderStatus: orderStatus ? (orderStatus.split(',') as any) : undefined,
+      statsStatus: statsStatus ? (statsStatus.split(',') as any) : undefined,
       financialStatus: financialStatus ? (financialStatus.split(',') as any) : undefined,
       fulfillmentStatus: fulfillmentStatus ? (fulfillmentStatus.split(',') as any) : undefined,
       excludeStatus: excludeStatus ? (excludeStatus.split(',') as any) : undefined,

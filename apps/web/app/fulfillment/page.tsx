@@ -360,7 +360,8 @@ function FulfillmentContent() {
         storeIds: selectedStoreIds.join(","),
         page: String(page),
         pageSize: String(PAGE_SIZE),
-        orderStatus: DELIVERY_STATUS_KEYS.join(","),
+        orderStatus: filter === "all" ? DELIVERY_STATUS_KEYS.join(",") : filter,
+        statsStatus: DELIVERY_STATUS_KEYS.join(","),
       });
       if (search) params.set("search", search);
       if (period.from) params.set("from", period.from.toISOString());
@@ -379,7 +380,7 @@ function FulfillmentContent() {
     } finally {
       setLoading(false);
     }
-  }, [selectedStoreIds, page, search, period, agentFilter]);
+  }, [selectedStoreIds, page, search, period, agentFilter, filter]);
 
   useEffect(() => {
     fetchOrders();
@@ -423,7 +424,6 @@ function FulfillmentContent() {
     if (!selectedStoreIds.includes(o.storeId)) return false;
     if (!isInPeriod(o.sourceCreatedAt, period)) return false;
     if (!applyAdvancedFilters(o, advFilters)) return false;
-    if (filter !== "all" && o.orderStatus !== filter) return false;
     if (search) {
       const q = search.toLowerCase();
       const hay = `${o.orderNumber} ${o.customerName ?? ""} ${o.customerPhone ?? ""}`.toLowerCase();
@@ -443,10 +443,8 @@ function FulfillmentContent() {
     return true;
   });
 
-  const counts: Record<string, number> = {};
-  statsOrders.forEach((o) => {
-    counts[o.orderStatus] = (counts[o.orderStatus] ?? 0) + 1;
-  });
+  // Compteurs calculés côté serveur sur tout le périmètre, pas sur la page
+  const counts: Record<string, number> = (serverStats as any).statusCounts ?? {};
 
   const statsTotal = serverStats.total || statsOrders.length;
   const paidCount = counts["PAYE"] ?? 0;
@@ -556,7 +554,7 @@ function FulfillmentContent() {
               filter === "all" ? "bg-primary-soft text-primary" : "text-muted hover:bg-surface-sunken"
             )}
           >
-            Tous ({orders.length})
+           Tous ({statsTotal})
           </button>
           {DELIVERY_STATUSES.map((s) => (
             <button

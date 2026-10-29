@@ -32,6 +32,7 @@ export class OrdersService {
     agentId?: string;
     prepAgentId?: string;
     attemptLevel?: number;
+    statsStatus?: OrderStatus[];
   }) {
     const {
       storeIds,
@@ -48,6 +49,7 @@ export class OrdersService {
       agentId,
       prepAgentId,
       attemptLevel,
+      statsStatus,
     } = query;
 
     const where: Prisma.OrderWhereInput = {
@@ -74,6 +76,12 @@ export class OrdersService {
     };
        // Stats always use the unfiltered scope
        const statsWhere = { ...where };
+
+       // L'onglet actif filtre la liste, mais les compteurs restent calculés
+       // sur l'ensemble du périmètre.
+       if (statsStatus?.length) {
+         (statsWhere as any).orderStatus = { in: statsStatus };
+       }
 
        // Orders with attempts still waiting for an answer
        if (attemptLevel !== undefined) {
@@ -119,8 +127,10 @@ export class OrdersService {
     
     // Stats on the whole filtered set, not just the current page
     let confirmed = 0, refused = 0, aVerifier = 0, revenue = 0, attemptsTotal = 0;
+    const statusCounts: Record<string, number> = {};
 
     for (const o of statsRows) {
+      statusCounts[o.orderStatus] = (statusCounts[o.orderStatus] ?? 0) + 1;
       const attempts = (o.callAttempts as any[]) ?? [];
       attemptsTotal += attempts.length;
 
@@ -151,6 +161,7 @@ export class OrdersService {
       totalPages: Math.ceil(total / pageSize),
       stats: {
         total: statsTotal,
+        statusCounts,
         confirmed,
         refused,
         aVerifier,
