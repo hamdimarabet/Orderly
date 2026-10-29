@@ -17,7 +17,7 @@ const SCANNER_MAX_GAP_MS = 50;
 /** Nombre de frappes rapides consécutives avant de considérer que c'est une douchette. */
 const SCANNER_MIN_FAST_KEYS = 3;
 /** Délai sans frappe avant validation automatique. */
-const SETTLE_MS = 90;
+const SETTLE_MS = 140;
 const MIN_CODE_LENGTH = 4;
 
 function getToken() {
@@ -224,7 +224,7 @@ function ScannerContent() {
     if (fastKeys.current < SCANNER_MIN_FAST_KEYS) return;
 
     settleTimer.current = setTimeout(() => {
-      handleCode(input);
+      handleCode(inputRef.current?.value ?? input);
     }, SETTLE_MS);
 
     return () => {
@@ -302,7 +302,10 @@ function ScannerContent() {
 
               if (e.key === "Enter") {
                 e.preventDefault();
-                handleCode(input);
+                // La douchette envoie Entrée dans la milliseconde qui suit la
+                // dernière touche : l'état React n'est pas encore à jour, donc
+                // on lit la valeur réelle du champ.
+                handleCode((e.target as HTMLInputElement).value);
                 return;
               }
 
