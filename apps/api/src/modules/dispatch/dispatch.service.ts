@@ -10,14 +10,26 @@ export class DispatchService {
   // ---------- AVAILABILITY ----------
 
   async listAgents(stage = 'CONFIRMATION', from?: string, to?: string) {
-    const users = await this.prisma.user.findMany({
-      where: { isActive: true, role: { not: 'SUPER_ADMIN' } },
-      include: {
-        availability: { where: { stage } },
-        dispatchRules: { where: { isActive: true, stage } },
-      },
-      orderBy: { name: 'asc' },
-    });
+      // Chaque étape n'affiche que les agents qui y ont accès.
+      const permissionsForStage: Record<string, string[]> = {
+        CONFIRMATION: ['confirmation'],
+        PREPARATION: ['preparation'],
+        SCAN: ['preparation', 'retours'],
+      };
+      const needed = permissionsForStage[stage] ?? ['confirmation'];
+  
+      const users = await this.prisma.user.findMany({
+        where: {
+          isActive: true,
+          role: { not: 'SUPER_ADMIN' },
+          permissions: { hasSome: needed },
+        },
+        include: {
+          availability: { where: { stage } },
+          dispatchRules: { where: { isActive: true, stage } },
+        },
+        orderBy: { name: 'asc' },
+      });
 
     const dateFilter: any = {};
     if (from) dateFilter.gte = new Date(from);
