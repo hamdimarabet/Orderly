@@ -33,10 +33,10 @@ const STYLES = `
 
   .top { display: table; width: 100%; table-layout: fixed; }
   .top > div { display: table-cell; vertical-align: middle; }
-  .top-bc { width: 46%; }
-  .top-bc img { height: 76px; width: auto; max-width: 100%; display: block; }
+  .top-bc { width: 50%; }
+  .top-bc img { max-height: 76px; max-width: 100%; width: auto; height: auto; display: block; }
   .top-city {
-    width: 32%; text-align: center; font-size: 32px; font-weight: 700;
+    width: 28%; text-align: center; font-size: 30px; font-weight: 700;
     line-height: 1.05; padding: 0 6px; overflow-wrap: anywhere; hyphens: auto;
   }
   .top-qr { width: 22%; text-align: right; }
@@ -88,7 +88,7 @@ const STYLES = `
 
   /* ---------- code-barres bas ---------- */
   .bottom-bc { text-align: center; margin-top: 9px; }
-  .bottom-bc img { height: 84px; width: auto; max-width: 78%; display: inline-block; }
+  .bottom-bc img { max-height: 84px; max-width: 80%; width: auto; height: auto; display: inline-block; }
 
   .foot-note { margin-top: 8px; font-size: 10px; color: #555; text-align: center; }
 
