@@ -34,7 +34,7 @@ const STYLES = `
   .top { display: table; width: 100%; table-layout: fixed; }
   .top > div { display: table-cell; vertical-align: middle; }
   .top-bc { width: 46%; }
-  .top-bc img { width: 100%; max-height: 92px; object-fit: contain; display: block; }
+  .top-bc img { height: 76px; width: auto; max-width: 100%; display: block; }
   .top-city {
     width: 32%; text-align: center; font-size: 32px; font-weight: 700;
     line-height: 1.05; padding: 0 6px; overflow-wrap: anywhere; hyphens: auto;
@@ -88,7 +88,7 @@ const STYLES = `
 
   /* ---------- code-barres bas ---------- */
   .bottom-bc { text-align: center; margin-top: 9px; }
-  .bottom-bc img { width: 64%; max-height: 86px; object-fit: contain; display: inline-block; }
+  .bottom-bc img { height: 84px; width: auto; max-width: 78%; display: inline-block; }
 
   .foot-note { margin-top: 8px; font-size: 10px; color: #555; text-align: center; }
 
@@ -172,11 +172,11 @@ ${sheets.join('\n')}
       const png = await bwipjs.toBuffer({
         bcid: 'code128',
         text: barcodeValue,
-        scale: 4,
-        height: 18,
+        scale: 3,
+        height: 16,
         includetext: true,
         textxalign: 'center',
-        textsize: 12,
+        textsize: 10,
       });
       barcodeImg = 'data:image/png;base64,' + png.toString('base64');
     } catch {
