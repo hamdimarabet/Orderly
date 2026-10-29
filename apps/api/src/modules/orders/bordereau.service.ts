@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import * as QRCode from 'qrcode';
+import * as bwipjs from 'bwip-js';
 
 /** Empêche qu'un nom ou un produit contenant & ou < casse la page. */
 function esc(v: any): string {
@@ -15,6 +16,13 @@ function esc(v: any): string {
 export class BordereauService {
   constructor(private prisma: PrismaService) {}
 
+  /**
+   * Bon de livraison au format Cosmos, généré par Orderly.
+   *
+   * Même structure que leur étiquette (code-barres, N° BLF, destinataire,
+   * contenu du colis) pour que le dépôt s'y retrouve — mais rendu ici, donc
+   * l'arabe s'affiche correctement et rien ne déborde des cadres.
+   */
   async generateBordereau(orderId: string): Promise<Buffer> {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
@@ -26,159 +34,276 @@ export class BordereauService {
 
     if (!order) throw new Error('Order not found');
 
-    const qrData = JSON.stringify({
-      orderId: order.id,
-      orderNumber: order.orderNumber,
-      storeId: order.storeId,
+    // --- code-barres Cosmos ------------------------------------------------
+    const fulfillment = await this.prisma.fulfillment.findFirst({
+      where: { orderId, carrier: 'COSMOS' },
+      select: { deliveryPartnerRef: true, trackingNumber: true },
     });
 
-    const qrCodeBase64 = await QRCode.toDataURL(qrData, {
-      width: 200,
-      margin: 1,
-    });
+    const barcodeValue = String(
+      fulfillment?.deliveryPartnerRef ??
+        fulfillment?.trackingNumber ??
+        order.orderNumber.replace('#', ''),
+    );
 
-    const shippingAddress = order.shippingAddress as any;
-    // Exchange info
+    let barcodeImg = '';
+    try {
+      const png = await bwipjs.toBuffer({
+        bcid: 'code128',
+        text: barcodeValue,
+        scale: 3,
+        height: 14,
+        includetext: true,
+        textxalign: 'center',
+        textsize: 9,
+      });
+      barcodeImg = 'data:image/png;base64,' + png.toString('base64');
+    } catch {
+      barcodeImg = '';
+    }
+
+    const qrImg = await QRCode.toDataURL(
+      JSON.stringify({
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        storeId: order.storeId,
+      }),
+      { width: 220, margin: 0 },
+    );
+
+    const addr = (order.shippingAddress ?? {}) as any;
+    const city = esc(addr.city ?? '—');
+
+    const addressText = esc(
+      [addr.address1, addr.address2].filter(Boolean).join(', ') || '—',
+    );
+
+    const date = new Date(order.sourceCreatedAt).toLocaleDateString('fr-FR');
+
+    // --- lignes produit ----------------------------------------------------
+    const rows = order.lineItems
+      .map((li) => {
+        const title = esc(li.title + (li.variantTitle ? ' — ' + li.variantTitle : ''));
+        const amount = (Number(li.price) * li.quantity).toFixed(2);
+        return `
+          <tr>
+            <td class="d" dir="auto">${title}</td>
+            <td class="q">${li.quantity}</td>
+            <td class="m">${amount}</td>
+          </tr>`;
+      })
+      .join('');
+
+    // --- échange -----------------------------------------------------------
     let exchangeHtml = '';
     if (order.internalNote) {
       try {
         const meta = JSON.parse(order.internalNote);
         if (meta.exchange?.itemsToRecover?.length) {
           const items = meta.exchange.itemsToRecover
-            .map((i: any) => esc(`${i.title}${i.variantTitle ? ' - ' + i.variantTitle : ''} x ${i.quantity}`))
-            .join(' / ');
-          exchangeHtml = [
-            '<div style="border:3px solid #000;background:#f5f5f5;padding:12px;margin-bottom:15px;">',
-            '<p style="font-size:14px;font-weight:bold;margin-bottom:6px;">ÉCHANGE — PRODUIT À RÉCUPÉRER</p>',
-            '<p style="font-size:13px;font-weight:bold;">' + items + '</p>',
-            '<p style="font-size:11px;margin-top:6px;">Commande d\u2019origine : ' + esc(meta.exchange.originalOrderNumber ?? '-') + '</p>',
-            '<p style="font-size:11px;">Raison : ' + esc(meta.exchange.reason ?? '-') + '</p>',
-            '</div>',
-          ].join('');
+            .map((i: any) =>
+              esc(`${i.title}${i.variantTitle ? ' - ' + i.variantTitle : ''} ×${i.quantity}`),
+            )
+            .join(' · ');
+          exchangeHtml = `
+            <div class="box exchange">
+              <div class="box-title">ÉCHANGE — PRODUIT À RÉCUPÉRER</div>
+              <div class="exchange-items" dir="auto">${items}</div>
+            </div>`;
         }
       } catch {}
     }
 
-    const lineItemsHtml = order.lineItems.map((li) => {
-      const price = (Number(li.price) * li.quantity).toFixed(3);
-      const title = esc(li.title + (li.variantTitle ? ' - ' + li.variantTitle : ''));
-      return [
-        '<div class="product-row">',
-        '<span class="product-name" dir="auto">' + title + '</span>',
-        '<span class="product-qty">x ' + li.quantity + '</span>',
-        '<span class="product-price">' + price + ' ' + esc(order.currency) + '</span>',
-        '</div>',
-      ].join('');
-    }).join('');
+    const notes = order.notes ? esc(order.notes) : '—';
 
-    const addressHtml = shippingAddress ? [
-      '<br><br>',
-      '<span style="font-size:12px;" dir="auto">',
-      esc(shippingAddress.address1 ?? '') + '<br>',
-      esc((shippingAddress.city ?? '') + ' ' + (shippingAddress.province ?? '')) + '<br>',
-      esc(shippingAddress.country ?? ''),
-      '</span>',
-    ].join('') : '';
+    const html = `<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Bon de livraison ${esc(barcodeValue)}</title>
+<style>
+  @page { size: A5 landscape; margin: 6mm; }
 
-    const notesHtml = order.notes ? [
-      '<div style="border:1px solid #ddd;border-radius:4px;padding:10px;margin-bottom:15px;">',
-      '<p style="font-size:11px;text-transform:uppercase;color:#666;margin-bottom:4px;">Note</p>',
-      '<p style="font-size:12px;" dir="auto">' + esc(order.notes) + '</p>',
-      '</div>',
-    ].join('') : '';
+  * { margin: 0; padding: 0; box-sizing: border-box; }
 
-    const html = [
-      '<!DOCTYPE html>',
-      '<html>',
-      '<head>',
-      '<meta charset="utf-8">',
-      '<style>',
-      '* { margin: 0; padding: 0; box-sizing: border-box; }',
-      'body { font-family: Tahoma, Arial, "Noto Sans Arabic", sans-serif; font-size: 12px; color: #000; }',
-      '@page { size: A4; margin: 12mm; }',
-      '@media print { .product-row, .total-section, .qr-section { page-break-inside: avoid; } }',
-      '.bordereau { width: 100%; max-width: 800px; margin: 0 auto; padding: 20px; }',
-      '.header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 15px; }',
-      '.logo { font-size: 24px; font-weight: bold; }',
-      '.order-number { font-size: 20px; font-weight: bold; text-align: right; }',
-      '.qr-section { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; }',
-      '.client-info { flex: 1; }',
-      '.client-info h3 { font-size: 11px; text-transform: uppercase; color: #666; margin-bottom: 8px; }',
-      '.client-info p { font-size: 13px; font-weight: bold; margin-bottom: 4px; }',
-      '.client-info span { font-size: 12px; color: #333; }',
-      '.qr-code { text-align: center; }',
-      '.qr-code img { width: 120px; height: 120px; }',
-      '.qr-code p { font-size: 10px; color: #666; margin-top: 4px; }',
-      '.products { border: 1px solid #ddd; border-radius: 4px; margin-bottom: 15px; }',
-      '.products h3 { font-size: 11px; text-transform: uppercase; color: #666; padding: 8px 12px; border-bottom: 1px solid #ddd; background: #f9f9f9; }',
-      '.product-row { display: flex; justify-content: space-between; padding: 8px 12px; border-bottom: 1px solid #eee; }',
-      '.product-row:last-child { border-bottom: none; }',
-      '.product-name { flex: 1; font-size: 12px; }',
-      '.product-qty { font-size: 12px; color: #666; margin: 0 15px; }',
-      '.product-price { font-size: 12px; font-weight: bold; }',
-      '.total-section { background: #f0f0f0; border-radius: 4px; padding: 12px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }',
-      '.total-label { font-size: 14px; font-weight: bold; }',
-      '.total-amount { font-size: 22px; font-weight: bold; color: #000; }',
-      '.footer { border-top: 1px solid #ddd; padding-top: 10px; display: flex; justify-content: space-between; font-size: 10px; color: #666; }',
-      '.badge { display: inline-block; background: #000; color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; }',
-      '.divider { border: none; border-top: 1px dashed #ccc; margin: 15px 0; }',
-      '</style>',
-      '</head>',
-      '<body>',
-      '<div class="bordereau">',
+  body {
+    font-family: "Segoe UI", Tahoma, "Noto Sans Arabic", Arial, sans-serif;
+    font-size: 11px;
+    color: #000;
+    background: #fff;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
 
-      '<div class="header">',
-      '<div>',
-      '<div class="logo">Orderly</div>',
-      '<p style="font-size:11px;color:#666;margin-top:4px;">' + esc(order.store.name) + '</p>',
-      '<span class="badge">Bordereau d’expédition</span>',
-      '</div>',
-      '<div class="order-number">',
-      '<p>' + esc(order.orderNumber) + '</p>',
-      '<p style="font-size:12px;font-weight:normal;color:#666;margin-top:4px;">' + new Date(order.sourceCreatedAt).toLocaleDateString('fr-FR') + '</p>',
-      '</div>',
-      '</div>',
+  .sheet { width: 100%; max-width: 190mm; margin: 0 auto; }
 
-      '<div class="qr-section">',
-      '<div class="client-info">',
-      '<h3>Informations client</h3>',
-      '<p dir="auto">' + esc(order.customerName ?? '-') + '</p>',
-      '<span>' + esc(order.customerPhone ?? '-') + '</span>',
-      addressHtml,
-      '</div>',
-      '<div class="qr-code">',
-      '<img src="' + qrCodeBase64 + '" alt="QR Code" />',
-      '<p>Scanner pour mise à jour du statut</p>',
-      '<p style="font-weight:bold;margin-top:4px;">' + esc(order.orderNumber) + '</p>',
-      '</div>',
-      '</div>',
+  .box {
+    border: 2px solid #000;
+    border-radius: 7px;
+    padding: 7px 10px;
+    margin-bottom: 7px;
+  }
 
-      '<hr class="divider" />',
+  /* ---------- bandeau haut ---------- */
+  .top { display: table; width: 100%; table-layout: fixed; }
+  .top > div { display: table-cell; vertical-align: middle; }
+  .top-bc  { width: 38%; }
+  .top-bc img { width: 100%; max-height: 74px; object-fit: contain; display: block; }
+  .top-city {
+    width: 38%;
+    text-align: center;
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1.05;
+    padding: 0 6px;
+    /* le nom de ville ne doit jamais sortir du cadre */
+    overflow-wrap: anywhere;
+    hyphens: auto;
+  }
+  .top-qr  { width: 24%; text-align: right; }
+  .top-qr img { width: 74px; height: 74px; display: inline-block; }
 
-      exchangeHtml,
+  /* ---------- n° BLF ---------- */
+  .blf {
+    text-align: center;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    padding: 6px 10px;
+  }
 
-      '<div class="products">',
-      '<h3>Articles commandés</h3>',
-      lineItemsHtml,
-      '</div>',
+  /* ---------- deux colonnes ---------- */
+  .cols { display: table; width: 100%; table-layout: fixed; border-spacing: 7px 0; margin: 0 -7px 7px; }
+  .cols > div { display: table-cell; width: 50%; vertical-align: top; }
 
-      '<div class="total-section">',
-      '<span class="total-label">Montant à encaisser (COD)</span>',
-      '<span class="total-amount">' + Number(order.total).toFixed(3) + ' ' + esc(order.currency) + '</span>',
-      '</div>',
+  .kv { display: table; width: 100%; }
+  .kv-row { display: table-row; }
+  .kv-k {
+    display: table-cell;
+    font-weight: 700;
+    white-space: nowrap;
+    padding: 2px 8px 2px 0;
+    vertical-align: top;
+    width: 1%;
+  }
+  .kv-v { display: table-cell; padding: 2px 0; vertical-align: top; overflow-wrap: anywhere; }
+  .phone { font-size: 14px; font-weight: 700; letter-spacing: 0.4px; }
 
-      notesHtml,
+  /* ---------- contenu ---------- */
+  table.items { width: 100%; border-collapse: collapse; }
+  table.items th {
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    text-align: left;
+    padding: 0 6px 5px 0;
+    border-bottom: 1.5px solid #000;
+  }
+  table.items td { padding: 5px 6px 5px 0; vertical-align: top; border-bottom: 1px solid #ddd; }
+  table.items tr:last-child td { border-bottom: none; }
+  .d { width: 64%; overflow-wrap: anywhere; }
+  .q { width: 16%; text-align: center; }
+  .m { width: 20%; text-align: right; font-weight: 700; white-space: nowrap; }
+  .items-foot { border-top: 1.5px solid #000; }
+  .items-foot td { padding-top: 6px; font-size: 13px; font-weight: 700; }
 
-      '<div class="footer">',
-      '<span>Généré le ' + new Date().toLocaleString('fr-FR') + '</span>',
-      '<span>ID : ' + esc(order.id) + '</span>',
-      '<span>' + esc(order.store.name) + '</span>',
-      '</div>',
+  /* ---------- bas ---------- */
+  .bottom { display: table; width: 100%; table-layout: fixed; }
+  .bottom > div { display: table-cell; vertical-align: top; }
+  .instr { width: 74%; padding-right: 8px; }
+  .instr .line { border-bottom: 1px solid #999; padding: 4px 0 6px; min-height: 20px; overflow-wrap: anywhere; }
+  .sign { width: 26%; text-align: center; font-size: 9px; }
+  .sign .pad { height: 42px; border: 1px dashed #999; border-radius: 5px; margin-top: 3px; }
 
-      '</div>',
-      '</body>',
-      '</html>',
-    ].join('\n');
+  .box-title { font-size: 11px; font-weight: 700; margin-bottom: 3px; }
+  .exchange { background: #f0f0f0; }
+  .exchange-items { font-size: 12px; font-weight: 700; overflow-wrap: anywhere; }
+
+  .foot-note { margin-top: 5px; font-size: 8.5px; color: #555; text-align: center; }
+
+  @media print {
+    .box, table.items tr, .bottom { page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="sheet">
+
+  <div class="box">
+    <div class="top">
+      <div class="top-bc">
+        ${barcodeImg ? `<img src="${barcodeImg}" alt="">` : `<div style="font-family:monospace;font-size:16px;font-weight:700">${esc(barcodeValue)}</div>`}
+      </div>
+      <div class="top-city" dir="auto">${city}</div>
+      <div class="top-qr"><img src="${qrImg}" alt=""></div>
+    </div>
+  </div>
+
+  <div class="box blf">BON DE LIVRAISON N° ${esc(barcodeValue)}</div>
+
+  <div class="cols">
+    <div>
+      <div class="box" style="margin:0">
+        <div class="kv">
+          <div class="kv-row"><div class="kv-k">Date BLF :</div><div class="kv-v">${date}</div></div>
+          <div class="kv-row"><div class="kv-k">Destination :</div><div class="kv-v" dir="auto"><b>${city}</b></div></div>
+          <div class="kv-row"><div class="kv-k">Magasin :</div><div class="kv-v" dir="auto">${esc(order.store.name)}</div></div>
+          <div class="kv-row"><div class="kv-k">Commande :</div><div class="kv-v">${esc(order.orderNumber)}</div></div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="box" style="margin:0">
+        <div class="kv">
+          <div class="kv-row"><div class="kv-k">Destinataire :</div><div class="kv-v" dir="auto"><b>${esc(order.customerName ?? '—')}</b></div></div>
+          <div class="kv-row"><div class="kv-k">Adresse :</div><div class="kv-v" dir="auto">${addressText}</div></div>
+          <div class="kv-row"><div class="kv-k">Téléphone :</div><div class="kv-v phone">${esc(order.customerPhone ?? '—')}</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  ${exchangeHtml}
+
+  <div class="box">
+    <table class="items">
+      <thead>
+        <tr>
+          <th>Désignation — contenu du colis</th>
+          <th style="text-align:center">Quantité</th>
+          <th style="text-align:right">Montant TTC</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows}
+        <tr class="items-foot">
+          <td colspan="2"><b>Montant à encaisser</b></td>
+          <td class="m">${Number(order.total).toFixed(2)} ${esc(order.currency)}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="bottom">
+    <div class="instr">
+      <div class="box" style="margin:0">
+        <div class="box-title">Instructions diverses</div>
+        <div class="line" dir="auto">${notes}</div>
+      </div>
+    </div>
+    <div class="sign">
+      <div class="box" style="margin:0">
+        <div class="box-title" style="font-size:9px">Signature client</div>
+        <div class="pad"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot-note">Généré le ${new Date().toLocaleString('fr-FR')}</div>
+
+</div>
+</body>
+</html>`;
 
     return Buffer.from(html, 'utf-8');
   }
