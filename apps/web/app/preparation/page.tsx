@@ -819,26 +819,15 @@ async function changeStatus(orderId: string, status: OrderStatus) {
       });
       const data = await res.json();
 
-      if (data.source === "cosmos" && data.labelUrl) {
-        // Mobile browsers often block window.open in async callbacks
-        const isMobile = window.innerWidth < 768;
-        if (isMobile) {
-          window.location.href = data.labelUrl;
-        } else {
-          window.open(data.labelUrl, "_blank");
-        }
-      } else {
-        if (data.cosmosError) {
-          alert(
-            `Colis Cosmos non cree : ${data.cosmosError}\n\n` +
-            `Le bordereau Orderly est utilise a la place.` +
-            (data.acceptedCities
-              ? `\n\nVilles acceptees : ${data.acceptedCities.join(", ")}`
-              : "")
-          );
-        }
-        openBordereau(order.id);
+      if (data.cosmosError) {
+        alert(
+          `Colis Cosmos non créé : ${data.cosmosError}` +
+          (data.acceptedCities
+            ? `\n\nVilles acceptées : ${data.acceptedCities.join(", ")}`
+            : "")
+        );
       }
+      openBordereau(order.id);
 
          // Refresh only this order
          try {
