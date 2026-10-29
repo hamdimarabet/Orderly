@@ -231,19 +231,19 @@ export class CosmosService {
     const config = await this.getConfig(storeId);
     if (!config?.token) return { ok: false, error: 'Cosmos non configure' };
 
+       // Tout colis confié à Cosmos qui n'est pas dans un état final.
+    // Filtrer par orderStatus faisait sauter les commandes restées en
+    // EN_PREPARATION / IMPRIME : elles ne se synchronisaient jamais.
     const orders = await this.prisma.order.findMany({
       where: {
         storeId,
-        orderStatus: {
-          in: [
-            'AU_DEPOT_LIVREUR', 'EN_COURS_DE_LIVRAISON', 'LIVRE',
-            'RETOUR', 'RETOUR_DEPOT', 'A_VERIFIER', 'EMBALLE',
-          ],
+        fulfillments: {
+          some: { carrier: 'COSMOS', deliveryPartnerRef: { not: null } },
         },
+        orderStatus: { notIn: ['PAYE', 'RETOUR_RECU', 'ARCHIVE', 'ANNULE'] },
       },
       include: { fulfillments: { where: { carrier: 'COSMOS' }, take: 1 } },
     });
-
     const withBarcode = orders.filter((o) => o.fulfillments[0]?.deliveryPartnerRef);
     if (withBarcode.length === 0) return { ok: true, checked: 0, updated: 0 };
 
@@ -270,8 +270,14 @@ export class CosmosService {
 
         for (const item of items) {
           checked++;
-          const ref = String(item.id ?? '');
-          const order = batch.find((o) => o.fulfillments[0]?.deliveryPartnerRef === ref);
+                    // Cosmos peut renvoyer notre référence externe au lieu de son ID
+          // 12 chiffres selon le champ : on essaie les trois.
+          const refs = [item.id, item.barcode, item.integrationBarcode]
+            .filter(Boolean)
+            .map((v: any) => String(v));
+          const order = batch.find((o) =>
+            refs.includes(String(o.fulfillments[0]?.deliveryPartnerRef ?? '')),
+          );
           if (!order) continue;
 
           let mapped = STATUS_MAP[String(item.status ?? '').toLowerCase()];
