@@ -15,7 +15,7 @@ import {
   type Period,
 } from "@/components/stats/period-filter";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { RouteGuard } from "@/components/auth/route-guard";
 import { useStores } from "@/lib/stores-context";
@@ -313,7 +313,7 @@ function StatusDropdown({
 }
 
 function FulfillmentContent() {
-  const { canAccessStore, hasPermission } = useAuth();
+  const { canAccessStore, hasPermission, user: currentUser } = useAuth();
   const { stores } = useStores();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -328,6 +328,13 @@ function FulfillmentContent() {
   const [serverStats, setServerStats] = useState<any>({ total: 0 });
   const [agentFilter, setAgentFilter] = useState<string>("");
   const [agents, setAgents] = useState<any[]>([]);
+    // Par défaut un agent ne voit que ses commandes.
+    const didInitAgent = useRef(false);
+    useEffect(() => {
+      if (didInitAgent.current || !currentUser?.id) return;
+      didInitAgent.current = true;
+      if (currentUser.role !== "SUPER_ADMIN") setAgentFilter(currentUser.id);
+    }, [currentUser]);
 
   useEffect(() => {
     fetch(`${API}/dispatch/agents`, {

@@ -16,7 +16,7 @@ import {
   type Period,
 } from "@/components/stats/period-filter";
 import { ProductPicker, StorePicker, useStoreProducts, type StoreProduct } from "@/components/orders/product-picker";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { RouteGuard } from "@/components/auth/route-guard";
 import { useStores } from "@/lib/stores-context";
@@ -740,6 +740,13 @@ function PreparationContent() {
   const [serverTotalPages, setServerTotalPages] = useState(1);
   const { user: currentUser } = useAuth();
   const [agentFilter, setAgentFilter] = useState<string>("");
+    // Par défaut un agent ne voit que ses commandes.
+    const didInitAgent = useRef(false);
+    useEffect(() => {
+      if (didInitAgent.current || !currentUser?.id) return;
+      didInitAgent.current = true;
+      if (currentUser.role !== "SUPER_ADMIN") setAgentFilter(currentUser.id);
+    }, [currentUser]);
   const [printedTab, setPrintedTab] = useState<"todo" | "printed">("todo");
   const [agents, setAgents] = useState<any[]>([]);
   const [serverStats, setServerStats] = useState<any>({ total: 0 });

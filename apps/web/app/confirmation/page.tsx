@@ -16,7 +16,7 @@ import {
 } from "@/components/stats/period-filter";
 import { ProductPicker, StorePicker, useStoreProducts, type StoreProduct } from "@/components/orders/product-picker";
 import { MentionInput, MentionText, processMentions } from "@/components/ui/mention-input";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { RouteGuard } from "@/components/auth/route-guard";
 import { useStores } from "@/lib/stores-context";
@@ -1655,7 +1655,7 @@ function OrderModal({
 const PAGE_SIZE = 100;
 
 function ConfirmationContent() {
-  const { canAccessStore, hasPermission } = useAuth();
+ const { canAccessStore, hasPermission, user: currentUser } = useAuth();
   const { stores } = useStores();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1699,6 +1699,13 @@ function ConfirmationContent() {
   const [agentFilter, setAgentFilter] = useState<string>("");
   const [attemptFilter, setAttemptFilter] = useState<string>(""); 
   const [agents, setAgents] = useState<any[]>([]);
+    // Par défaut un agent ne voit que ses commandes.
+  const didInitAgent = useRef(false);
+  useEffect(() => {
+    if (didInitAgent.current || !currentUser?.id) return;
+    didInitAgent.current = true;
+    if (currentUser.role !== "SUPER_ADMIN") setAgentFilter(currentUser.id);
+  }, [currentUser]);
 
   useEffect(() => {
     fetch(`${API}/dispatch/agents`, {
