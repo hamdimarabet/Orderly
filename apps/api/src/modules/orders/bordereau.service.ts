@@ -63,7 +63,7 @@ const STYLES = `
   table.items tr:last-child td { border-bottom: none; }
   .d { width: 64%; overflow-wrap: anywhere; }
   .q { width: 16%; text-align: center; }
-  .m { width: 20%; text-align: right; font-weight: 700; white-space: nowrap; }
+  .m { width: 24%; text-align: right; font-weight: 700; font-size: 13px; white-space: nowrap; }
   .items-foot { border-top: 1.5px solid #000; }
   .items-foot td { padding-top: 6px; font-size: 13px; font-weight: 700; }
 
@@ -77,6 +77,18 @@ const STYLES = `
   .box-title { font-size: 11px; font-weight: 700; margin-bottom: 3px; }
   .exchange { background: #f0f0f0; }
   .exchange-items { font-size: 12px; font-weight: 700; overflow-wrap: anywhere; }
+
+  /* ---------- en-tête transporteur ---------- */
+  .carrier { display: table; width: 100%; table-layout: fixed; margin-bottom: 8px; }
+  .carrier > div { display: table-cell; vertical-align: top; }
+  .carrier-logo { width: 26%; font-size: 17px; font-weight: 800; letter-spacing: -0.3px; }
+  .carrier-from { width: 50%; font-size: 9px; }
+  .carrier-from .k { font-weight: 700; display: inline-block; min-width: 54px; }
+  .carrier-date { width: 24%; text-align: right; font-size: 9.5px; }
+
+  /* ---------- code-barres bas ---------- */
+  .bottom-bc { text-align: center; margin-top: 9px; }
+  .bottom-bc img { width: 62%; max-height: 58px; object-fit: contain; display: inline-block; }
 
   .foot-note { margin-top: 5px; font-size: 8.5px; color: #555; text-align: center; }
 
@@ -138,7 +150,7 @@ ${sheets.join('\n')}
       where: { id: orderId },
       include: {
         lineItems: true,
-        store: { select: { name: true } },
+        store: true,
       },
     });
 
@@ -187,18 +199,6 @@ ${sheets.join('\n')}
     );
     const date = new Date(order.sourceCreatedAt).toLocaleDateString('fr-FR');
 
-    const rows = order.lineItems
-      .map((li) => {
-        const title = esc(li.title + (li.variantTitle ? ' — ' + li.variantTitle : ''));
-        const amount = (Number(li.price) * li.quantity).toFixed(2);
-        return `
-          <tr>
-            <td class="d" dir="auto">${title}</td>
-            <td class="q">${li.quantity}</td>
-            <td class="m">${amount}</td>
-          </tr>`;
-      })
-      .join('');
 
     let exchangeHtml = '';
     if (order.internalNote) {
@@ -234,8 +234,32 @@ ${sheets.join('\n')}
     const isFragile = false;
     const phone2 = (order as any).customerPhone2 ?? null;
 
+    // Expéditeur = le magasin. Le dépôt (Ariana-1 etc.) est attribué par Cosmos
+    // et n'est exposé par aucun de leurs endpoints, donc impossible à reproduire.
+    const st: any = order.store ?? {};
+    const fromName = esc(st.name ?? '—');
+    const fromAddress = esc(st.address ?? st.addressLine ?? '');
+    const fromPhone = esc(st.phone ?? st.phoneNumber ?? '');
+
+    // Cosmos imprime le contenu en une seule ligne, comme on le leur envoie.
+    const contentLine = esc(
+      order.lineItems
+        .map((li) => `${li.title}${li.variantTitle ? ' - ' + li.variantTitle : ''} x${li.quantity}`)
+        .join(', ') || 'Commande',
+    );
+
     return `
 <div class="sheet">
+
+  <div class="carrier">
+    <div class="carrier-logo">COSMOS</div>
+    <div class="carrier-from">
+      <div><span class="k">Expéditeur :</span> <span dir="auto">${fromName}</span></div>
+      ${fromAddress ? `<div><span class="k">Adresse :</span> <span dir="auto">${fromAddress}</span></div>` : ''}
+      ${fromPhone ? `<div><span class="k">Téléphone :</span> ${fromPhone}</div>` : ''}
+    </div>
+    <div class="carrier-date">Date : ${date}</div>
+  </div>
 
   <div class="box">
     <div class="top">
@@ -287,9 +311,9 @@ ${sheets.join('\n')}
         </tr>
       </thead>
       <tbody>
-        ${rows}
-        <tr class="items-foot">
-          <td colspan="2"><b>Montant à encaisser</b></td>
+        <tr>
+          <td class="d" dir="auto">${contentLine}</td>
+          <td class="q">${quantity}</td>
           <td class="m">${Number(order.total).toFixed(2)} ${esc(order.currency)}</td>
         </tr>
       </tbody>
@@ -309,6 +333,8 @@ ${sheets.join('\n')}
       </div>
     </div>
   </div>
+
+  ${barcodeImg ? `<div class="bottom-bc"><img src="${barcodeImg}" alt=""></div>` : ''}
 
   <div class="foot-note">Généré le ${new Date().toLocaleString('fr-FR')}</div>
 
