@@ -328,6 +328,10 @@ function FulfillmentContent() {
   const [serverStats, setServerStats] = useState<any>({ total: 0 });
   const [agentFilter, setAgentFilter] = useState<string>("");
   const [agents, setAgents] = useState<any[]>([]);
+  const [showStats, setShowStats] = useState(false);
+  useEffect(() => {
+    try { setShowStats(window.localStorage.getItem("orderly_fulfil_stats") === "1"); } catch {}
+  }, []);
     // Par défaut un agent ne voit que ses commandes.
     const didInitAgent = useRef(false);
     useEffect(() => {
@@ -498,8 +502,30 @@ function FulfillmentContent() {
           <PeriodFilter period={period} onChange={setPeriod} />
         </div>
 
+              {/* Barre compacte — toujours visible */}
+              {hasPermission("stats") && (
+          <button
+            onClick={() => {
+              const v = !showStats;
+              setShowStats(v);
+              try { window.localStorage.setItem("orderly_fulfil_stats", v ? "1" : "0"); } catch {}
+            }}
+            className="flex w-full items-center gap-3 border-b border-border bg-surface px-3 py-2 text-left md:px-5"
+          >
+            <ChevronDown className={cn("h-4 w-4 shrink-0 text-muted transition-transform", showStats && "rotate-180")} />
+            <span className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+              <span className="text-muted">Total <b className="text-foreground">{statsTotal}</b></span>
+              <span className="text-status-processing">En cours <b>{enCoursCount}</b></span>
+              <span className="text-status-delivered">Livrés <b>{livrePaidCount}</b></span>
+              <span className="text-status-delivered">Payés <b>{paidCount}</b></span>
+              <span className="text-status-cancelled">Retours <b>{retourCount}</b></span>
+              <span className="text-primary">Taux <b>{tauxLivraison}%</b></span>
+            </span>
+          </button>
+        )}
+
         {/* Stats */}
-        {hasPermission("stats") && (
+        {showStats && hasPermission("stats") && (
         <div className="grid grid-cols-3 gap-1.5 border-b border-border bg-surface p-2 md:grid-cols-6 md:gap-3 md:p-4">
           <StatCard className="" label="Total" value={statsTotal} color="gray" />
           <StatCard className="" label="En cours" value={enCoursCount} total={statsTotal} color="blue" />
@@ -522,7 +548,7 @@ function FulfillmentContent() {
         </div>
         )}
         {/* Revenue row */}
-        {hasPermission("stats_revenue") && (
+        {showStats && hasPermission("stats_revenue") && (
         <div className="grid grid-cols-1 gap-2 border-b border-border bg-surface px-3 pb-3 md:grid-cols-3 md:gap-3 md:px-5 md:pb-4">
           <div className="rounded-lg bg-status-delivered-bg px-4 py-3">
             <p className="text-[11px] font-medium text-status-delivered">CA encaissé (payé)</p>
