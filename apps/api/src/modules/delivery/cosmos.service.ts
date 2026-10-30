@@ -527,4 +527,37 @@ export class CosmosService {
 
     return { ok: true, checked: rows.length, fixed };
   }
+    /** PUT /orders/printed — marque les colis comme imprimés chez Cosmos. */
+    async markPrinted(storeId: string, barcodes: string[], printed = true) {
+      const config = await this.getConfig(storeId);
+      if (!config?.token) return { ok: false, error: 'Cosmos non configure' };
+      if (!barcodes.length) {
+        return { ok: true, updated: [], unchanged: [], notFound: [], notPending: [] };
+      }
+  
+      try {
+        const res = await fetch(`${COSMOS_BASE}/orders/printed`, {
+          method: 'PUT',
+          headers: {
+            Authorization: `Bearer ${config.token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ barcodes: barcodes.slice(0, 100), printed }),
+        });
+  
+        const data: any = await res.json().catch(() => ({}));
+        if (!res.ok) return { ok: false, error: data?.message ?? `HTTP ${res.status}` };
+  
+        const d = data?.data ?? data;
+        return {
+          ok: true,
+          updated: d?.updated ?? [],
+          unchanged: d?.unchanged ?? [],
+          notFound: d?.notFound ?? [],
+          notPending: d?.notPending ?? [],
+        };
+      } catch (e: any) {
+        return { ok: false, error: e?.message ?? 'Erreur reseau' };
+      }
+    }
 }

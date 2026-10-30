@@ -751,6 +751,22 @@ export class OrdersService {
 
     const result = await this.cosmos.createShipment(orderId, actorId);
 
+    // Le bordereau sort de l'imprimante dans la foulée : on le signale
+    // immédiatement à Cosmos pour qu'il ne reste pas « à imprimer » chez eux.
+    if (result.ok) {
+      this.prisma.fulfillment
+        .findFirst({
+          where: { orderId, carrier: 'COSMOS' },
+          select: { deliveryPartnerRef: true },
+        })
+        .then((f) => {
+          if (f?.deliveryPartnerRef) {
+            return this.cosmos.markPrinted(order.storeId, [String(f.deliveryPartnerRef)]);
+          }
+        })
+        .catch(() => {});
+    }
+
     if (!result.ok) {
       return {
         ok: true,

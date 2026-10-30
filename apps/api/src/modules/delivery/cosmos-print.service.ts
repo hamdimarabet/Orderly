@@ -4,16 +4,15 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CosmosService } from './cosmos.service';
 
 /**
- * Cosmos n'expose aucun endpoint pour changer le statut d'une commande.
- * Le seul geste qui touche une étiquette est GET /labels.
+ * Marque chez Cosmos les colis dont le bordereau a déjà été imprimé dans
+ * Orderly, via PUT /orders/printed.
  *
- * Hypothèse : leur tableau de bord considère un colis comme imprimé une fois
- * son étiquette générée. On génère donc l'étiquette dès que le colis passe en
- * EMBALLE, et on jette le PDF — l'équipe continue d'imprimer le bordereau
- * Orderly, mais Cosmos enregistre l'impression de son côté.
+ * Le bordereau est imprimé au moment du bouton « Imprimer » (EN_PREPARATION),
+ * donc dès cet instant le colis ne doit plus apparaître « à imprimer » chez eux.
  *
- * Si après test le tableau de bord affiche toujours "à imprimer", c'est que
- * leur règle est ailleurs et seul Cosmos peut la changer.
+ * Cosmos n'accepte le changement que sur les commandes encore en "pending" ou
+ * "to-be-picked" : une fois ramassées elles reviennent dans notPending, ce qui
+ * est normal et sans conséquence.
  */
 @Injectable()
 export class CosmosPrintService {
@@ -35,60 +34,91 @@ export class CosmosPrintService {
         where: {
           carrier: 'COSMOS',
           deliveryPartnerRef: { not: null },
-          order: { orderStatus: 'EMBALLE' },
+          order: {
+            orderStatus: { in: ['EN_PREPARATION', 'IMPRIME', 'EMBALLE'] },
+          },
         },
         select: {
           orderId: true,
           deliveryPartnerRef: true,
-          order: { select: { storeId: true, orderNumber: true } },
+          order: { select: { storeId: true } },
         },
-        take: 50,
+        take: 400,
       });
 
       if (!candidates.length) return;
 
-      // celles dont l'étiquette a déjà été générée
-      const alreadyDone = await this.prisma.orderEvent.findMany({
+      // on ne repasse pas sur celles déjà marquées
+      const done = await this.prisma.orderEvent.findMany({
         where: {
           orderId: { in: candidates.map((c) => c.orderId) },
-          eventType: 'cosmos_label_fetched',
+          eventType: 'cosmos_marked_printed',
         },
         select: { orderId: true },
       });
-      const doneSet = new Set(alreadyDone.map((e) => e.orderId));
+      const doneSet = new Set(done.map((e) => e.orderId));
 
       const todo = candidates.filter((c) => !doneSet.has(c.orderId));
       if (!todo.length) return;
 
-      let ok = 0;
+      // Cosmos résout les barcodes par compte : on groupe par magasin
+      const byStore = new Map<string, typeof todo>();
       for (const c of todo) {
-        try {
-          const res = await this.cosmos.fetchLabel(
-            c.order.storeId,
-            String(c.deliveryPartnerRef),
-            'pdf',
+        const key = c.order.storeId;
+        if (!byStore.has(key)) byStore.set(key, []);
+        byStore.get(key)!.push(c);
+      }
+
+      let ok = 0;
+
+      for (const [storeId, list] of byStore) {
+        // 100 barcodes maximum par appel
+        for (let i = 0; i < list.length; i += 100) {
+          const batch = list.slice(i, i + 100);
+          const barcodes = batch.map((c) => String(c.deliveryPartnerRef));
+
+          const res: any = await this.cosmos.markPrinted(storeId, barcodes);
+
+          if (!res.ok) {
+            this.logger.warn(`store ${storeId}: ${res.error}`);
+            continue;
+          }
+
+          // updated + unchanged + notPending = traité, inutile d'y revenir.
+          // notFound = le colis n'existe pas chez eux, on ne marque pas pour
+          // pouvoir réessayer si le parcel est recréé plus tard.
+          const settled = new Set<string>([
+            ...(res.updated ?? []),
+            ...(res.unchanged ?? []),
+            ...(res.notPending ?? []),
+          ].map(String));
+
+          const toRecord = batch.filter((c) =>
+            settled.has(String(c.deliveryPartnerRef)),
           );
 
-          await this.prisma.orderEvent.create({
-            data: {
-              orderId: c.orderId,
-              eventType: res.ok ? 'cosmos_label_fetched' : 'cosmos_label_error',
-              payload: {
-                barcode: c.deliveryPartnerRef,
-                ok: res.ok,
-                error: res.ok ? null : (res as any).error ?? null,
-              },
-              actor: 'system',
-            },
-          });
+          if (toRecord.length) {
+            await this.prisma.orderEvent.createMany({
+              data: toRecord.map((c) => ({
+                orderId: c.orderId,
+                eventType: 'cosmos_marked_printed',
+                payload: { barcode: c.deliveryPartnerRef },
+                actor: 'system',
+              })),
+            });
+          }
 
-          if (res.ok) ok++;
-        } catch (e: any) {
-          this.logger.warn(`${c.order.orderNumber}: ${e.message}`);
+          ok += (res.updated ?? []).length;
+
+          if ((res.notFound ?? []).length) {
+            this.logger.warn(
+              `introuvables chez Cosmos : ${(res.notFound ?? []).join(', ')}`,
+            );
+          }
         }
       }
 
-      this.logger.log(`étiquettes générées chez Cosmos : ${ok}/${todo.length}`);
+      this.logger.log(`marqués imprimés chez Cosmos : ${ok}/${todo.length}`);
     } catch (e: any) {
       this.logger.error(`markPrinted: ${e.message}`);
     } finally {
