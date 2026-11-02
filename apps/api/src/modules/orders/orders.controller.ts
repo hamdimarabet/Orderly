@@ -30,6 +30,7 @@ export class OrdersController {
     @Query('agentId') agentId?: string,
     @Query('prepAgentId') prepAgentId?: string,
     @Query('attemptLevel') attemptLevel?: string,
+    @Query('scheduleMode') scheduleMode?: string,
   ) {
     // Agents without the assign permission only see their own orders
     const user = req?.user;
@@ -52,6 +53,7 @@ export class OrdersController {
       agentId,
       prepAgentId: prepAgentId === 'self' ? undefined : prepAgentId,
       attemptLevel: attemptLevel ? parseInt(attemptLevel) : undefined,
+      scheduleMode: scheduleMode as any,
     });
   }
   @Get(':id/label')

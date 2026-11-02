@@ -747,7 +747,7 @@ function PreparationContent() {
       didInitAgent.current = true;
       if (currentUser.role !== "SUPER_ADMIN") setAgentFilter(currentUser.id);
     }, [currentUser]);
-  const [printedTab, setPrintedTab] = useState<"todo" | "printed">("todo");
+    const [printedTab, setPrintedTab] = useState<"todo" | "scheduled" | "printed">("todo");
   const [agents, setAgents] = useState<any[]>([]);
   const [serverStats, setServerStats] = useState<any>({ total: 0 });
 
@@ -776,11 +776,12 @@ function PreparationContent() {
         storeIds: selectedStoreIds.join(","),
         page: String(page),
         pageSize: String(PAGE_SIZE),
-        orderStatus: printedTab === "todo"
-        ? "A_PREPARER,ECHANGE"
-        : "EN_PREPARATION,EMBALLE",
-  
+        orderStatus: printedTab === "printed"
+        ? "EN_PREPARATION,EMBALLE"
+        : "A_PREPARER,ECHANGE",
       });
+      if (printedTab === "todo") params.set("scheduleMode", "due");
+      if (printedTab === "scheduled") params.set("scheduleMode", "later");
       if (search) params.set("search", search);
       if (period.from) params.set("from", period.from.toISOString());
       if (period.to) params.set("to", period.to.toISOString());
@@ -1065,8 +1066,9 @@ async function changeStatus(orderId: string, status: OrderStatus) {
                 
 
 <div className="flex gap-1 border-b border-border bg-surface px-3 py-2 md:px-5">
-  {[
+{[
     { key: "todo", label: "À imprimer" },
+    { key: "scheduled", label: "Programmées" },
     { key: "printed", label: "Déjà imprimées" },
   ].map((t) => (
     <button
@@ -1279,6 +1281,12 @@ async function changeStatus(orderId: string, status: OrderStatus) {
                     </td>
                     <td className="px-4 py-3 text-xs text-muted whitespace-nowrap">
                       {formatDate(order.sourceCreatedAt)}
+                      {order.scheduledDeliveryDate && (
+                        <span className="mt-0.5 flex items-center gap-1 text-[11px] font-medium text-amber-700">
+                          <Calendar className="h-3 w-3" />
+                          {formatDate(order.scheduledDeliveryDate as any)}
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <p className="font-medium truncate max-w-[130px]">{order.customerName ?? "—"}</p>

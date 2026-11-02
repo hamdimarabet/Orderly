@@ -33,6 +33,7 @@ export class OrdersService {
     prepAgentId?: string;
     attemptLevel?: number;
     statsStatus?: OrderStatus[];
+    scheduleMode?: 'due' | 'later';
   }) {
     const {
       storeIds,
@@ -50,6 +51,7 @@ export class OrdersService {
       prepAgentId,
       attemptLevel,
       statsStatus,
+      scheduleMode,
     } = query;
 
     const where: Prisma.OrderWhereInput = {
@@ -74,6 +76,27 @@ export class OrdersService {
         ],
       }),
     };
+
+    // Commandes programmees : elles n'entrent en preparation que 2 jours avant
+    // la date de livraison prevue. Avant ca elles restent dans « Programmees ».
+    const SCHEDULE_LEAD_DAYS = 2;
+    if (scheduleMode) {
+      const cutoff = new Date(Date.now() + SCHEDULE_LEAD_DAYS * 86_400_000);
+      if (scheduleMode === 'due') {
+        (where as any).AND = [
+          ...((where as any).AND ?? []),
+          {
+            OR: [
+              { scheduledDeliveryDate: null },
+              { scheduledDeliveryDate: { lte: cutoff } },
+            ],
+          },
+        ];
+      } else {
+        (where as any).scheduledDeliveryDate = { gt: cutoff };
+      }
+    }
+
        // Stats always use the unfiltered scope
        const statsWhere = { ...where };
 
