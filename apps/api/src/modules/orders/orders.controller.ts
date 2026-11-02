@@ -58,6 +58,17 @@ export class OrdersController {
   getLabel(@Param('id') id: string) {
     return this.orders.getLabel(id);
   }
+  @Get('print/bordereaux')
+  @SetMetadata('isPublic', true)
+  async printBordereaux(@Query('ids') ids: string, @Res() res: Response) {
+    const list = (ids ?? '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const buf = await this.bordereauService.generateBordereaux(list);
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(buf);
+  }
   @Get(':id/bordereau')
   @SetMetadata('isPublic', true)
   async getBordereau(

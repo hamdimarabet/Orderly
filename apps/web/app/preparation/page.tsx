@@ -874,63 +874,72 @@ async function changeStatus(orderId: string, status: OrderStatus) {
   }
 
   async function printBulk() {
-    const ids = Array.from(selectedIds);
-    setPrinting("bulk");
-    const cosmosBarcodes: string[] = [];
-    const fallback: string[] = [];
-
-    for (const id of ids) {
-      const order = orders.find((o) => o.id === id);
-      if (!order) continue;
-      if (!["A_PREPARER", "ECHANGE", "EN_PREPARATION", "EMBALLE"].includes(order.orderStatus)) continue;
-
-      try {
-        const res = await fetch(`${API}/orders/${id}/prepare-print`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${getToken()}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({}),
-        });
-        const data = await res.json();
-        if (data.source === "cosmos" && data.labelUrl) {
-          const bc = data.labelUrl.match(/barcode=(\d+)/)?.[1];
-          if (bc) cosmosBarcodes.push(bc);
-          else fallback.push(id);
-        } else {
-          fallback.push(id);
-        }
-      } catch {
-        fallback.push(id);
-      }
-    }
-
-     // Cosmos: one PDF with all labels
-     if (cosmosBarcodes.length > 0) {
-      const storeId = orders.find((o) => ids.includes(o.id))?.storeId;
-      const url = `${API}/delivery/cosmos/${storeId}/label?barcode=${cosmosBarcodes.join(",")}&format=pdf`;
-
-      // Navigate instead of opening a tab, popups get blocked after async calls
-      const win = window.open(url, "_blank");
-      if (!win) window.location.href = url;
-    }
-
-    // Others: one tab each
-    fallback.forEach((id, i) => {
-      setTimeout(() => openBordereau(id), i * 300);
-    });
-
-    if (fallback.length > 0 && cosmosBarcodes.length > 0) {
-      alert(
-        `${cosmosBarcodes.length} bordereaux Cosmos generes.\n` +
-        `${fallback.length} bordereaux Orderly (Cosmos indisponible).`
+    const ids = Array.from(selectedIds).filter((id) => {
+      const o = orders.find((x) => x.id === id);
+      return (
+        o &&
+        ["A_PREPARER", "ECHANGE", "EN_PREPARATION", "EMBALLE"].includes(
+          o.orderStatus
+        )
       );
+    });
+    if (ids.length === 0) return;
+
+    // L'onglet doit s'ouvrir sur le clic lui-meme, sinon le navigateur le bloque
+    const win = window.open("", "_blank");
+    if (win) {
+      win.document.write(
+        `<!DOCTYPE html><html><head><meta charset="utf-8">` +
+          `<title>Bordereaux</title></head>` +
+          `<body style="font-family:system-ui;padding:40px;color:#334">` +
+          `<p>Preparation de ${ids.length} bordereaux...</p></body></html>`
+      );
+      win.document.close();
     }
 
-    setPrinting(null);
-    setSelectedIds(new Set());
-    fetchOrders();
+    setPrinting("bulk");
+    const failed: string[] = [];
+
+    try {
+      // 1. creer les colis chez le transporteur, un par un
+      for (const id of ids) {
+        try {
+          const res = await fetch(`${API}/orders/${id}/prepare-print`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${getToken()}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({}),
+          });
+          if (!res.ok) {
+            failed.push(id);
+            continue;
+          }
+          const data = await res.json();
+          if (data.cosmosError) failed.push(id);
+        } catch {
+          failed.push(id);
+        }
+      }
+
+      // 2. nos bordereaux : un seul onglet, une commande par page
+      const url = `${API}/orders/print/bordereaux?ids=${ids.join(",")}`;
+      if (win) win.location.href = url;
+      else window.open(url, "_blank");
+
+      if (failed.length > 0) {
+        alert(
+          `${ids.length - failed.length} colis crees chez le transporteur.\n` +
+            `${failed.length} en echec : les bordereaux sont imprimes mais ces ` +
+            `colis ne sont pas chez le transporteur. Reessayez-les un par un.`
+        );
+      }
+    } finally {
+      setPrinting(null);
+      setSelectedIds(new Set());
+      fetchOrders();
+    }
   }
 
   const filtered = orders.filter((o) => {
