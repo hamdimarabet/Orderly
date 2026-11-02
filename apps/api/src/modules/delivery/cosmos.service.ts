@@ -240,7 +240,7 @@ export class CosmosService {
         fulfillments: {
           some: { carrier: 'COSMOS', deliveryPartnerRef: { not: null } },
         },
-        orderStatus: { notIn: ['PAYE', 'RETOUR_RECU', 'ARCHIVE', 'ANNULE'] },
+        orderStatus: { notIn: ['PAYE','RETOUR_RECU','ARCHIVE','ANNULE','DUPLIQUE'] },
       },
       include: { fulfillments: { where: { carrier: 'COSMOS' }, take: 1 } },
     });

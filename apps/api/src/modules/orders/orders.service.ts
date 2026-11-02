@@ -453,7 +453,7 @@ export class OrdersService {
       const list = byPhone[phone];
       // Ignore cancelled/archived when counting real orders
       const valid = list.filter(
-        (o) => o.orderStatus !== 'ANNULE' && o.orderStatus !== 'ARCHIVE',
+        (o) => o.orderStatus !== 'ANNULE' && o.orderStatus !== 'ARCHIVE' && o.orderStatus !== 'DUPLIQUE',
       );
   
       if (valid.length < 2) {
@@ -1165,6 +1165,7 @@ export class OrdersService {
         }
   
         const c = byPhone[phone];
+        if (o.orderStatus === 'DUPLIQUE') continue;
         c.totalOrders++;
   
         if (['LIVRE', 'PAYE'].includes(o.orderStatus)) {
@@ -1362,7 +1363,7 @@ export class OrdersService {
       orderBy: { sourceCreatedAt: 'asc' },
     });
   
-    const active = orders.filter((o) => o.orderStatus !== 'ARCHIVE');
+    const active = orders.filter((o) => o.orderStatus !== 'ARCHIVE' && o.orderStatus !== 'DUPLIQUE');
   
     // --- KPIs ---
     const total = active.length;

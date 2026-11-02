@@ -26,7 +26,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import {
   Phone, Search, X, ChevronLeft, ChevronRight,CheckCircle2, PhoneMissed, Clock, PhoneOff,
-  Plus, Trash2, Edit2, Check, Building2, Calendar, Archive, Truck,Sparkles,ArrowRightLeft,Lock, AlertTriangle,Package,Users,
+  Plus, Trash2, Edit2, Check, Building2, Calendar, Archive, Truck,Sparkles,ArrowRightLeft,Lock, AlertTriangle,Package,Users,Copy,
 } from "lucide-react";
 import { Order, OrderStatus, CallAttempt } from "@/types/order";
 import { OrderStatusBadge } from "@/components/orders/status-badge";
@@ -1695,7 +1695,7 @@ function ConfirmationContent() {
   const [serverStats, setServerStats] = useState<any>({
     total: 0, confirmed: 0, refused: 0, aVerifier: 0, pending: 0, revenue: 0, avgAttempts: "0",
   });
-  const [filter, setFilter] = useState<"all" | "pending" | "tentative" | "confirmed" | "refused" | "a_verifier">("all");
+  const [filter, setFilter] = useState<"all" | "pending" | "tentative" | "confirmed" | "refused" | "a_verifier" | "duplique">("all");
   const [agentFilter, setAgentFilter] = useState<string>("");
   const [attemptFilter, setAttemptFilter] = useState<string>(""); 
   const [agents, setAgents] = useState<any[]>([]);
@@ -1741,7 +1741,13 @@ function ConfirmationContent() {
       if (period.to) params.set("to", period.to.toISOString());
       if (agentFilter) params.set("agentId", agentFilter);
       if (attemptFilter) params.set("attemptLevel", attemptFilter);
-
+      if (filter === "duplique") {
+        params.delete("excludeStatus");
+        params.set("orderStatus", "DUPLIQUE");
+      } else {
+        params.set("excludeStatus", "ARCHIVE,DUPLIQUE");
+      }
+      if (filter === "duplique") params.set("orderStatus", "DUPLIQUE");
       const res = await fetch(`${API}/orders?${params}`, {
         headers: { Authorization: `Bearer ${getToken()}` },
       });
@@ -1755,7 +1761,24 @@ function ConfirmationContent() {
     } finally {
       setLoading(false);
     }
-  }, [selectedStoreIds, page, search, period, agentFilter, attemptFilter]);
+  }, [selectedStoreIds, page, search, period, agentFilter, attemptFilter, filter]);
+
+  const [dupliqueCount, setDupliqueCount] = useState(0);
+  useEffect(() => {
+    if (selectedStoreIds.length === 0) return;
+    const p = new URLSearchParams({
+      storeIds: selectedStoreIds.join(","),
+      orderStatus: "DUPLIQUE",
+      page: "1",
+      pageSize: "1",
+    });
+    if (period.from) p.set("from", period.from.toISOString());
+    if (period.to) p.set("to", period.to.toISOString());
+    fetch(`${API}/orders?${p}`, { headers: { Authorization: `Bearer ${getToken()}` } })
+      .then((r) => r.json())
+      .then((d) => setDupliqueCount(d.total ?? 0))
+      .catch(() => {});
+  }, [selectedStoreIds, period, orders]);
 
   // Load customer stats for badges
   // Load customer stats for badges
@@ -1840,6 +1863,25 @@ function ConfirmationContent() {
     });
   }
 
+  async function markDuplicate(order: Order) {
+    const ok = window.confirm(
+      `Marquer ${order.orderNumber} comme dupliquee ?\n\n` +
+      `Elle sort du flux : pas de preparation, pas de livraison, ` +
+      `et elle ne compte plus dans les statistiques.`
+    );
+    if (!ok) return;
+    setOrders((prev) => prev.filter((o) => o.id !== order.id));
+    await fetch(`${API}/orders/${order.id}/status`, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${getToken()}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ status: "DUPLIQUE" }),
+    });
+    fetchOrders();
+  }
+
   const filtered = orders.filter((o) => {
     if (!applyAdvancedFilters(o, advFilters)) return false;
     const attempts = Array.isArray(o.callAttempts) ? o.callAttempts as CallAttempt[] : [];
@@ -1847,8 +1889,9 @@ function ConfirmationContent() {
     const refused = attempts.some((a) => a.result === "ANSWERED_REFUSED");
     if (filter === "tentative") return true;
     if (filter === "confirmed") return confirmed;
+    if (filter === "duplique") return o.orderStatus === "DUPLIQUE";
     if (filter === "refused") return refused || o.orderStatus === "ANNULE";
-    if (filter === "pending") return !confirmed && !refused && o.orderStatus !== "ANNULE";
+    if (filter === "pending") return !confirmed && !refused && o.orderStatus !== "ANNULE" && o.orderStatus !== "DUPLIQUE";
     if (filter === "a_verifier") return o.orderStatus === "A_VERIFIER";
     return true;
   });
@@ -1955,6 +1998,7 @@ function ConfirmationContent() {
               { key: "confirmed", label: "Confirmés", count: confirmedCount },
               { key: "refused", label: "Refusés", count: refusedCount },
               { key: "a_verifier", label: "À vérifier", count: aVerifierCount },
+              { key: "duplique", label: "Dupliqués", count: dupliqueCount },
             ].map((tab) => (
               <button
                 key={tab.key}
@@ -2282,6 +2326,16 @@ function ConfirmationContent() {
                             <Phone className="h-3.5 w-3.5" />
                             {isAVerifier ? "Vérifier" : isConfirmed ? "Modifier" : attempts.length === 0 ? "Appeler" : `T.${attempts.length + 1}`}
                           </Button>
+
+                          {order.orderStatus !== "DUPLIQUE" && (
+                            <button
+                              onClick={() => markDuplicate(order)}
+                              className="rounded-md p-1.5 text-muted hover:bg-amber-50 hover:text-amber-700"
+                              title="Marquer comme dupliquée"
+                            >
+                              <Copy className="h-3.5 w-3.5" />
+                            </button>
+                          )}
                          
                           <button
                             onClick={() => setArchiveOrder(order)}

@@ -34,6 +34,7 @@ export type FulfillmentStatus =
   | "RETOUR_DEPOT"
   | "RETOUR_RECU"
   | "ANNULE"
+  | "DUPLIQUE"
   | "A_VERIFIER"
   | "ARCHIVE";
 
@@ -58,6 +59,7 @@ export type FulfillmentStatus =
     RETOUR_DEPOT: "Retour dépôt",
     RETOUR_RECU: "Retour reçu",
     ANNULE: "Annulé",
+    DUPLIQUE: "Dupliqué",
     A_VERIFIER: "À vérifier",
     ARCHIVE: "Archivé",
   };

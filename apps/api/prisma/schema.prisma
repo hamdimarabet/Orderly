@@ -55,6 +55,7 @@ enum OrderStatus {
   RETOUR_DEPOT
   RETOUR_RECU
   ANNULE
+  DUPLIQUE
   A_VERIFIER
   ARCHIVE
 }
