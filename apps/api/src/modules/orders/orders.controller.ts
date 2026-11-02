@@ -65,7 +65,7 @@ export class OrdersController {
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean);
-    const buf = await this.bordereauService.generateBordereaux(list);
+      const buf = await this.bordereau.generateBordereaux(list);
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.send(buf);
   }
