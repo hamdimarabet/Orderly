@@ -892,7 +892,8 @@ async function changeStatus(orderId: string, status: OrderStatus) {
         `<!DOCTYPE html><html><head><meta charset="utf-8">` +
           `<title>Bordereaux</title></head>` +
           `<body style="font-family:system-ui;padding:40px;color:#334">` +
-          `<p>Preparation de ${ids.length} bordereaux...</p></body></html>`
+                   `<p>Preparation des bordereaux : <b id="prog">0 / ${ids.length}</b></p>` +
+          `</body></html>`
       );
       win.document.close();
     }
@@ -901,27 +902,46 @@ async function changeStatus(orderId: string, status: OrderStatus) {
     const failed: string[] = [];
 
     try {
-      // 1. creer les colis chez le transporteur, un par un
-      for (const id of ids) {
-        try {
-          const res = await fetch(`${API}/orders/${id}/prepare-print`, {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${getToken()}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({}),
-          });
-          if (!res.ok) {
-            failed.push(id);
-            continue;
-          }
-          const data = await res.json();
-          if (data.cosmosError) failed.push(id);
-        } catch {
-          failed.push(id);
-        }
-      }
+       // 1. creer les colis chez le transporteur, 5 en parallele
+       let cursor = 0;
+       let done = 0;
+ 
+       const runOne = async (id: string) => {
+         try {
+           const res = await fetch(`${API}/orders/${id}/prepare-print`, {
+             method: "POST",
+             headers: {
+               Authorization: `Bearer ${getToken()}`,
+               "Content-Type": "application/json",
+             },
+             body: JSON.stringify({}),
+           });
+           if (!res.ok) {
+             failed.push(id);
+             return;
+           }
+           const data = await res.json();
+           if (data.cosmosError) failed.push(id);
+         } catch {
+           failed.push(id);
+         } finally {
+           done++;
+           if (win && !win.closed) {
+             try {
+               const el = win.document.getElementById("prog");
+               if (el) el.textContent = `${done} / ${ids.length}`;
+             } catch {}
+           }
+         }
+       };
+ 
+       const worker = async () => {
+         while (cursor < ids.length) await runOne(ids[cursor++]);
+       };
+ 
+       await Promise.all(
+         Array.from({ length: Math.min(5, ids.length) }, worker)
+       );
 
       // 2. nos bordereaux : un seul onglet, une commande par page
       const url = `${API}/orders/print/bordereaux?ids=${ids.join(",")}`;
