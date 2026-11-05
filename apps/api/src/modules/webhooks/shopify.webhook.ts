@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { DispatchService } from '../dispatch/dispatch.service';
+import { isDuplicateOrder } from '../../common/detect-duplicate';
 import {
   OrderStatus,
   FinancialStatus,
@@ -381,7 +382,29 @@ export class ShopifyWebhook {
             price: orderSubtotal,
           });
         }
-    return this.prisma.order.upsert({
+        const sourceCreatedAt = new Date(payload.created_at);
+        const customerPhone =
+          payload.customer?.phone ?? payload.shipping_address?.phone ?? null;
+    
+        // On ne teste le doublon qu'a la creation, pas sur les webhooks de mise a jour
+        const alreadyExists = await this.prisma.order.findUnique({
+          where: {
+            storeId_externalOrderId: { storeId, externalOrderId: String(payload.id) },
+          },
+          select: { id: true },
+        });
+    
+        // Doublon : meme client, memes produits, moins de 5 minutes d'ecart
+        const duplicateOf = alreadyExists
+          ? null
+          : await isDuplicateOrder(this.prisma, {
+              storeId,
+              customerPhone,
+              createdAt: sourceCreatedAt,
+              lineItems,
+            });
+    
+        const saved = await this.prisma.order.upsert({
       where: {
         storeId_externalOrderId: {
           storeId,
@@ -400,14 +423,14 @@ export class ShopifyWebhook {
         orderNumber: payload.name,
         financialStatus,
         fulfillmentStatus,
-        orderStatus,
+        orderStatus: duplicateOf ? 'DUPLIQUE' : orderStatus,
         customerName: cleanFirstName
         ? `${cleanFirstName} ${cleanLastName ?? ''}`.trim()
         : payload.customer
         ? `${payload.customer.first_name} ${payload.customer.last_name}`.trim()
         : null,
         customerEmail: payload.customer?.email ?? null,
-        customerPhone: payload.customer?.phone ?? null,
+        customerPhone,
         shippingAddress: payload.shipping_address ?? null,
         billingAddress: payload.billing_address ?? null,
         currency: payload.currency,
@@ -418,10 +441,23 @@ export class ShopifyWebhook {
         totalRefunded: 0,
         tags: payload.tags ? payload.tags.split(', ').filter(Boolean) : [],
         notes: payload.note ?? null,
-        sourceCreatedAt: new Date(payload.created_at),
+        sourceCreatedAt,
         lineItems: { create: lineItems },
       },
     });
+
+    if (duplicateOf && (saved as any)?.id) {
+      await this.prisma.orderEvent.create({
+        data: {
+          orderId: (saved as any).id,
+          eventType: 'duplicate_detected',
+          payload: { duplicateOf },
+          actor: 'system',
+        },
+      });
+    }
+
+    return saved;
   }
 
   private mapFinancialStatus(status: string): FinancialStatus {
