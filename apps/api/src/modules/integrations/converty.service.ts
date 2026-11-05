@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { OrderStatus } from '@prisma/client';
 import { DispatchService } from '../dispatch/dispatch.service';
+import { isDuplicateOrder } from '../../common/detect-duplicate';
 
 const CONVERTY_PARTNER = 'https://partner.converty.shop';
 const CONVERTY_API = 'https://api.converty.shop/api/v1';
@@ -451,13 +452,24 @@ export class ConvertyService {
 
     const cust = o?.customer ?? {};
     const isExchange = o?.exchange === true;
+    const sourceCreatedAt = o?.createdAt ? new Date(o.createdAt) : new Date();
+
+    // Doublon : meme client, memes produits, moins de 5 minutes d'ecart
+    const duplicateOf = isExchange
+      ? null
+      : await isDuplicateOrder(this.prisma, {
+          storeId,
+          customerPhone: cust.phone,
+          createdAt: sourceCreatedAt,
+          lineItems,
+        });
 
     const created = await this.prisma.order.create({
       data: {
         storeId,
         externalOrderId: externalId,
         orderNumber: o?.reference ? `#${o.reference}` : `#C-${externalId.slice(-6)}`,
-        orderStatus: isExchange ? 'ECHANGE' : mapped,
+        orderStatus: isExchange ? 'ECHANGE' : duplicateOf ? 'DUPLIQUE' : mapped,
         financialStatus: o?.paymentStatus === 'paid' ? 'PAID' : 'PENDING',
         fulfillmentStatus: 'UNFULFILLED',
         customerName: cust.name ?? null,
@@ -478,11 +490,23 @@ export class ConvertyService {
         tags: isExchange ? ['Converty', 'Échange'] : ['Converty'],
         notes: cust.note || null,
         deliveryCompany: o?.deliveryCompany ?? null,
-        sourceCreatedAt: o?.createdAt ? new Date(o.createdAt) : new Date(),
+        sourceCreatedAt,
         lineItems: { create: lineItems },
       },
     });
 
+    if (duplicateOf && (created as any)?.id) {
+      await this.prisma.orderEvent.create({
+        data: {
+          orderId: (created as any).id,
+          eventType: 'duplicate_detected',
+          payload: { duplicateOf },
+          actor: 'system',
+        },
+      });
+    }
+
+    // Assign an agent automatically (non-blocking)
     if ((created as any)?.id) {
       // Assign an agent automatically (non-blocking)
       this.dispatch.dispatchOne((created as any).id).catch(() => {});
