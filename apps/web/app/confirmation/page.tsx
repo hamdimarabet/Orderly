@@ -26,7 +26,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import {
   Phone, Search, X, ChevronLeft, ChevronRight,CheckCircle2, PhoneMissed, Clock, PhoneOff,
-  Plus, Trash2, Edit2, Check, Building2, Calendar, Archive, Truck,Sparkles,ArrowRightLeft,Lock, AlertTriangle,Package,Users,Copy,
+  Plus, Trash2, Edit2, Check, Building2, Calendar, Archive, Truck,Sparkles,ArrowRightLeft,Lock, AlertTriangle,Package,Users,
 } from "lucide-react";
 import { Order, OrderStatus, CallAttempt } from "@/types/order";
 import { OrderStatusBadge } from "@/components/orders/status-badge";
@@ -1744,8 +1744,6 @@ function ConfirmationContent() {
       if (filter === "duplique") {
         params.delete("excludeStatus");
         params.set("orderStatus", "DUPLIQUE");
-      } else {
-        params.set("excludeStatus", "ARCHIVE,DUPLIQUE");
       }
       if (filter === "duplique") params.set("orderStatus", "DUPLIQUE");
       const res = await fetch(`${API}/orders?${params}`, {
@@ -1863,24 +1861,7 @@ function ConfirmationContent() {
     });
   }
 
-  async function markDuplicate(order: Order) {
-    const ok = window.confirm(
-      `Marquer ${order.orderNumber} comme dupliquee ?\n\n` +
-      `Elle sort du flux : pas de preparation, pas de livraison, ` +
-      `et elle ne compte plus dans les statistiques.`
-    );
-    if (!ok) return;
-    setOrders((prev) => prev.filter((o) => o.id !== order.id));
-    await fetch(`${API}/orders/${order.id}/status`, {
-      method: "PATCH",
-      headers: {
-        Authorization: `Bearer ${getToken()}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ status: "DUPLIQUE" }),
-    });
-    fetchOrders();
-  }
+
 
   const filtered = orders.filter((o) => {
     if (!applyAdvancedFilters(o, advFilters)) return false;
@@ -1891,7 +1872,7 @@ function ConfirmationContent() {
     if (filter === "confirmed") return confirmed;
     if (filter === "duplique") return o.orderStatus === "DUPLIQUE";
     if (filter === "refused") return refused || o.orderStatus === "ANNULE";
-    if (filter === "pending") return !confirmed && !refused && o.orderStatus !== "ANNULE" && o.orderStatus !== "DUPLIQUE";
+    if (filter === "pending") return !confirmed && !refused && o.orderStatus !== "ANNULE";
     if (filter === "a_verifier") return o.orderStatus === "A_VERIFIER";
     return true;
   });
@@ -2327,15 +2308,7 @@ function ConfirmationContent() {
                             {isAVerifier ? "Vérifier" : isConfirmed ? "Modifier" : attempts.length === 0 ? "Appeler" : `T.${attempts.length + 1}`}
                           </Button>
 
-                          {order.orderStatus !== "DUPLIQUE" && (
-                            <button
-                              onClick={() => markDuplicate(order)}
-                              className="rounded-md p-1.5 text-muted hover:bg-amber-50 hover:text-amber-700"
-                              title="Marquer comme dupliquée"
-                            >
-                              <Copy className="h-3.5 w-3.5" />
-                            </button>
-                          )}
+                         
                          
                           <button
                             onClick={() => setArchiveOrder(order)}

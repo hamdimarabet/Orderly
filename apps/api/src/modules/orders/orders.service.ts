@@ -1188,7 +1188,6 @@ export class OrdersService {
         }
   
         const c = byPhone[phone];
-        if (o.orderStatus === 'DUPLIQUE') continue;
         c.totalOrders++;
   
         if (['LIVRE', 'PAYE'].includes(o.orderStatus)) {
@@ -1386,7 +1385,7 @@ export class OrdersService {
       orderBy: { sourceCreatedAt: 'asc' },
     });
   
-    const active = orders.filter((o) => o.orderStatus !== 'ARCHIVE' && o.orderStatus !== 'DUPLIQUE');
+    const active = orders.filter((o) => o.orderStatus !== 'ARCHIVE');
   
     // --- KPIs ---
     const total = active.length;

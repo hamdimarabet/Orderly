@@ -483,8 +483,8 @@ export class ConvertyService {
       },
     });
 
-    // Assign an agent automatically (non-blocking)
     if ((created as any)?.id) {
+      // Assign an agent automatically (non-blocking)
       this.dispatch.dispatchOne((created as any).id).catch(() => {});
 
       // Converty can send orders already confirmed
