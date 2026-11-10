@@ -6,6 +6,7 @@ import { BundlesService } from '../bundles/bundles.service';
 import { FlowsService } from '../flows/flows.service';
 import { DispatchService } from '../dispatch/dispatch.service';
 import { RetryService } from '../retry/retry.service';
+import { isLoyal, normalizeLoyalPhone, LOYAL_TAG } from '../../common/loyal-customer';
 @Injectable()
 export class OrdersService {
   constructor(
@@ -444,10 +445,6 @@ export class OrdersService {
     return { restocked };
   }
   async detectLoyalCustomers() {
-    const TAG = 'Client fidèle';
-    const SIX_HOURS = 6 * 60 * 60 * 1000;
-  
-    // Get all orders with a phone, sorted by date
     const orders = await this.prisma.order.findMany({
       where: { customerPhone: { not: null } },
       select: {
@@ -459,88 +456,56 @@ export class OrdersService {
       },
       orderBy: { sourceCreatedAt: 'asc' },
     });
-  
-    // Group by phone
-    const byPhone: Record<string, typeof orders> = {};
+
+    const byPhone = new Map<string, typeof orders>();
     for (const o of orders) {
-      const phone = (o.customerPhone ?? '').replace(/\s|\+216/g, '');
-      if (!phone || phone.length < 6) continue;
-      if (!byPhone[phone]) byPhone[phone] = [];
-      byPhone[phone].push(o);
+      const phone = normalizeLoyalPhone(o.customerPhone);
+      if (phone.length < 6) continue;
+      if (!byPhone.has(phone)) byPhone.set(phone, []);
+      byPhone.get(phone)!.push(o);
     }
-  
+
     const toTag: string[] = [];
     const toUntag: string[] = [];
-  
-    for (const phone of Object.keys(byPhone)) {
-      const list = byPhone[phone];
-      // Ignore cancelled/archived when counting real orders
-      const valid = list.filter(
-        (o) => o.orderStatus !== 'ANNULE' && o.orderStatus !== 'ARCHIVE' && o.orderStatus !== 'DUPLIQUE',
-      );
-  
-      if (valid.length < 2) {
-        // Not loyal — remove tag if present
-        list.forEach((o) => {
-          if (o.tags.includes(TAG)) toUntag.push(o.id);
-        });
-        continue;
+    let loyalCustomers = 0;
+
+    for (const list of byPhone.values()) {
+      if (isLoyal(list as any)) {
+        loyalCustomers++;
+        for (const o of list) {
+          if (!o.tags.includes(LOYAL_TAG)) toTag.push(o.id);
+        }
+      } else {
+        for (const o of list) {
+          if (o.tags.includes(LOYAL_TAG)) toUntag.push(o.id);
+        }
       }
-  
-      const first = new Date(valid[0].sourceCreatedAt).getTime();
-  
-      // Find orders placed at least 6h after the first one
-      const loyal = valid.filter(
-        (o) => new Date(o.sourceCreatedAt).getTime() - first >= SIX_HOURS,
-      );
-  
-      if (loyal.length === 0) {
-        // All orders within 6h — likely a duplicate, not loyal
-        list.forEach((o) => {
-          if (o.tags.includes(TAG)) toUntag.push(o.id);
-        });
-        continue;
-      }
-  
-      // Tag ALL orders of this customer (first one included)
-      valid.forEach((o) => {
-        if (!o.tags.includes(TAG)) toTag.push(o.id);
-      });
     }
-  
-    // Apply — add tag
+
+    const byId = new Map(orders.map((o) => [o.id, o]));
+
     for (const id of toTag) {
-      const order = orders.find((o) => o.id === id);
-      if (!order) continue;
+      const o = byId.get(id);
+      if (!o) continue;
       await this.prisma.order.update({
         where: { id },
-        data: { tags: { set: [...order.tags, TAG] } },
+        data: { tags: { set: [...o.tags, LOYAL_TAG] } },
       });
     }
-  
-    // Apply — remove tag
+
     for (const id of toUntag) {
-      const order = orders.find((o) => o.id === id);
-      if (!order) continue;
+      const o = byId.get(id);
+      if (!o) continue;
       await this.prisma.order.update({
         where: { id },
-        data: { tags: { set: order.tags.filter((t) => t !== TAG) } },
+        data: { tags: { set: o.tags.filter((t) => t !== LOYAL_TAG) } },
       });
     }
-  
+
     return {
       tagged: toTag.length,
       untagged: toUntag.length,
-      loyalCustomers: Object.keys(byPhone).filter((p) => {
-        const valid = byPhone[p].filter(
-          (o) => o.orderStatus !== 'ANNULE' && o.orderStatus !== 'ARCHIVE',
-        );
-        if (valid.length < 2) return false;
-        const first = new Date(valid[0].sourceCreatedAt).getTime();
-        return valid.some(
-          (o) => new Date(o.sourceCreatedAt).getTime() - first >= SIX_HOURS,
-        );
-      }).length,
+      loyalCustomers,
     };
   }
   async updateOrder(orderId: string, data: any, actorId: string) {

@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { OrderStatus } from '@prisma/client';
 import { DispatchService } from '../dispatch/dispatch.service';
 import { isDuplicateOrder } from '../../common/detect-duplicate';
+import { syncLoyalTagForPhone } from '../../common/loyal-customer';
 
 const CONVERTY_PARTNER = 'https://partner.converty.shop';
 const CONVERTY_API = 'https://api.converty.shop/api/v1';
@@ -506,8 +507,11 @@ export class ConvertyService {
       });
     }
 
-    // Assign an agent automatically (non-blocking)
-    if ((created as any)?.id) {
+       // Tag « Client fidele » recalcule pour ce numero (non-bloquant)
+       syncLoyalTagForPhone(this.prisma, cust.phone).catch(() => {});
+
+       // Assign an agent automatically (non-blocking)
+       if ((created as any)?.id) {
       // Assign an agent automatically (non-blocking)
       this.dispatch.dispatchOne((created as any).id).catch(() => {});
 

@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { DispatchService } from '../dispatch/dispatch.service';
 import { isDuplicateOrder } from '../../common/detect-duplicate';
+import { syncLoyalTagForPhone } from '../../common/loyal-customer';
 import {
   OrderStatus,
   FinancialStatus,
@@ -18,8 +19,11 @@ export class ShopifyWebhook {
   async handleOrderCreate(storeId: string, payload: any) {
     const order = await this.upsertOrder(storeId, payload);
 
-    // Detect loyal customer for this phone (non-blocking)
-    this.tagLoyalForPhone(payload.customer?.phone ?? payload.shipping_address?.phone).catch(() => {});
+       // Detect loyal customer for this phone (non-blocking)
+       syncLoyalTagForPhone(
+        this.prisma,
+        payload.customer?.phone ?? payload.shipping_address?.phone,
+      ).catch(() => {});
 
     // Assign an agent automatically (non-blocking)
     if (order?.id) {
@@ -29,42 +33,7 @@ export class ShopifyWebhook {
     return order;
   }
 
-  private async tagLoyalForPhone(rawPhone?: string | null) {
-    if (!rawPhone) return;
-    const TAG = 'Client fidèle';
-    const SIX_HOURS = 6 * 60 * 60 * 1000;
-    const phone = rawPhone.replace(/\s|\+216/g, '');
-    if (phone.length < 6) return;
-
-    const all = await this.prisma.order.findMany({
-      where: { customerPhone: { not: null } },
-      select: { id: true, customerPhone: true, sourceCreatedAt: true, tags: true, orderStatus: true },
-      orderBy: { sourceCreatedAt: 'asc' },
-    });
-
-    const mine = all.filter(
-      (o) =>
-        (o.customerPhone ?? '').replace(/\s|\+216/g, '') === phone &&
-        o.orderStatus !== 'ANNULE' &&
-        o.orderStatus !== 'ARCHIVE',
-    );
-
-    if (mine.length < 2) return;
-
-    const first = new Date(mine[0].sourceCreatedAt).getTime();
-    const hasLateOrder = mine.some(
-      (o) => new Date(o.sourceCreatedAt).getTime() - first >= SIX_HOURS,
-    );
-    if (!hasLateOrder) return;
-
-    for (const o of mine) {
-      if (o.tags.includes(TAG)) continue;
-      await this.prisma.order.update({
-        where: { id: o.id },
-        data: { tags: { set: [...o.tags, TAG] } },
-      });
-    }
-  }
+ 
 
   async handleOrderUpdate(storeId: string, payload: any) {
     return this.upsertOrder(storeId, payload);
