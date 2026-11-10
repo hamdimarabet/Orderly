@@ -1,7 +1,7 @@
 import { PrismaService } from '../prisma/prisma.service';
 
 /** Fenetre de detection : deux commandes identiques a moins de 5 minutes. */
-const WINDOW_MINUTES = 5;
+const WINDOW_MINUTES = 24 * 60;
 
 function normalizePhone(raw?: string | null): string {
   const digits = String(raw ?? '').replace(/\D/g, '');
@@ -41,7 +41,21 @@ export async function isDuplicateOrder(
     where: {
       storeId: params.storeId,
       sourceCreatedAt: { gte: since, lte: params.createdAt },
-      orderStatus: { notIn: ['ANNULE', 'ARCHIVE', 'DUPLIQUE'] },
+          // Seules les commandes encore chez nous peuvent etre dupliquees.
+      // Une commande deja partie chez le transporteur n'est plus comparable :
+      // une nouvelle commande identique est alors un vrai rachat.
+      orderStatus: {
+        in: [
+          'NOUVEAU',
+          'CONFIRMATION_EN_COURS',
+          'CONFIRME',
+          'A_PREPARER',
+          'EN_PREPARATION',
+          'IMPRIME',
+          'EMBALLE',
+          'A_VERIFIER',
+        ],
+      },
     },
     select: {
       orderNumber: true,
