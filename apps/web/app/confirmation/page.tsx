@@ -1821,7 +1821,7 @@ function ConfirmationContent() {
     if (orders.length > 0) fetchCustomerStats();
   }, [orders.length]);
 
-  function handleDone(orderId: string, updatedFields: Partial<Order>, newStatus?: OrderStatus) {
+   function handleDone(orderId: string, updatedFields: Partial<Order>, newStatus?: OrderStatus) {
     setOrders((prev) =>
       prev.map((o) =>
         o.id === orderId
@@ -1829,6 +1829,8 @@ function ConfirmationContent() {
           : o
       )
     );
+    // Recharge depuis le serveur : lignes, prix et total a jour
+    fetchOrders();
   }
   async function detectLoyalCustomers() {
     setDetectingLoyal(true);
