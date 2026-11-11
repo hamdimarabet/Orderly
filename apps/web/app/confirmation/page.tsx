@@ -1726,9 +1726,9 @@ function ConfirmationContent() {
     }
   }, [stores]);
 
-  const fetchOrders = useCallback(async () => {
+  const fetchOrders = useCallback(async (silent = false) => {
     if (selectedStoreIds.length === 0) return;
-    setLoading(true);
+    if (!silent) setLoading(true);
     try {
       const params = new URLSearchParams({
         storeIds: selectedStoreIds.join(","),
@@ -1757,7 +1757,7 @@ function ConfirmationContent() {
     } catch {
       setOrders([]);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [selectedStoreIds, page, search, period, agentFilter, attemptFilter, filter]);
 
@@ -1829,9 +1829,9 @@ function ConfirmationContent() {
           : o
       )
     );
-    // Recharge depuis le serveur : lignes, prix et total a jour
-    fetchOrders();
-  }
+     // Rechargement silencieux : pas de spinner, pas de perte de position
+     fetchOrders(true);
+    }
   async function detectLoyalCustomers() {
     setDetectingLoyal(true);
     try {
