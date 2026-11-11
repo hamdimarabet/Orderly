@@ -326,8 +326,19 @@ export class ShopifyWebhook {
         if (alias) productId = alias.productId;
       }
 
+             // Shopify/EasySell n'envoie pas toujours le SKU. On le reprend du produit
+      // resolu, sinon les offres quantite ne peuvent pas s'appliquer.
+      let finalSku = offerSku ?? sku;
+      if (!finalSku && productId) {
+        const resolved = await this.prisma.product.findUnique({
+          where: { id: productId },
+          select: { sku: true },
+        });
+        finalSku = resolved?.sku ?? null;
+      }
+
           lineItems.push({
-        sku: offerSku ?? sku,
+        sku: finalSku,
         title: offerTitle ?? title,
         variantTitle: offerTitle ? null : (li.variant_title ?? null),
         quantity: li.quantity,
