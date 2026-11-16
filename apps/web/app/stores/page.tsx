@@ -598,6 +598,40 @@ function StoreCard({
             <RefreshCw className={cn("h-3.5 w-3.5", busy.includes("webhooks") && "animate-spin")} />
             Webhooks
           </Button>
+
+          {isShopify && (
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={busy !== ""}
+              onClick={async () => {
+                setBusy("reconnect");
+                try {
+                  const res = await fetch(
+                    `${API}/integrations/shopify/${store.id}/auth-url`,
+                    {
+                      method: "POST",
+                      headers: {
+                        Authorization: `Bearer ${getToken()}`,
+                        "Content-Type": "application/json",
+                      },
+                      body: JSON.stringify({
+                        shopDomain: (store as any).credentials?.shopDomain ?? "",
+                      }),
+                    }
+                  );
+                  const data = await res.json();
+                  if (data.url) window.location.href = data.url;
+                  else setMsg({ ok: false, text: data.error ?? "Erreur" });
+                } finally {
+                  setBusy("");
+                }
+              }}
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              Reconnecter
+            </Button>
+          )}
         </div>
       )}
       {!isCustom && (
