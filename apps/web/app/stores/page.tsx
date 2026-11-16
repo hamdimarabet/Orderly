@@ -393,6 +393,7 @@ function StoreCard({
   const [busy, setBusy] = useState("");
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [shopifyConnected, setShopifyConnected] = useState(false);
+  const [shopDomain, setShopDomain] = useState("");
   const [convertyConnected, setConvertyConnected] = useState(false);
   const [showEditCreds, setShowEditCreds] = useState(false);
   const [editClientId, setEditClientId] = useState("");
@@ -423,9 +424,12 @@ function StoreCard({
       fetch(`${API}/integrations/shopify/${store.id}/status`, {
         headers: { Authorization: `Bearer ${getToken()}` },
       })
-        .then((r) => r.json())
-        .then((d) => setShopifyConnected(d?.connected ?? false))
-        .catch(() => {});
+      .then((r) => r.json())
+      .then((d) => {
+        setShopifyConnected(d?.connected ?? false);
+        setShopDomain(d?.domain ?? "");
+      })
+      .catch(() => {});
     }
     if (isConverty) {
       fetch(`${API}/integrations/converty/${store.id}/status`, {
@@ -615,9 +619,7 @@ function StoreCard({
                         Authorization: `Bearer ${getToken()}`,
                         "Content-Type": "application/json",
                       },
-                      body: JSON.stringify({
-                        shopDomain: (store as any).credentials?.shopDomain ?? "",
-                      }),
+                      body: JSON.stringify({ shopDomain }),
                     }
                   );
                   const data = await res.json();
