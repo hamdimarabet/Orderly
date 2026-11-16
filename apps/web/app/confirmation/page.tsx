@@ -1734,7 +1734,7 @@ function ConfirmationContent() {
         storeIds: selectedStoreIds.join(","),
         page: String(page),
         pageSize: String(PAGE_SIZE),
-        excludeStatus: "ARCHIVE",
+        excludeStatus: "ARCHIVE,PANIER_ABANDONNE",
       });
       if (search) params.set("search", search);
       if (period.from) params.set("from", period.from.toISOString());
