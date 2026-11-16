@@ -260,7 +260,7 @@ export class ShopifyService {
     const { clientId } = await this.getShopifyCredentials(storeId);
     if (!clientId) return { ok: false, error: 'Client ID Shopify manquant pour ce magasin' };
 
-    const scopes = 'read_products,read_inventory,read_orders,read_fulfillments';
+    const scopes = 'read_products,read_inventory,read_orders,read_fulfillments,read_draft_orders';
     const nonce = Math.random().toString(36).slice(2);
     const domain = (shopDomain ?? '')
       .replace(/^https?:\/\//, '')
@@ -357,6 +357,8 @@ export class ShopifyService {
       { topic: 'orders/cancelled', path: 'orders-cancelled' },
       { topic: 'fulfillments/create', path: 'fulfillments-create' },
       { topic: 'refunds/create', path: 'refunds-create' },
+      { topic: 'draft_orders/create', path: 'draft-orders-create' },
+      { topic: 'draft_orders/update', path: 'draft-orders-update' },
     ];
 
     const results: any[] = [];

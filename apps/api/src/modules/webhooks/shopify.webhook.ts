@@ -19,8 +19,14 @@ export class ShopifyWebhook {
   async handleOrderCreate(storeId: string, payload: any) {
     const order = await this.upsertOrder(storeId, payload);
 
-       // Detect loyal customer for this phone (non-blocking)
-       syncLoyalTagForPhone(
+          // Le client a fini par commander : son panier abandonne n'a plus lieu d'etre
+    this.closeAbandonedFor(
+      storeId,
+      payload.customer?.phone ?? payload.shipping_address?.phone,
+    ).catch(() => {});
+
+    // Detect loyal customer for this phone (non-blocking)
+    syncLoyalTagForPhone(
         this.prisma,
         payload.customer?.phone ?? payload.shipping_address?.phone,
       ).catch(() => {});
@@ -37,6 +43,173 @@ export class ShopifyWebhook {
 
   async handleOrderUpdate(storeId: string, payload: any) {
     return this.upsertOrder(storeId, payload);
+  }
+
+  /** Tag pose par EasySell sur les brouillons de paniers abandonnes. */
+  private readonly ABANDONED_TAG = 'easysell-abandoned-checkout';
+
+  /**
+   * EasySell cree les paniers abandonnes sous forme de Draft Orders Shopify.
+   * On les importe comme des commandes au statut PANIER_ABANDONNE pour que
+   * les agents puissent les rappeler avec les memes outils que le reste.
+   */
+  async handleDraftOrder(storeId: string, payload: any) {
+    const tags: string[] = String(payload?.tags ?? '')
+      .split(',')
+      .map((t: string) => t.trim().toLowerCase())
+      .filter(Boolean);
+
+    if (!tags.includes(this.ABANDONED_TAG)) return null;
+
+    const externalOrderId = `draft_${payload.id}`;
+
+    const existing = await this.prisma.order.findUnique({
+      where: { storeId_externalOrderId: { storeId, externalOrderId } },
+      select: { id: true, orderStatus: true },
+    });
+
+    // Le panier a ete transforme en commande chez Shopify : le lead est caduc
+    if (payload.order_id || payload.status === 'completed') {
+      if (existing && existing.orderStatus === 'PANIER_ABANDONNE') {
+        await this.prisma.order.update({
+          where: { id: existing.id },
+          data: { orderStatus: 'ARCHIVE' },
+        });
+      }
+      return null;
+    }
+
+    // L'equipe a deja traite ce panier : on ne l'ecrase pas
+    if (existing && existing.orderStatus !== 'PANIER_ABANDONNE') return null;
+
+    const addr = payload.shipping_address ?? payload.billing_address ?? null;
+    const customerPhone =
+      payload.customer?.phone ?? addr?.phone ?? payload.phone ?? null;
+
+    const first = payload.customer?.first_name ?? addr?.first_name ?? '';
+    const last = payload.customer?.last_name ?? addr?.last_name ?? '';
+    const customerName = `${first} ${last}`.trim() || null;
+
+    const lineItems: any[] = [];
+
+    for (const li of payload.line_items ?? []) {
+      const sku = li.sku ?? null;
+      const title = li.title ?? '';
+      let productId: string | null = null;
+
+      if (sku) {
+        const bySku = await this.prisma.product.findUnique({
+          where: { storeId_sku: { storeId, sku } },
+          select: { id: true },
+        });
+        if (bySku) productId = bySku.id;
+      }
+
+      if (!productId && title) {
+        const byName = await this.prisma.product.findFirst({
+          where: { storeId, name: { equals: title, mode: 'insensitive' } },
+          select: { id: true },
+        });
+        if (byName) productId = byName.id;
+      }
+
+      if (!productId && title) {
+        const alias = await this.prisma.productAlias.findFirst({
+          where: {
+            alias: { equals: title, mode: 'insensitive' },
+            product: { storeId },
+          },
+          select: { productId: true },
+        });
+        if (alias) productId = alias.productId;
+      }
+
+      let finalSku = sku;
+      if (!finalSku && productId) {
+        const resolved = await this.prisma.product.findUnique({
+          where: { id: productId },
+          select: { sku: true },
+        });
+        finalSku = resolved?.sku ?? null;
+      }
+
+      lineItems.push({
+        sku: finalSku,
+        title,
+        variantTitle: li.variant_title ?? null,
+        quantity: Number(li.quantity ?? 1),
+        fulfilledQty: 0,
+        refundedQty: 0,
+        price: parseFloat(li.price ?? '0'),
+        ...(productId && { productId }),
+      });
+    }
+
+    const subtotal = parseFloat(payload.subtotal_price ?? '0');
+    const total = parseFloat(payload.total_price ?? payload.subtotal_price ?? '0');
+    const email = payload.customer?.email ?? payload.email ?? null;
+
+    if (existing) {
+      return this.prisma.order.update({
+        where: { id: existing.id },
+        data: {
+          customerName,
+          customerPhone,
+          customerEmail: email,
+          ...(addr && { shippingAddress: addr }),
+          subtotal,
+          total,
+          lineItems: { deleteMany: {}, create: lineItems },
+        },
+      });
+    }
+
+    const created = await this.prisma.order.create({
+      data: {
+        storeId,
+        externalOrderId,
+        orderNumber: payload.name ?? `#AB-${String(payload.id).slice(-6)}`,
+        financialStatus: 'PENDING',
+        fulfillmentStatus: 'UNFULFILLED',
+        orderStatus: 'PANIER_ABANDONNE',
+        customerName,
+        customerEmail: email,
+        customerPhone,
+        ...(addr && { shippingAddress: addr }),
+        currency: payload.currency ?? 'TND',
+        subtotal,
+        taxTotal: 0,
+        shippingTotal: 0,
+        total,
+        totalRefunded: 0,
+        tags: ['Panier abandonné', 'EasySell'],
+        sourceCreatedAt: new Date(payload.created_at ?? Date.now()),
+        lineItems: { create: lineItems },
+      },
+    });
+
+    if ((created as any)?.id) {
+      this.dispatch.dispatchOne((created as any).id).catch(() => {});
+    }
+
+    return created;
+  }
+
+  /** Une vraie commande du meme client rend le panier abandonne caduc. */
+  private async closeAbandonedFor(storeId: string, rawPhone?: string | null) {
+    const digits = String(rawPhone ?? '').replace(/\D/g, '');
+    const phone = digits.length > 8 ? digits.slice(-8) : digits;
+    if (phone.length < 6) return;
+
+    await this.prisma.$executeRawUnsafe(
+      `UPDATE "Order"
+          SET "orderStatus" = 'ARCHIVE'
+        WHERE "storeId" = $1
+          AND "orderStatus" = 'PANIER_ABANDONNE'
+          AND RIGHT(REGEXP_REPLACE(COALESCE("customerPhone", ''), '\\D', '', 'g'), 8) = $2`,
+      storeId,
+      phone,
+    );
   }
 
   async handleOrderCancelled(storeId: string, payload: any) {

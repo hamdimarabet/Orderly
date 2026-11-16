@@ -35,6 +35,7 @@ export type FulfillmentStatus =
   | "RETOUR_RECU"
   | "ANNULE"
   | "DUPLIQUE"
+  | "PANIER_ABANDONNE"
   | "A_VERIFIER"
   | "ARCHIVE";
 
@@ -60,6 +61,7 @@ export type FulfillmentStatus =
     RETOUR_RECU: "Retour reçu",
     ANNULE: "Annulé",
     DUPLIQUE: "Dupliqué",
+    PANIER_ABANDONNE: "Panier abandonné",
     A_VERIFIER: "À vérifier",
     ARCHIVE: "Archivé",
   };

@@ -21,6 +21,7 @@ const ORDER_STATUS_STYLE: Record<OrderStatus, string> = {
   RETOUR_RECU: "text-status-refunded bg-status-refunded-bg",
   ANNULE: "text-status-cancelled bg-status-cancelled-bg",
   DUPLIQUE: "text-amber-700 bg-amber-50",
+  PANIER_ABANDONNE: "text-orange-700 bg-orange-50",
   A_VERIFIER: "text-status-cancelled bg-status-cancelled-bg",
   A_EXPEDIER: "text-status-shipped bg-status-shipped-bg",
   AU_DEPOT_LIVREUR: "text-status-shipped bg-status-shipped-bg",

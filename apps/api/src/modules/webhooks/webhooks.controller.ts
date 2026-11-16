@@ -47,10 +47,14 @@ import {
         case 'fulfillments-create':
           await this.shopify.handleFulfillmentCreate(storeId, body);
           break;
-        case 'refunds-create':
-          await this.shopify.handleRefundCreate(storeId, body);
-          break;
-      }
+          case 'refunds-create':
+            await this.shopify.handleRefundCreate(storeId, body);
+            break;
+          case 'draft-orders-create':
+          case 'draft-orders-update':
+            await this.shopify.handleDraftOrder(storeId, body);
+            break;
+        }
   
       return { ok: true };
     }
