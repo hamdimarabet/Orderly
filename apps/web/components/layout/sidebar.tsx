@@ -12,7 +12,7 @@ import {
   LayoutGrid, Phone, Package, Truck, RotateCcw, QrCode, Archive,
   Users, MessageSquare, AlertCircle, ShoppingBag, TrendingUp,
   Megaphone, StoreIcon, Plug, Settings, LogOut, ChevronDown,Menu,
-  Check, Circle,Tag,Layers,Zap,Shuffle,
+  Check, Circle,Tag,Layers,Zap,Shuffle,ShoppingCart,
 } from "lucide-react";
 
 const NAV_GROUPS = [
@@ -21,6 +21,7 @@ const NAV_GROUPS = [
     label: "Commandes",
     items: [
       { label: "Confirmation", icon: Phone, href: "/confirmation", permission: "confirmation" },
+      { label: "Paniers abandonnés", icon: ShoppingCart, href: "/abandons", permission: "confirmation" },
       { label: "Préparation", icon: Package, href: "/preparation", permission: "preparation" },
       { label: "Livraison", icon: Truck, href: "/fulfillment", permission: "fulfillment" },
       { label: "Retours", icon: RotateCcw, href: "/retours", permission: "retours" },
