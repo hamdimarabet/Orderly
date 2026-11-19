@@ -183,14 +183,12 @@ ${sheets.join('\n')}
       barcodeImg = '';
     }
 
-    const qrImg = await QRCode.toDataURL(
-      JSON.stringify({
-        orderId: order.id,
-        orderNumber: order.orderNumber,
-        storeId: order.storeId,
-      }),
-      { width: 220, margin: 0 },
-    );
+      // Le QR encode exactement la meme valeur que le code-barres :
+    // scanner l'un ou l'autre donne le meme resultat.
+    const qrImg = await QRCode.toDataURL(barcodeValue, {
+      width: 220,
+      margin: 0,
+    });
 
     const addr = (order.shippingAddress ?? {}) as any;
     const city = esc(addr.city ?? '—');
