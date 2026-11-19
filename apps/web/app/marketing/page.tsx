@@ -655,6 +655,9 @@ function MarketingContent() {
 
   const [smsStatus, setSmsStatus] = useState<{ configured: boolean; defaultSender: string | null } | null>(null);
   const [testPhone, setTestPhone] = useState("");
+  const [testName, setTestName] = useState("");
+  const [testNumbers, setTestNumbers] = useState<{ phone: string; name?: string }[]>([]);
+  const [testFileInfo, setTestFileInfo] = useState("");
   const [testMessage, setTestMessage] = useState("");
   const [testStore, setTestStore] = useState("");
   const [testResult, setTestResult] = useState<any>(null);
@@ -709,7 +712,45 @@ function MarketingContent() {
   const storeName = (id?: string | null) =>
     id ? (stores.find((s) => s.id === id)?.name ?? "—") : "Tous les magasins";
 
+  function addTestNumber() {
+    const p = testPhone.trim();
+    if (!p) return;
+    if (testNumbers.some((n) => n.phone === p)) { setTestPhone(""); return; }
+    setTestNumbers((prev) => [...prev, { phone: p, name: testName.trim() || undefined }]);
+    setTestPhone("");
+    setTestName("");
+  }
+
+  async function handleTestFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const text = await file.text();
+    const parsed: { phone: string; name?: string }[] = [];
+    const seen = new Set(testNumbers.map((n) => n.phone));
+
+    for (const line of text.split(/\r?\n/)) {
+      if (!line.trim()) continue;
+      const cells = line.split(/[,;\t]/).map((c) => c.trim().replace(/^"|"$/g, ""));
+      const phoneCell = cells.find((c) => c.replace(/\D/g, "").length >= 8);
+      if (!phoneCell) continue;
+      const phone = phoneCell.replace(/\s/g, "");
+      if (seen.has(phone)) continue;
+      seen.add(phone);
+      const nameCell = cells.find((c) => c !== phoneCell && /[a-zA-Zأ-ي]/.test(c));
+      parsed.push({ phone, name: nameCell || undefined });
+    }
+
+    setTestNumbers((prev) => [...prev, ...parsed]);
+    setTestFileInfo(`${file.name} — ${parsed.length} numéros importés`);
+    e.target.value = "";
+  }
+
   async function sendTestSms() {
+    const list = testPhone.trim()
+      ? [...testNumbers, { phone: testPhone.trim(), name: testName.trim() || undefined }]
+      : testNumbers;
+    if (list.length === 0) return;
+
     setTesting(true);
     setTestResult(null);
     try {
@@ -717,7 +758,7 @@ function MarketingContent() {
         method: "POST",
         headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          phone: testPhone.trim(),
+          recipients: list,
           message: testMessage,
           storeId: testStore || undefined,
         }),
@@ -805,6 +846,96 @@ function MarketingContent() {
           </div>
         </header>
 
+              {/* Magasins */}
+              <div className="flex gap-1.5 overflow-x-auto border-b border-border bg-surface px-3 py-2 md:px-5">
+          <button
+            onClick={() => setSelectedStoreIds(stores.map((s) => s.id))}
+            className={cn(
+              "shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+              selectedStoreIds.length === stores.length
+                ? "bg-primary text-white"
+                : "bg-surface-sunken text-muted hover:bg-border"
+            )}
+          >
+            Tous les magasins
+          </button>
+          {accessibleStores.map((s) => {
+            const only = selectedStoreIds.length === 1 && selectedStoreIds[0] === s.id;
+            return (
+              <button
+                key={s.id}
+                onClick={() => { setSelectedStoreIds([s.id]); setTestStore(s.id); }}
+                className={cn(
+                  "shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+                  only ? "bg-primary text-white" : "bg-surface-sunken text-muted hover:bg-border"
+                )}
+              >
+                {s.name}
+              </button>
+            );
+          })}
+        </div>
+
+               {/* Magasins */}
+               <div className="flex gap-1.5 overflow-x-auto border-b border-border bg-surface px-3 py-2 md:px-5">
+          <button
+            onClick={() => setSelectedStoreIds(stores.map((s) => s.id))}
+            className={cn(
+              "shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+              selectedStoreIds.length === stores.length
+                ? "bg-primary text-white"
+                : "bg-surface-sunken text-muted hover:bg-border"
+            )}
+          >
+            Tous les magasins
+          </button>
+          {accessibleStores.map((s) => {
+            const only = selectedStoreIds.length === 1 && selectedStoreIds[0] === s.id;
+            return (
+              <button
+                key={s.id}
+                onClick={() => { setSelectedStoreIds([s.id]); setTestStore(s.id); }}
+                className={cn(
+                  "shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+                  only ? "bg-primary text-white" : "bg-surface-sunken text-muted hover:bg-border"
+                )}
+              >
+                {s.name}
+              </button>
+            );
+          })}
+        </div>
+
+               {/* Magasins */}
+               <div className="flex gap-1.5 overflow-x-auto border-b border-border bg-surface px-3 py-2 md:px-5">
+          <button
+            onClick={() => setSelectedStoreIds(stores.map((s) => s.id))}
+            className={cn(
+              "shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+              selectedStoreIds.length === stores.length
+                ? "bg-primary text-white"
+                : "bg-surface-sunken text-muted hover:bg-border"
+            )}
+          >
+            Tous les magasins
+          </button>
+          {accessibleStores.map((s) => {
+            const only = selectedStoreIds.length === 1 && selectedStoreIds[0] === s.id;
+            return (
+              <button
+                key={s.id}
+                onClick={() => { setSelectedStoreIds([s.id]); setTestStore(s.id); }}
+                className={cn(
+                  "shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+                  only ? "bg-primary text-white" : "bg-surface-sunken text-muted hover:bg-border"
+                )}
+              >
+                {s.name}
+              </button>
+            );
+          })}
+        </div>
+
         {/* Stats */}
         <div className="grid grid-cols-2 gap-1.5 border-b border-border bg-surface p-2 md:grid-cols-4 md:gap-3 md:p-4">
           <div className="rounded-lg bg-surface-sunken px-4 py-3">
@@ -888,13 +1019,70 @@ function MarketingContent() {
                   </select>
                 </div>
 
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-muted">Numéro</label>
-                  <Input
-                    value={testPhone}
-                    onChange={(e) => setTestPhone(e.target.value)}
-                    placeholder="+216 XX XXX XXX"
-                  />
+                <div className="space-y-3 rounded-lg border border-border p-3.5">
+                  <label className="block text-xs font-medium text-muted">Numéros</label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={testPhone}
+                      onChange={(e) => setTestPhone(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTestNumber(); } }}
+                      placeholder="20 123 456"
+                      className="h-8 flex-1 text-xs"
+                    />
+                    <Input
+                      value={testName}
+                      onChange={(e) => setTestName(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTestNumber(); } }}
+                      placeholder="Nom (optionnel)"
+                      className="h-8 w-32 text-xs"
+                    />
+                    <Button size="sm" variant="secondary" onClick={addTestNumber} disabled={!testPhone.trim()}>
+                      <Plus className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+
+                  <label className="flex cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-border px-3 py-2 text-xs text-muted hover:border-primary hover:text-primary">
+                    <input type="file" accept=".csv,.txt" onChange={handleTestFile} className="hidden" />
+                    Importer un fichier CSV
+                  </label>
+                  <p className="text-[10px] text-muted-light">
+                    Une ligne par contact : numéro, nom. Excel : « Enregistrer sous » → CSV.
+                  </p>
+                  {testFileInfo && (
+                    <p className="text-[11px] font-medium text-status-delivered">{testFileInfo}</p>
+                  )}
+
+                  {testNumbers.length > 0 && (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-medium text-primary">
+                          {testNumbers.length} destinataire{testNumbers.length > 1 ? "s" : ""}
+                        </span>
+                        <button
+                          onClick={() => { setTestNumbers([]); setTestFileInfo(""); }}
+                          className="text-[11px] text-muted hover:text-status-cancelled"
+                        >
+                          Tout effacer
+                        </button>
+                      </div>
+                      <div className="max-h-40 space-y-1 overflow-y-auto">
+                        {testNumbers.map((n) => (
+                          <div key={n.phone} className="flex items-center justify-between rounded bg-surface-sunken px-2 py-1">
+                            <span className="font-mono text-[11px]">{n.phone}</span>
+                            <div className="flex items-center gap-2">
+                              {n.name && <span className="text-[11px] text-muted">{n.name}</span>}
+                              <button
+                                onClick={() => setTestNumbers((prev) => prev.filter((x) => x.phone !== n.phone))}
+                                className="text-muted hover:text-status-cancelled"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 <div>
@@ -915,11 +1103,17 @@ function MarketingContent() {
 
                 <Button
                   className="w-full"
-                  disabled={testing || !testPhone.trim() || !testMessage.trim()}
+                  disabled={
+                    testing ||
+                    !testMessage.trim() ||
+                    (testNumbers.length === 0 && !testPhone.trim())
+                  }
                   onClick={sendTestSms}
                 >
                   <Send className="h-3.5 w-3.5" />
-                  {testing ? "Envoi..." : "Envoyer le test"}
+                  {testing
+                    ? "Envoi..."
+                    : `Envoyer à ${testNumbers.length + (testPhone.trim() ? 1 : 0)} numéro(s)`}
                 </Button>
               </div>
 
@@ -947,11 +1141,28 @@ function MarketingContent() {
                       : "Échec de l'envoi"}
                   </p>
                   <div className="mt-1.5 space-y-0.5 text-[11px] text-muted">
-                    <p>Destinataire : <span className="font-mono">{testResult.phone}</span></p>
+                  {testResult.total === 1 && (
+                      <p>Destinataire : <span className="font-mono">{testResult.results?.[0]?.phone}</span></p>
+                    )}
                     {testResult.sender && <p>Expéditeur : {testResult.sender}</p>}
                     {testResult.storeName && <p>Magasin : {testResult.storeName}</p>}
                     {testResult.error && <p className="text-status-cancelled">{testResult.error}</p>}
+                    {testResult.total > 1 && (
+                      <p>{testResult.sent} envoyés · {testResult.failed} échecs sur {testResult.total}</p>
+                    )}
                   </div>
+                  {testResult.results?.length > 1 && (
+                    <div className="mt-2 max-h-40 space-y-0.5 overflow-y-auto">
+                      {testResult.results.map((r: any) => (
+                        <div key={r.phone} className="flex items-center justify-between text-[11px]">
+                          <span className="font-mono">{r.phone}</span>
+                          <span className={r.ok ? "text-status-delivered" : "text-status-cancelled"}>
+                            {r.ok ? "envoyé" : "échec"}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   {testResult.simulated && (
                     <p className="mt-2 text-[11px] text-status-processing">
                       Le message n'a pas quitté la plateforme. Ajoutez SMS_API_KEY sur Railway pour l'envoi réel.

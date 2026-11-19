@@ -88,7 +88,12 @@ export class MarketingController {
   }
 
   @Post('test-sms')
-  sendTest(@Body() body: { phone: string; message: string; storeId?: string }) {
+  sendTest(@Body() body: {
+    phone?: string;
+    recipients?: { phone: string; name?: string }[];
+    message: string;
+    storeId?: string;
+  }) {
     return this.marketing.sendTest(body);
   }
 

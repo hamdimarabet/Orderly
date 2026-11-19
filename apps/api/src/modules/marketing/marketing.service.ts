@@ -316,9 +316,19 @@ export class MarketingService {
   }
 
   /** Envoi immediat vers un seul numero, avec l'expediteur du magasin choisi. */
-  async sendTest(data: { phone: string; message: string; storeId?: string }) {
-    const phone = String(data.phone ?? '').trim();
-    if (!phone) return { ok: false, error: 'Numero manquant' };
+   /** Envoi immediat vers un ou plusieurs numeros, sans creer de campagne. */
+   async sendTest(data: {
+    phone?: string;
+    recipients?: { phone: string; name?: string }[];
+    message: string;
+    storeId?: string;
+  }) {
+    const list = [
+      ...(data.phone?.trim() ? [{ phone: data.phone.trim() }] : []),
+      ...(data.recipients ?? []),
+    ].filter((r) => r?.phone?.trim());
+
+    if (!list.length) return { ok: false, error: 'Aucun numero' };
     if (!data.message?.trim()) return { ok: false, error: 'Message vide' };
 
     let sender: string | undefined;
@@ -334,17 +344,27 @@ export class MarketingService {
     }
 
     const configured = !!process.env.SMS_API_KEY;
-    const ok = await this.messaging.sendSms(phone, data.message, sender);
+    const results: { phone: string; name: string | null; ok: boolean }[] = [];
+    let sent = 0;
+
+    for (const r of list) {
+      const phone = r.phone.trim();
+      const msg = this.renderTemplate(data.message, { name: r.name ?? 'Client' });
+      const ok = await this.messaging.sendSms(phone, msg, sender);
+      if (ok) sent++;
+      results.push({ phone, name: r.name ?? null, ok });
+    }
 
     return {
-      ok,
+      ok: sent > 0,
       configured,
       simulated: !configured,
-      phone,
-      storeName,
       sender: sender ?? process.env.SMS_SENDER ?? null,
-      message: data.message,
-      error: ok ? null : configured ? 'Refus du fournisseur SMS' : null,
+      storeName,
+      total: list.length,
+      sent,
+      failed: list.length - sent,
+      results,
     };
   }
 
