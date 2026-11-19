@@ -256,6 +256,49 @@ export class MarketingService {
     return this.messaging.sendSms(phone, message);
   }
 
+  // ---------- TEST ----------
+
+  /** Etat reel du fournisseur SMS, pour que l'interface dise la verite. */
+  async smsStatus() {
+    return {
+      configured: !!process.env.SMS_API_KEY,
+      defaultSender: process.env.SMS_SENDER ?? null,
+    };
+  }
+
+  /** Envoi immediat vers un seul numero, avec l'expediteur du magasin choisi. */
+  async sendTest(data: { phone: string; message: string; storeId?: string }) {
+    const phone = String(data.phone ?? '').trim();
+    if (!phone) return { ok: false, error: 'Numero manquant' };
+    if (!data.message?.trim()) return { ok: false, error: 'Message vide' };
+
+    let sender: string | undefined;
+    let storeName: string | null = null;
+
+    if (data.storeId) {
+      const store = await this.prisma.store.findUnique({
+        where: { id: data.storeId },
+        select: { name: true, credentials: true },
+      });
+      sender = (store?.credentials as any)?.smsSender || undefined;
+      storeName = store?.name ?? null;
+    }
+
+    const configured = !!process.env.SMS_API_KEY;
+    const ok = await this.messaging.sendSms(phone, data.message, sender);
+
+    return {
+      ok,
+      configured,
+      simulated: !configured,
+      phone,
+      storeName,
+      sender: sender ?? process.env.SMS_SENDER ?? null,
+      message: data.message,
+      error: ok ? null : configured ? 'Refus du fournisseur SMS' : null,
+    };
+  }
+
   // ---------- FLOWS ----------
 
   async listFlows() {

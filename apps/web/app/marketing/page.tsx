@@ -500,7 +500,14 @@ function MarketingContent() {
   const { canAccessStore } = useAuth();
   const { stores } = useStores();
   const [selectedStoreIds, setSelectedStoreIds] = useState<string[]>([]);
-  const [tab, setTab] = useState<"segments" | "campaigns">("segments");
+  const [tab, setTab] = useState<"segments" | "campaigns" | "test">("segments");
+
+  const [smsStatus, setSmsStatus] = useState<{ configured: boolean; defaultSender: string | null } | null>(null);
+  const [testPhone, setTestPhone] = useState("");
+  const [testMessage, setTestMessage] = useState("");
+  const [testStore, setTestStore] = useState("");
+  const [testResult, setTestResult] = useState<any>(null);
+  const [testing, setTesting] = useState(false);
 
   const [segments, setSegments] = useState<Segment[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -532,6 +539,11 @@ function MarketingContent() {
       setSegments(Array.isArray(s) ? s : []);
       setCampaigns(Array.isArray(c) ? c : []);
       setFlows(Array.isArray(f) ? f : []);
+
+      fetch(`${API}/marketing/sms-status`, { headers: h })
+        .then((r) => r.json())
+        .then((d) => setSmsStatus(d))
+        .catch(() => {});
     } catch {
       setSegments([]); setCampaigns([]); setFlows([]);
     } finally {
@@ -540,6 +552,27 @@ function MarketingContent() {
   }, []);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  async function sendTestSms() {
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const res = await fetch(`${API}/marketing/test-sms`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phone: testPhone.trim(),
+          message: testMessage,
+          storeId: testStore || undefined,
+        }),
+      });
+      setTestResult(await res.json());
+    } catch {
+      setTestResult({ ok: false, error: "Erreur réseau" });
+    } finally {
+      setTesting(false);
+    }
+  }
 
   async function seedSegments() {
     await fetch(`${API}/marketing/segments/seed`, {
@@ -604,14 +637,15 @@ function MarketingContent() {
                 Créer les segments par défaut
               </Button>
             )}
-            <Button size="sm" onClick={() => {
-              if (tab === "segments") setShowSegment(true);
-              else if (tab === "campaigns") setShowCampaign(true);
-              else setShowFlow(true);
-            }}>
-              <Plus className="h-3.5 w-3.5" />
-              {tab === "segments" ? "Segment" : tab === "campaigns" ? "Campagne" : "Flow"}
-            </Button>
+                      {tab !== "test" && (
+              <Button size="sm" onClick={() => {
+                if (tab === "segments") setShowSegment(true);
+                else setShowCampaign(true);
+              }}>
+                <Plus className="h-3.5 w-3.5" />
+                {tab === "segments" ? "Segment" : "Campagne"}
+              </Button>
+            )}
           </div>
         </header>
 
@@ -640,6 +674,7 @@ function MarketingContent() {
           {[
             { key: "segments", label: "Segments", icon: Users, count: segments.length },
             { key: "campaigns", label: "Campagnes", icon: Megaphone, count: campaigns.length },
+            { key: "test", label: "Envoi de test", icon: Send, count: 0 },
           ].map((t) => {
             const Icon = t.icon;
             return (
@@ -671,8 +706,104 @@ function MarketingContent() {
         </div>
 
         <div className="flex-1 p-3 md:overflow-auto md:p-5">
-          {loading ? (
+        {loading ? (
             <p className="py-16 text-center text-sm text-muted">Chargement...</p>
+          ) : tab === "test" ? (
+            <div className="mx-auto max-w-lg space-y-4">
+              <div className="rounded-xl border border-border bg-surface p-5 space-y-4">
+                <div>
+                  <h2 className="text-sm font-semibold">Envoi de test</h2>
+                  <p className="mt-0.5 text-xs text-muted">
+                    Envoyez un SMS immédiatement à un numéro, avec l'expéditeur du magasin choisi.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-muted">Magasin (expéditeur)</label>
+                  <select
+                    value={testStore}
+                    onChange={(e) => setTestStore(e.target.value)}
+                    className="h-9 w-full rounded-md border border-border bg-surface px-2 text-sm focus-visible:outline-none"
+                  >
+                    <option value="">Expéditeur par défaut</option>
+                    {accessibleStores.map((s) => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-muted">Numéro</label>
+                  <Input
+                    value={testPhone}
+                    onChange={(e) => setTestPhone(e.target.value)}
+                    placeholder="+216 XX XXX XXX"
+                  />
+                </div>
+
+                <div>
+                  <div className="mb-1 flex items-center justify-between">
+                    <label className="text-xs font-medium text-muted">Message</label>
+                    <span className={cn("text-[10px]", testMessage.length > 160 ? "text-status-cancelled" : "text-muted")}>
+                      {testMessage.length}/160
+                    </span>
+                  </div>
+                  <textarea
+                    value={testMessage}
+                    onChange={(e) => setTestMessage(e.target.value)}
+                    rows={3}
+                    placeholder="Ceci est un test depuis Orderly."
+                    className="w-full resize-none rounded-md border border-border bg-surface px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  />
+                </div>
+
+                <Button
+                  className="w-full"
+                  disabled={testing || !testPhone.trim() || !testMessage.trim()}
+                  onClick={sendTestSms}
+                >
+                  <Send className="h-3.5 w-3.5" />
+                  {testing ? "Envoi..." : "Envoyer le test"}
+                </Button>
+              </div>
+
+              {testResult && (
+                <div className={cn(
+                  "rounded-xl border-2 p-4",
+                  testResult.ok && !testResult.simulated
+                    ? "border-status-delivered/40 bg-status-delivered-bg"
+                    : testResult.simulated
+                    ? "border-status-processing/40 bg-status-processing-bg"
+                    : "border-status-cancelled/40 bg-status-cancelled-bg"
+                )}>
+                  <p className={cn(
+                    "text-sm font-semibold",
+                    testResult.ok && !testResult.simulated
+                      ? "text-status-delivered"
+                      : testResult.simulated
+                      ? "text-status-processing"
+                      : "text-status-cancelled"
+                  )}>
+                    {testResult.simulated
+                      ? "Simulé — fournisseur SMS non configuré"
+                      : testResult.ok
+                      ? "SMS envoyé"
+                      : "Échec de l'envoi"}
+                  </p>
+                  <div className="mt-1.5 space-y-0.5 text-[11px] text-muted">
+                    <p>Destinataire : <span className="font-mono">{testResult.phone}</span></p>
+                    {testResult.sender && <p>Expéditeur : {testResult.sender}</p>}
+                    {testResult.storeName && <p>Magasin : {testResult.storeName}</p>}
+                    {testResult.error && <p className="text-status-cancelled">{testResult.error}</p>}
+                  </div>
+                  {testResult.simulated && (
+                    <p className="mt-2 text-[11px] text-status-processing">
+                      Le message n'a pas quitté la plateforme. Ajoutez SMS_API_KEY sur Railway pour l'envoi réel.
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
           ) : tab === "segments" ? (
             segments.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-24">
@@ -827,7 +958,8 @@ function MarketingContent() {
             )
           )}
 
-          {/* SMS config warning */}
+                  {/* SMS config warning */}
+                  {smsStatus && !smsStatus.configured && (
           <div className="mt-5 flex items-start gap-2.5 rounded-lg border border-status-processing/30 bg-status-processing-bg px-4 py-3">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-status-processing" />
             <div className="text-xs text-status-processing">
@@ -838,6 +970,7 @@ function MarketingContent() {
               </p>
             </div>
           </div>
+          )}
         </div>
       </div>
       {viewSegment && (

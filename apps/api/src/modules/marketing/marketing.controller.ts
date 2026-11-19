@@ -78,6 +78,18 @@ export class MarketingController {
     return this.marketing.deleteCampaign(id);
   }
 
+  // ---- Test SMS ----
+
+  @Get('sms-status')
+  smsStatus() {
+    return this.marketing.smsStatus();
+  }
+
+  @Post('test-sms')
+  sendTest(@Body() body: { phone: string; message: string; storeId?: string }) {
+    return this.marketing.sendTest(body);
+  }
+
   // ---- Flows ----
 
   @Get('flows')
