@@ -290,10 +290,15 @@ export class MarketingService {
     let matched: any[];
 
     if (manual.length) {
-      // Numeros saisis a la main ou importes d'un fichier
-      matched = manual.map((r) => ({
+      // Numeros saisis a la main ou importes d'un fichier,
+      // completes avec les donnees client quand le numero est connu
+      const enriched = await this.enrichRecipients(manual);
+      matched = enriched.map((r) => ({
         displayPhone: r.phone.trim(),
-        name: r.name ?? 'Client',
+        name: r.name ?? r.customer?.name ?? 'Client',
+        city: r.customer?.city ?? '',
+        totalOrders: r.customer?.totalOrders,
+        lifetimeValue: r.customer?.lifetimeValue,
         storeId: campaignStoreId,
       }));
     } else {
@@ -385,12 +390,47 @@ export class MarketingService {
   }
 
   private renderTemplate(template: string, customer: any): string {
+    const num = (v: any) =>
+      v === undefined || v === null || v === ''
+        ? ''
+        : String(Math.round(Number(v)));
+
     return template
       .replace(/\{\{nom\}\}/gi, customer.name ?? 'Client')
       .replace(/\{\{ville\}\}/gi, customer.city ?? '')
-      .replace(/\{\{commandes\}\}/gi, String(customer.totalOrders ?? 0))
-      .replace(/\{\{valeur\}\}/gi, String(Math.round(customer.lifetimeValue ?? 0)))
+      .replace(/\{\{commandes\}\}/gi, num(customer.totalOrders))
+      .replace(/\{\{valeur\}\}/gi, num(customer.lifetimeValue))
       .replace(/\{\{produit\}\}/gi, customer.topProducts?.[0]?.title ?? '');
+  }
+
+  /** Complete une liste de numeros avec les donnees client connues. */
+  private async enrichRecipients(list: { phone: string; name?: string }[]) {
+    const norm = (p: string) => {
+      const d = String(p ?? '').replace(/\D/g, '');
+      return d.length > 8 ? d.slice(-8) : d;
+    };
+
+    const keys = Array.from(
+      new Set(list.map((r) => norm(r.phone)).filter((p) => p.length >= 6)),
+    );
+    if (!keys.length) return list.map((r) => ({ ...r, customer: null as any }));
+
+    const found = await this.prisma.customer.findMany({
+      where: { phone: { in: keys } },
+      select: {
+        phone: true,
+        name: true,
+        city: true,
+        totalOrders: true,
+        lifetimeValue: true,
+      },
+    });
+    const byPhone = new Map(found.map((c) => [c.phone, c]));
+
+    return list.map((r) => ({
+      ...r,
+      customer: byPhone.get(norm(r.phone)) ?? null,
+    }));
   }
 
   private async sendSms(phone: string, message: string): Promise<boolean> {
@@ -439,9 +479,17 @@ export class MarketingService {
     const results: { phone: string; name: string | null; ok: boolean }[] = [];
     let sent = 0;
 
-    for (const r of list) {
+    const enriched = await this.enrichRecipients(list);
+
+    for (const r of enriched) {
       const phone = r.phone.trim();
-      const msg = this.renderTemplate(data.message, { name: r.name ?? 'Client' });
+      const c = r.customer;
+      const msg = this.renderTemplate(data.message, {
+        name: r.name ?? c?.name ?? 'Client',
+        city: c?.city ?? '',
+        totalOrders: c?.totalOrders,
+        lifetimeValue: c?.lifetimeValue,
+      });
       const ok = await this.messaging.sendSms(phone, msg, sender);
       if (ok) sent++;
       results.push({ phone, name: r.name ?? null, ok });
