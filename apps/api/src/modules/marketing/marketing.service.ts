@@ -40,15 +40,30 @@ export class MarketingService {
         })
       : all;
 
-    // La taille est calculee dans le perimetre choisi
-    const customers = await this.orders.getCustomers(
-      storeIds?.length ? { storeIds } : {},
+    let legacyCustomers: any[] | null = null;
+
+    const sizes = await Promise.all(
+      segments.map(async (s) => {
+        const rules = s.rules as SegmentRules;
+        const segStores = ((s as any).storeIds ?? []) as string[];
+        const scope = storeIds?.length ? storeIds : segStores;
+
+        if (this.needsLegacyMatch(rules)) {
+          if (!legacyCustomers) {
+            legacyCustomers = await this.orders.getCustomers(
+              scope.length ? { storeIds: scope } : {},
+            );
+          }
+          return this.matchCustomers(legacyCustomers, rules).length;
+        }
+
+        return this.prisma.customer.count({
+          where: this.buildCustomerWhere(rules, scope.length ? scope : undefined),
+        });
+      }),
     );
 
-    return segments.map((s) => ({
-      ...s,
-      size: this.matchCustomers(customers, s.rules as SegmentRules).length,
-    }));
+    return segments.map((s, i) => ({ ...s, size: sizes[i] }));
   }
 
   async createSegment(data: {
@@ -89,21 +104,98 @@ export class MarketingService {
   }
 
   async previewSegment(rules: SegmentRules, storeIds?: string[]) {
-    const customers = await this.orders.getCustomers(
-      storeIds?.length ? { storeIds } : {},
-    );
-    const matched = this.matchCustomers(customers, rules);
+    if (this.needsLegacyMatch(rules)) {
+      const customers = await this.orders.getCustomers(
+        storeIds?.length ? { storeIds } : {},
+      );
+      const matched = this.matchCustomers(customers, rules);
+      return {
+        size: matched.length,
+        totalValue: matched.reduce((s: number, c: any) => s + c.lifetimeValue, 0),
+        sample: matched.slice(0, 10).map((c: any) => ({
+          name: c.name,
+          phone: c.displayPhone,
+          city: c.city,
+          totalOrders: c.totalOrders,
+          lifetimeValue: c.lifetimeValue,
+        })),
+      };
+    }
+
+    const where = this.buildCustomerWhere(rules, storeIds);
+
+    const [size, agg, sample] = await Promise.all([
+      this.prisma.customer.count({ where }),
+      this.prisma.customer.aggregate({ where, _sum: { lifetimeValue: true } }),
+      this.prisma.customer.findMany({
+        where,
+        take: 10,
+        orderBy: { lifetimeValue: 'desc' },
+        select: {
+          name: true,
+          displayPhone: true,
+          city: true,
+          totalOrders: true,
+          lifetimeValue: true,
+        },
+      }),
+    ]);
+
     return {
-      size: matched.length,
-      totalValue: matched.reduce((s: number, c: any) => s + c.lifetimeValue, 0),
-      sample: matched.slice(0, 10).map((c: any) => ({
+      size,
+      totalValue: Number(agg._sum.lifetimeValue ?? 0),
+      sample: sample.map((c) => ({
         name: c.name,
         phone: c.displayPhone,
         city: c.city,
         totalOrders: c.totalOrders,
-        lifetimeValue: c.lifetimeValue,
+        lifetimeValue: Number(c.lifetimeValue),
       })),
     };
+  }
+   /** Traduit les regles en filtre Prisma sur la table Customer (instantane). */
+   private buildCustomerWhere(rules: SegmentRules, storeIds?: string[]): any {
+    const where: any = {};
+    if (storeIds?.length) where.storeIds = { hasSome: storeIds };
+
+    if (rules.minOrders !== undefined || rules.maxOrders !== undefined) {
+      where.totalOrders = {};
+      if (rules.minOrders !== undefined) where.totalOrders.gte = rules.minOrders;
+      if (rules.maxOrders !== undefined) where.totalOrders.lte = rules.maxOrders;
+    }
+
+    if (rules.minLtv !== undefined || rules.maxLtv !== undefined) {
+      where.lifetimeValue = {};
+      if (rules.minLtv !== undefined) where.lifetimeValue.gte = rules.minLtv;
+      if (rules.maxLtv !== undefined) where.lifetimeValue.lte = rules.maxLtv;
+    }
+
+    if (rules.inactiveDays !== undefined) {
+      where.lastOrderAt = {
+        lte: new Date(Date.now() - rules.inactiveDays * 86_400_000),
+      };
+    }
+    if (rules.activeDays !== undefined) {
+      where.lastOrderAt = {
+        ...(where.lastOrderAt ?? {}),
+        gte: new Date(Date.now() - rules.activeDays * 86_400_000),
+      };
+    }
+
+    if (rules.maxReturnRate !== undefined) {
+      where.returnRate = { lte: rules.maxReturnRate };
+    }
+    if (rules.minConfirmationRate !== undefined) {
+      where.confirmationRate = { gte: rules.minConfirmationRate };
+    }
+    if (rules.cities?.length) where.city = { in: rules.cities };
+
+    return where;
+  }
+
+  /** Produits et tags ne sont pas dans la table Customer : calcul lent. */
+  private needsLegacyMatch(rules: SegmentRules): boolean {
+    return !!(rules.products?.length || rules.tags?.length);
   }
 
   private matchCustomers(customers: any[], rules: SegmentRules): any[] {
@@ -460,31 +552,64 @@ export class MarketingService {
     }
     return { created: created.length };
   }
-  async getSegmentCustomers(id: string) {
+  async getSegmentCustomers(id: string, storeIds?: string[]) {
     const segment = await this.prisma.segment.findUnique({ where: { id } });
-    if (!segment) return { customers: [] };
+    if (!segment) return { customers: [], total: 0 };
 
-    const storeIds = (segment as any).storeIds ?? [];
-    const customers = await this.orders.getCustomers(
-      storeIds.length ? { storeIds } : {},
-    );
+    const rules = segment.rules as SegmentRules;
+    const segStores = ((segment as any).storeIds ?? []) as string[];
+    const scope = storeIds?.length ? storeIds : segStores;
 
-    const matched = this.matchCustomers(
-      customers,
-      segment.rules as SegmentRules,
-    );
+    if (this.needsLegacyMatch(rules)) {
+      const customers = await this.orders.getCustomers(
+        scope.length ? { storeIds: scope } : {},
+      );
+      const matched = this.matchCustomers(customers, rules);
+      return {
+        name: segment.name,
+        total: matched.length,
+        customers: matched.map((c: any) => ({
+          name: c.name,
+          phone: c.displayPhone,
+          city: c.city,
+          totalOrders: c.totalOrders,
+          lifetimeValue: c.lifetimeValue,
+          daysSinceLast: c.daysSinceLast,
+        })),
+      };
+    }
+
+    const where = this.buildCustomerWhere(rules, scope.length ? scope : undefined);
+
+    const [total, rows] = await Promise.all([
+      this.prisma.customer.count({ where }),
+      this.prisma.customer.findMany({
+        where,
+        take: 500,
+        orderBy: { lifetimeValue: 'desc' },
+        select: {
+          name: true,
+          displayPhone: true,
+          city: true,
+          totalOrders: true,
+          lifetimeValue: true,
+          lastOrderAt: true,
+        },
+      }),
+    ]);
 
     return {
       name: segment.name,
-      total: matched.length,
-      customers: matched.map((c: any) => ({
+      total,
+      customers: rows.map((c) => ({
         name: c.name,
         phone: c.displayPhone,
         city: c.city,
         totalOrders: c.totalOrders,
-        lifetimeValue: c.lifetimeValue,
-        daysSinceLast: c.daysSinceLast,
-        storeName: c.storeName,
+        lifetimeValue: Number(c.lifetimeValue),
+        daysSinceLast: c.lastOrderAt
+          ? Math.floor((Date.now() - new Date(c.lastOrderAt).getTime()) / 86_400_000)
+          : null,
       })),
     };
   }

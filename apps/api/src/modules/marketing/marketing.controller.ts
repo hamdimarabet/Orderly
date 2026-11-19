@@ -14,8 +14,11 @@ export class MarketingController {
     return this.marketing.listSegments(storeIds ? storeIds.split(',') : undefined);
   }
   @Get('segments/:id/customers')
-  getSegmentCustomers(@Param('id') id: string) {
-    return this.marketing.getSegmentCustomers(id);
+  getSegmentCustomers(@Param('id') id: string, @Query('storeIds') storeIds?: string) {
+    return this.marketing.getSegmentCustomers(
+      id,
+      storeIds ? storeIds.split(',') : undefined,
+    );
   }
   @Post('segments')
   createSegment(@Body() body: { name: string; description?: string; rules: SegmentRules }) {
