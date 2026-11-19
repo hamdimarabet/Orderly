@@ -501,12 +501,16 @@ model Campaign {
   sentCount      Int   @default(0)
   failedCount    Int   @default(0)
 
+   storeId     String?
+  recipients  Json?
+
   sends       CampaignSend[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  @@index([status])
+   @@index([status])
+  @@index([storeId])
 }
 
 model CampaignSend {
@@ -541,6 +545,7 @@ model AutomationFlow {
   message     String
   delayHours  Int      @default(0)
 
+  storeIds    String[] @default([])
   isActive    Boolean  @default(false)
   lastRunAt   DateTime?
   totalSent   Int      @default(0)

@@ -36,6 +36,8 @@ interface Campaign {
   id: string;
   name: string;
   message: string;
+  storeId: string | null;
+  recipients: { phone: string; name?: string }[] | null;
   segmentId: string | null;
   segment?: { name: string };
   status: string;
@@ -257,22 +259,67 @@ function SegmentModal({
 
 function CampaignModal({
   segments,
+  stores,
+  defaultStoreId,
   onClose,
   onSaved,
 }: {
   segments: Segment[];
+  stores: { id: string; name: string }[];
+  defaultStoreId: string;
   onClose: () => void;
   onSaved: () => void;
 }) {
   const [name, setName] = useState("");
+  const [storeId, setStoreId] = useState(defaultStoreId);
+  const [mode, setMode] = useState<"segment" | "manual">("segment");
   const [segmentId, setSegmentId] = useState("");
+  const [numbers, setNumbers] = useState<{ phone: string; name?: string }[]>([]);
+  const [newNumber, setNewNumber] = useState("");
+  const [newName, setNewName] = useState("");
+  const [fileInfo, setFileInfo] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
   const selected = segments.find((s) => s.id === segmentId);
+  const count = mode === "manual" ? numbers.length : selected?.size ?? 0;
 
-  function insertVar(v: string) {
-    setMessage((m) => m + v);
+  function addNumber() {
+    const p = newNumber.trim();
+    if (!p) return;
+    if (numbers.some((n) => n.phone === p)) { setNewNumber(""); return; }
+    setNumbers((prev) => [...prev, { phone: p, name: newName.trim() || undefined }]);
+    setNewNumber("");
+    setNewName("");
+  }
+
+  function removeNumber(phone: string) {
+    setNumbers((prev) => prev.filter((n) => n.phone !== phone));
+  }
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const text = await file.text();
+    const parsed: { phone: string; name?: string }[] = [];
+    const seen = new Set(numbers.map((n) => n.phone));
+
+    for (const line of text.split(/\r?\n/)) {
+      if (!line.trim()) continue;
+      const cells = line.split(/[,;\t]/).map((c) => c.trim().replace(/^"|"$/g, ""));
+      const phoneCell = cells.find((c) => c.replace(/\D/g, "").length >= 8);
+      if (!phoneCell) continue;                       // ligne d'en-tête ou vide
+      const phone = phoneCell.replace(/\s/g, "");
+      if (seen.has(phone)) continue;
+      seen.add(phone);
+      const nameCell = cells.find((c) => c !== phoneCell && /[a-zA-Zأ-ي]/.test(c));
+      parsed.push({ phone, name: nameCell || undefined });
+    }
+
+    setNumbers((prev) => [...prev, ...parsed]);
+    setFileInfo(`${file.name} — ${parsed.length} numéros importés`);
+    setMode("manual");
+    e.target.value = "";
   }
 
   async function save() {
@@ -281,7 +328,13 @@ function CampaignModal({
       await fetch(`${API}/marketing/campaigns`, {
         method: "POST",
         headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ name, message, segmentId }),
+        body: JSON.stringify({
+          name,
+          message,
+          storeId: storeId || undefined,
+          segmentId: mode === "segment" ? segmentId : undefined,
+          recipients: mode === "manual" ? numbers : undefined,
+        }),
       });
       onSaved();
       onClose();
@@ -290,9 +343,14 @@ function CampaignModal({
     }
   }
 
+  const canSave =
+    name.trim() &&
+    message.trim() &&
+    (mode === "segment" ? !!segmentId : numbers.length > 0);
+
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-foreground/30 backdrop-blur-[2px]">
-      <div className="w-full max-w-lg rounded-xl border border-border bg-surface shadow-2xl max-h-[90vh] flex flex-col">
+      <div className="flex h-full w-full flex-col border-border bg-surface shadow-2xl md:h-auto md:max-h-[90vh] md:max-w-lg md:rounded-xl md:border">
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <h2 className="text-sm font-semibold">Nouvelle campagne SMS</h2>
           <button onClick={onClose} className="rounded-md p-1 hover:bg-surface-sunken">
@@ -302,31 +360,119 @@ function CampaignModal({
 
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
           <div>
-            <label className="mb-1 block text-xs font-medium text-muted">Nom de la campagne</label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="ex: Promo Ramadan" autoFocus />
+            <label className="mb-1 block text-xs font-medium text-muted">Magasin</label>
+            <select
+              value={storeId}
+              onChange={(e) => setStoreId(e.target.value)}
+              className="h-9 w-full rounded-md border border-border bg-surface px-2 text-sm focus-visible:outline-none"
+            >
+              <option value="">Tous les magasins</option>
+              {stores.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+            <p className="mt-1 text-[11px] text-muted">
+              Détermine l'expéditeur SMS et le magasin auquel la campagne appartient.
+            </p>
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-medium text-muted">Segment cible</label>
+            <label className="mb-1 block text-xs font-medium text-muted">Nom de la campagne</label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="ex: Promo Ramadan" />
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-xs font-medium text-muted">Destinataires</label>
+            <div className="flex gap-1.5">
+              {[
+                { key: "segment", label: "Un segment" },
+                { key: "manual", label: "Numéros / fichier" },
+              ].map((m) => (
+                <button
+                  key={m.key}
+                  onClick={() => setMode(m.key as any)}
+                  className={cn(
+                    "flex-1 rounded-md px-3 py-2 text-xs font-medium transition-colors",
+                    mode === m.key ? "bg-primary text-white" : "bg-surface-sunken text-muted hover:bg-border"
+                  )}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {mode === "segment" ? (
             <select
               value={segmentId}
               onChange={(e) => setSegmentId(e.target.value)}
-              className="h-9 w-full rounded-md border border-border bg-surface px-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              className="h-9 w-full rounded-md border border-border bg-surface px-2 text-sm focus-visible:outline-none"
             >
               <option value="">Choisir un segment...</option>
               {segments.map((s) => (
                 <option key={s.id} value={s.id}>{s.name} ({s.size} clients)</option>
               ))}
             </select>
-            {selected && (
-              <p className="mt-1 text-[11px] text-primary">
-                {selected.size} clients recevront ce message
+          ) : (
+            <div className="space-y-3 rounded-lg border border-border p-3.5">
+              <div className="flex gap-2">
+                <Input
+                  value={newNumber}
+                  onChange={(e) => setNewNumber(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addNumber(); } }}
+                  placeholder="20 123 456"
+                  className="h-8 flex-1 text-xs"
+                />
+                <Input
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addNumber(); } }}
+                  placeholder="Nom (optionnel)"
+                  className="h-8 w-32 text-xs"
+                />
+                <Button size="sm" variant="secondary" onClick={addNumber} disabled={!newNumber.trim()}>
+                  <Plus className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+
+              <label className="flex cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-border px-3 py-2 text-xs text-muted hover:border-primary hover:text-primary">
+                <input type="file" accept=".csv,.txt" onChange={handleFile} className="hidden" />
+                Importer un fichier CSV
+              </label>
+              <p className="text-[10px] text-muted-light">
+                Une ligne par contact : numéro, nom. Les fichiers Excel : « Enregistrer sous » → CSV.
               </p>
-            )}
-          </div>
+
+              {fileInfo && (
+                <p className="text-[11px] font-medium text-status-delivered">{fileInfo}</p>
+              )}
+
+              {numbers.length > 0 && (
+                <div className="max-h-40 space-y-1 overflow-y-auto">
+                  {numbers.map((n) => (
+                    <div key={n.phone} className="flex items-center justify-between rounded bg-surface-sunken px-2 py-1">
+                      <span className="font-mono text-[11px]">{n.phone}</span>
+                      <div className="flex items-center gap-2">
+                        {n.name && <span className="text-[11px] text-muted">{n.name}</span>}
+                        <button onClick={() => removeNumber(n.phone)} className="text-muted hover:text-status-cancelled">
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {count > 0 && (
+            <p className="rounded-md bg-primary-soft px-3 py-2 text-[11px] font-medium text-primary">
+              {count} destinataire{count > 1 ? "s" : ""} recevront ce message
+            </p>
+          )}
 
           <div>
-            <div className="flex items-center justify-between mb-1">
+            <div className="mb-1 flex items-center justify-between">
               <label className="text-xs font-medium text-muted">Message</label>
               <span className={cn("text-[10px]", message.length > 160 ? "text-status-cancelled" : "text-muted")}>
                 {message.length}/160
@@ -343,19 +489,24 @@ function CampaignModal({
               {VARIABLES.map((v) => (
                 <button
                   key={v}
-                  onClick={() => insertVar(v)}
+                  onClick={() => setMessage((m) => m + v)}
                   className="rounded-full border border-border px-2 py-0.5 font-mono text-[10px] text-muted hover:border-primary hover:text-primary"
                 >
                   {v}
                 </button>
               ))}
             </div>
+            {mode === "manual" && (
+              <p className="mt-1 text-[10px] text-muted-light">
+                Sur une liste importée, seul {"{{nom}}"} fonctionne — et uniquement si le fichier contient les noms.
+              </p>
+            )}
           </div>
         </div>
 
         <div className="flex gap-2 border-t border-border px-5 py-4">
           <Button variant="secondary" className="flex-1" onClick={onClose}>Annuler</Button>
-          <Button className="flex-1" disabled={loading || !name.trim() || !message.trim() || !segmentId} onClick={save}>
+          <Button className="flex-1" disabled={loading || !canSave} onClick={save}>
             {loading ? "Création..." : "Créer la campagne"}
           </Button>
         </div>
@@ -528,13 +679,15 @@ function MarketingContent() {
   }, [stores]);
 
   const fetchAll = useCallback(async () => {
+    if (selectedStoreIds.length === 0) return;
     setLoading(true);
     try {
       const h = { Authorization: `Bearer ${getToken()}` };
+      const q = `?storeIds=${selectedStoreIds.join(",")}`;
       const [s, c, f] = await Promise.all([
-        fetch(`${API}/marketing/segments`, { headers: h }).then((r) => r.json()),
-        fetch(`${API}/marketing/campaigns`, { headers: h }).then((r) => r.json()),
-        fetch(`${API}/marketing/flows`, { headers: h }).then((r) => r.json()),
+        fetch(`${API}/marketing/segments${q}`, { headers: h }).then((r) => r.json()),
+        fetch(`${API}/marketing/campaigns${q}`, { headers: h }).then((r) => r.json()),
+        fetch(`${API}/marketing/flows${q}`, { headers: h }).then((r) => r.json()),
       ]);
       setSegments(Array.isArray(s) ? s : []);
       setCampaigns(Array.isArray(c) ? c : []);
@@ -549,9 +702,12 @@ function MarketingContent() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedStoreIds]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  const storeName = (id?: string | null) =>
+    id ? (stores.find((s) => s.id === id)?.name ?? "—") : "Tous les magasins";
 
   async function sendTestSms() {
     setTesting(true);
@@ -856,8 +1012,9 @@ function MarketingContent() {
                 <table className="w-full border-collapse text-sm">
                   <thead>
                     <tr className="border-b border-border bg-surface-sunken text-left text-xs font-medium text-muted">
-                      <th className="px-5 py-3">Campagne</th>
-                      <th className="px-4 py-3">Segment</th>
+                    <th className="px-5 py-3">Campagne</th>
+                      <th className="px-4 py-3">Magasin</th>
+                      <th className="px-4 py-3">Destinataires de</th>
                       <th className="px-4 py-3">Destinataires</th>
                       <th className="px-4 py-3">Envoyés</th>
                       <th className="px-4 py-3">Statut</th>
@@ -871,7 +1028,10 @@ function MarketingContent() {
                           <p className="text-sm font-medium">{c.name}</p>
                           <p className="mt-0.5 truncate max-w-[280px] text-[11px] text-muted">{c.message}</p>
                         </td>
-                        <td className="px-4 py-3 text-xs text-muted">{c.segment?.name ?? "—"}</td>
+                        <td className="px-4 py-3 text-xs font-medium">{storeName(c.storeId)}</td>
+                        <td className="px-4 py-3 text-xs text-muted">
+                          {c.segment?.name ?? (c.recipients?.length ? "Liste importée" : "—")}
+                        </td>
                         <td className="px-4 py-3 font-mono text-sm">{c.recipientCount}</td>
                         <td className="px-4 py-3">
                           <span className="font-mono text-sm text-status-delivered">{c.sentCount}</span>
@@ -980,7 +1140,15 @@ function MarketingContent() {
         />
       )}
       {showSegment && <SegmentModal stores={accessibleStores} onClose={() => setShowSegment(false)} onSaved={fetchAll} />}
-      {showCampaign && <CampaignModal segments={segments} onClose={() => setShowCampaign(false)} onSaved={fetchAll} />}
+      {showCampaign && (
+        <CampaignModal
+          segments={segments}
+          stores={accessibleStores}
+          defaultStoreId={selectedStoreIds.length === 1 ? selectedStoreIds[0] : ""}
+          onClose={() => setShowCampaign(false)}
+          onSaved={fetchAll}
+        />
+      )}
       {showFlow && <FlowModal segments={segments} onClose={() => setShowFlow(false)} onSaved={fetchAll} />}
     </div>
   );

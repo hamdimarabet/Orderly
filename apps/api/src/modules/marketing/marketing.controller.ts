@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { MarketingService, SegmentRules } from './marketing.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
@@ -10,8 +10,8 @@ export class MarketingController {
   // ---- Segments ----
 
   @Get('segments')
-  listSegments() {
-    return this.marketing.listSegments();
+  listSegments(@Query('storeIds') storeIds?: string) {
+    return this.marketing.listSegments(storeIds ? storeIds.split(',') : undefined);
   }
   @Get('segments/:id/customers')
   getSegmentCustomers(@Param('id') id: string) {
@@ -48,8 +48,8 @@ export class MarketingController {
   // ---- Campaigns ----
 
   @Get('campaigns')
-  listCampaigns() {
-    return this.marketing.listCampaigns();
+  listCampaigns(@Query('storeIds') storeIds?: string) {
+    return this.marketing.listCampaigns(storeIds ? storeIds.split(',') : undefined);
   }
 
   @Post('campaigns')
@@ -57,6 +57,8 @@ export class MarketingController {
     name: string;
     message: string;
     segmentId?: string;
+    storeId?: string;
+    recipients?: { phone: string; name?: string }[];
     channel?: string;
     scheduledAt?: string;
   }) {
@@ -93,8 +95,8 @@ export class MarketingController {
   // ---- Flows ----
 
   @Get('flows')
-  listFlows() {
-    return this.marketing.listFlows();
+  listFlows(@Query('storeIds') storeIds?: string) {
+    return this.marketing.listFlows(storeIds ? storeIds.split(',') : undefined);
   }
 
   @Post('flows')
@@ -104,6 +106,7 @@ export class MarketingController {
     trigger: string;
     triggerConfig?: any;
     segmentId?: string;
+    storeIds?: string[];
     message: string;
     delayHours?: number;
   }) {

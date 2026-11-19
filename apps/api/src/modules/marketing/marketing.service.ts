@@ -27,13 +27,24 @@ export class MarketingService {
 
   // ---------- SEGMENTS ----------
 
-  async listSegments() {
-    const segments = await this.prisma.segment.findMany({
+  /** storeIds vide = tous les magasins. Un segment sans magasin est global. */
+  async listSegments(storeIds?: string[]) {
+    const all = await this.prisma.segment.findMany({
       orderBy: { createdAt: 'desc' },
     });
 
-    // Compute size of each segment
-    const customers = await this.orders.getCustomers({});
+    const segments = storeIds?.length
+      ? all.filter((s) => {
+          const ids = ((s as any).storeIds ?? []) as string[];
+          return ids.length === 0 || ids.some((id) => storeIds.includes(id));
+        })
+      : all;
+
+    // La taille est calculee dans le perimetre choisi
+    const customers = await this.orders.getCustomers(
+      storeIds?.length ? { storeIds } : {},
+    );
+
     return segments.map((s) => ({
       ...s,
       size: this.matchCustomers(customers, s.rules as SegmentRules).length,
@@ -117,8 +128,11 @@ export class MarketingService {
 
   // ---------- CAMPAIGNS ----------
 
-  async listCampaigns() {
+  async listCampaigns(storeIds?: string[]) {
     return this.prisma.campaign.findMany({
+      where: storeIds?.length
+        ? { OR: [{ storeId: { in: storeIds } }, { storeId: null }] }
+        : {},
       include: { segment: { select: { name: true } } },
       orderBy: { createdAt: 'desc' },
     });
@@ -128,18 +142,28 @@ export class MarketingService {
     name: string;
     message: string;
     segmentId?: string;
+    storeId?: string;
+    recipients?: { phone: string; name?: string }[];
     channel?: string;
     scheduledAt?: string;
   }) {
-    let recipientCount = 0;
-    if (data.segmentId) {
-      const segment = await this.prisma.segment.findUnique({ where: { id: data.segmentId } });
+    const manual = (data.recipients ?? []).filter((r) => r?.phone?.trim());
+    let recipientCount = manual.length;
+
+    if (!manual.length && data.segmentId) {
+      const segment = await this.prisma.segment.findUnique({
+        where: { id: data.segmentId },
+      });
       if (segment) {
-        const storeIds = (segment as any).storeIds ?? [];
+        const segStores = ((segment as any).storeIds ?? []) as string[];
+        const scope = data.storeId ? [data.storeId] : segStores;
         const customers = await this.orders.getCustomers(
-          storeIds.length ? { storeIds } : {},
+          scope.length ? { storeIds: scope } : {},
         );
-        recipientCount = this.matchCustomers(customers, segment.rules as SegmentRules).length;
+        recipientCount = this.matchCustomers(
+          customers,
+          segment.rules as SegmentRules,
+        ).length;
       }
     }
 
@@ -147,7 +171,9 @@ export class MarketingService {
       data: {
         name: data.name,
         message: data.message,
-        segmentId: data.segmentId ?? null,
+        segmentId: manual.length ? null : data.segmentId ?? null,
+        storeId: data.storeId ?? null,
+        recipients: manual.length ? (manual as any) : undefined,
         channel: data.channel ?? 'SMS',
         scheduledAt: data.scheduledAt ? new Date(data.scheduledAt) : null,
         status: data.scheduledAt ? 'SCHEDULED' : 'DRAFT',
@@ -162,13 +188,36 @@ export class MarketingService {
       include: { segment: true },
     });
     if (!campaign) throw new Error('Campaign not found');
-    if (!campaign.segmentId || !campaign.segment) throw new Error('No segment selected');
 
-    const storeIds = (campaign.segment as any).storeIds ?? [];
-    const customers = await this.orders.getCustomers(
-      storeIds.length ? { storeIds } : {},
-    );
-    const matched = this.matchCustomers(customers, campaign.segment.rules as SegmentRules);
+    const campaignStoreId = (campaign as any).storeId as string | null;
+    const manual = (((campaign as any).recipients ?? []) as {
+      phone: string;
+      name?: string;
+    }[]).filter((r) => r?.phone?.trim());
+
+    let matched: any[];
+
+    if (manual.length) {
+      // Numeros saisis a la main ou importes d'un fichier
+      matched = manual.map((r) => ({
+        displayPhone: r.phone.trim(),
+        name: r.name ?? 'Client',
+        storeId: campaignStoreId,
+      }));
+    } else {
+      if (!campaign.segmentId || !campaign.segment) {
+        throw new Error('No segment selected');
+      }
+      const segStores = ((campaign.segment as any).storeIds ?? []) as string[];
+      const scope = campaignStoreId ? [campaignStoreId] : segStores;
+      const customers = await this.orders.getCustomers(
+        scope.length ? { storeIds: scope } : {},
+      );
+      matched = this.matchCustomers(
+        customers,
+        campaign.segment.rules as SegmentRules,
+      );
+    }
 
     // Sender name per store
     const stores = await this.prisma.store.findMany({
@@ -301,10 +350,15 @@ export class MarketingService {
 
   // ---------- FLOWS ----------
 
-  async listFlows() {
-    return this.prisma.automationFlow.findMany({
+  async listFlows(storeIds?: string[]) {
+    const all = await this.prisma.automationFlow.findMany({
       include: { segment: { select: { name: true } } },
       orderBy: { createdAt: 'desc' },
+    });
+    if (!storeIds?.length) return all;
+    return all.filter((f) => {
+      const ids = ((f as any).storeIds ?? []) as string[];
+      return ids.length === 0 || ids.some((id) => storeIds.includes(id));
     });
   }
 
@@ -314,6 +368,7 @@ export class MarketingService {
     trigger: string;
     triggerConfig?: any;
     segmentId?: string;
+    storeIds?: string[];
     message: string;
     delayHours?: number;
   }) {
@@ -324,6 +379,7 @@ export class MarketingService {
         trigger: data.trigger,
         triggerConfig: data.triggerConfig ?? {},
         segmentId: data.segmentId ?? null,
+        storeIds: data.storeIds ?? [],
         message: data.message,
         delayHours: data.delayHours ?? 0,
       },
