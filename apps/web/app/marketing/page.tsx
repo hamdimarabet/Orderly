@@ -646,7 +646,159 @@ function FlowModal({
     </div>
   );
 }
+function CampaignDetailModal({
+  campaign,
+  storeLabel,
+  onClose,
+}: {
+  campaign: Campaign;
+  storeLabel: string;
+  onClose: () => void;
+}) {
+  const [rows, setRows] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
+  useEffect(() => {
+    (async () => {
+      try {
+        const h = { Authorization: `Bearer ${getToken()}` };
+        const sends = await fetch(`${API}/marketing/campaigns/${campaign.id}/sends`, { headers: h })
+          .then((r) => r.json());
+
+        if (Array.isArray(sends) && sends.length > 0) {
+          setRows(sends.map((s: any) => ({
+            phone: s.phone,
+            name: s.name,
+            status: s.status,
+            error: s.error,
+            sentAt: s.sentAt,
+          })));
+          return;
+        }
+
+        // Pas encore envoyee : on montre les destinataires prevus
+        if (campaign.recipients?.length) {
+          setRows(campaign.recipients.map((r) => ({
+            phone: r.phone,
+            name: r.name ?? null,
+            status: "PENDING",
+          })));
+          return;
+        }
+
+        if (campaign.segmentId) {
+          const data = await fetch(
+            `${API}/marketing/segments/${campaign.segmentId}/customers`,
+            { headers: h },
+          ).then((r) => r.json());
+          setRows((data?.customers ?? []).map((c: any) => ({
+            phone: c.phone,
+            name: c.name,
+            status: "PENDING",
+          })));
+        }
+      } catch {
+        setRows([]);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [campaign.id]);
+
+  const sent = rows.filter((r) => r.status === "SENT").length;
+  const failed = rows.filter((r) => r.status === "FAILED").length;
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-foreground/30 backdrop-blur-[2px]">
+      <div className="flex h-full w-full flex-col border-border bg-surface shadow-2xl md:h-auto md:max-h-[88vh] md:max-w-3xl md:rounded-xl md:border">
+        <div className="flex items-start justify-between border-b border-border px-5 py-4">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <h2 className="truncate text-sm font-semibold">{campaign.name}</h2>
+              <span className={cn("rounded px-2 py-0.5 text-[11px] font-medium", STATUS_STYLE[campaign.status])}>
+                {STATUS_LABEL[campaign.status] ?? campaign.status}
+              </span>
+            </div>
+            <p className="mt-0.5 text-xs text-muted">
+              {storeLabel}
+              {" · "}
+              {campaign.segment?.name ?? (campaign.recipients?.length ? "Liste importée" : "—")}
+            </p>
+          </div>
+          <button onClick={onClose} className="rounded-md p-1 hover:bg-surface-sunken">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="border-b border-border px-5 py-4">
+          <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted">Message</p>
+          <p className="whitespace-pre-wrap rounded-lg bg-surface-sunken px-3 py-2.5 text-sm">
+            {campaign.message}
+          </p>
+          <div className="mt-3 flex gap-4 text-xs">
+            <span className="text-muted">
+              Destinataires : <span className="font-mono font-semibold text-foreground">{rows.length || campaign.recipientCount}</span>
+            </span>
+            {campaign.status !== "DRAFT" && (
+              <>
+                <span className="text-status-delivered">Envoyés : <span className="font-mono font-semibold">{sent}</span></span>
+                {failed > 0 && (
+                  <span className="text-status-cancelled">Échecs : <span className="font-mono font-semibold">{failed}</span></span>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto">
+          {loading ? (
+            <p className="py-16 text-center text-sm text-muted">Chargement...</p>
+          ) : rows.length === 0 ? (
+            <p className="py-16 text-center text-sm text-muted">Aucun destinataire</p>
+          ) : (
+            <table className="w-full border-collapse text-sm">
+              <thead className="sticky top-0 bg-surface-sunken">
+                <tr className="border-b border-border text-left text-xs font-medium text-muted">
+                  <th className="px-5 py-2.5">Numéro</th>
+                  <th className="px-4 py-2.5">Nom</th>
+                  <th className="px-4 py-2.5">Statut</th>
+                  <th className="px-4 py-2.5">Détail</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r, i) => (
+                  <tr key={`${r.phone}-${i}`} className="border-b border-border">
+                    <td className="px-5 py-2.5 font-mono text-xs">{r.phone}</td>
+                    <td className="px-4 py-2.5 text-xs">{r.name ?? "—"}</td>
+                    <td className="px-4 py-2.5">
+                      <span className={cn(
+                        "rounded px-2 py-0.5 text-[11px] font-medium",
+                        r.status === "SENT"
+                          ? "bg-status-delivered-bg text-status-delivered"
+                          : r.status === "FAILED"
+                          ? "bg-status-cancelled-bg text-status-cancelled"
+                          : "bg-surface-sunken text-muted"
+                      )}>
+                        {r.status === "SENT" ? "Envoyé" : r.status === "FAILED" ? "Échec" : "En attente"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2.5 text-[11px] text-muted">
+                      {r.error ?? (r.sentAt ? new Date(r.sentAt).toLocaleString("fr-FR") : "—")}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        <div className="border-t border-border px-5 py-4">
+          <Button variant="secondary" className="w-full" onClick={onClose}>Fermer</Button>
+        </div>
+      </div>
+    </div>
+  );
+}
 function MarketingContent() {
   const { canAccessStore } = useAuth();
   const { stores } = useStores();
@@ -673,6 +825,7 @@ function MarketingContent() {
   const [showFlow, setShowFlow] = useState(false);
   const [sending, setSending] = useState<string | null>(null);
   const [viewSegment, setViewSegment] = useState<any>(null);
+  const [viewCampaign, setViewCampaign] = useState<Campaign | null>(null);
   const accessibleStores = stores.filter((s) => canAccessStore(s.id));
 
   useEffect(() => {
@@ -1177,7 +1330,11 @@ function MarketingContent() {
                   </thead>
                   <tbody>
                     {campaigns.map((c) => (
-                      <tr key={c.id} className="border-b border-border hover:bg-surface-sunken transition-colors">
+                                     <tr
+                                     key={c.id}
+                                     onClick={() => setViewCampaign(c)}
+                                     className="cursor-pointer border-b border-border hover:bg-surface-sunken transition-colors"
+                                   >
                         <td className="px-5 py-3">
                           <p className="text-sm font-medium">{c.name}</p>
                           <p className="mt-0.5 truncate max-w-[280px] text-[11px] text-muted">{c.message}</p>
@@ -1198,7 +1355,7 @@ function MarketingContent() {
                             {STATUS_LABEL[c.status] ?? c.status}
                           </span>
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center gap-1.5">
                             {(c.status === "DRAFT" || c.status === "SCHEDULED") && (
                               <Button size="sm" disabled={sending === c.id} onClick={() => sendCampaign(c.id)}>
@@ -1287,6 +1444,13 @@ function MarketingContent() {
           )}
         </div>
       </div>
+      {viewCampaign && (
+        <CampaignDetailModal
+          campaign={viewCampaign}
+          storeLabel={storeName(viewCampaign.storeId)}
+          onClose={() => setViewCampaign(null)}
+        />
+      )}
       {viewSegment && (
         <SegmentCustomersModal
           segment={viewSegment}
