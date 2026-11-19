@@ -846,66 +846,9 @@ function MarketingContent() {
           </div>
         </header>
 
-              {/* Magasins */}
-              <div className="flex gap-1.5 overflow-x-auto border-b border-border bg-surface px-3 py-2 md:px-5">
-          <button
-            onClick={() => setSelectedStoreIds(stores.map((s) => s.id))}
-            className={cn(
-              "shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
-              selectedStoreIds.length === stores.length
-                ? "bg-primary text-white"
-                : "bg-surface-sunken text-muted hover:bg-border"
-            )}
-          >
-            Tous les magasins
-          </button>
-          {accessibleStores.map((s) => {
-            const only = selectedStoreIds.length === 1 && selectedStoreIds[0] === s.id;
-            return (
-              <button
-                key={s.id}
-                onClick={() => { setSelectedStoreIds([s.id]); setTestStore(s.id); }}
-                className={cn(
-                  "shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
-                  only ? "bg-primary text-white" : "bg-surface-sunken text-muted hover:bg-border"
-                )}
-              >
-                {s.name}
-              </button>
-            );
-          })}
-        </div>
+            
 
-               {/* Magasins */}
-               <div className="flex gap-1.5 overflow-x-auto border-b border-border bg-surface px-3 py-2 md:px-5">
-          <button
-            onClick={() => setSelectedStoreIds(stores.map((s) => s.id))}
-            className={cn(
-              "shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
-              selectedStoreIds.length === stores.length
-                ? "bg-primary text-white"
-                : "bg-surface-sunken text-muted hover:bg-border"
-            )}
-          >
-            Tous les magasins
-          </button>
-          {accessibleStores.map((s) => {
-            const only = selectedStoreIds.length === 1 && selectedStoreIds[0] === s.id;
-            return (
-              <button
-                key={s.id}
-                onClick={() => { setSelectedStoreIds([s.id]); setTestStore(s.id); }}
-                className={cn(
-                  "shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
-                  only ? "bg-primary text-white" : "bg-surface-sunken text-muted hover:bg-border"
-                )}
-              >
-                {s.name}
-              </button>
-            );
-          })}
-        </div>
-
+            
                {/* Magasins */}
                <div className="flex gap-1.5 overflow-x-auto border-b border-border bg-surface px-3 py-2 md:px-5">
           <button
