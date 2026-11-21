@@ -230,11 +230,33 @@ export class MarketingService {
     });
   }
 
+   /** Ajoute le tag de campagne a l'URL du client, sans la denaturer. */
+   private withTag(url: string, code: string): string {
+    try {
+      const u = new URL(url.startsWith('http') ? url : `https://${url}`);
+      u.searchParams.set('c', code);
+      return u.toString();
+    } catch {
+      return url;
+    }
+  }
+
+  /** Compte une visite arrivee avec ?c=<code>. Appele par le pixel Shopify. */
+  async trackVisit(code: string) {
+    if (!code?.trim()) return { ok: false };
+    await this.prisma.campaign.updateMany({
+      where: { trackingCode: code.trim() },
+      data: { visits: { increment: 1 } },
+    });
+    return { ok: true };
+  }
+
   async createCampaign(data: {
     name: string;
     message: string;
     segmentId?: string;
     storeId?: string;
+    linkUrl?: string;
     recipients?: { phone: string; name?: string }[];
     channel?: string;
     scheduledAt?: string;
@@ -259,8 +281,12 @@ export class MarketingService {
       }
     }
 
+    const trackingCode = Math.random().toString(36).slice(2, 8);
+
     return this.prisma.campaign.create({
       data: {
+        linkUrl: data.linkUrl?.trim() || null,
+        trackingCode,
         name: data.name,
         message: data.message,
         segmentId: manual.length ? null : data.segmentId ?? null,
@@ -334,8 +360,15 @@ export class MarketingService {
     let sent = 0;
     let failed = 0;
 
-    for (const c of matched) {
-      const personalized = this.renderTemplate(campaign.message, c);
+    const link = (campaign as any).linkUrl
+    ? this.withTag(
+        (campaign as any).linkUrl,
+        (campaign as any).trackingCode ?? '',
+      )
+    : '';
+
+  for (const c of matched) {
+    const personalized = this.renderTemplate(campaign.message, { ...c, link });
       try {
         const sender = c.storeId ? senderByStore[c.storeId] : undefined;
         const ok = await this.messaging.sendSms(c.displayPhone, personalized, sender);
@@ -400,7 +433,8 @@ export class MarketingService {
       .replace(/\{\{ville\}\}/gi, customer.city ?? '')
       .replace(/\{\{commandes\}\}/gi, num(customer.totalOrders))
       .replace(/\{\{valeur\}\}/gi, num(customer.lifetimeValue))
-      .replace(/\{\{produit\}\}/gi, customer.topProducts?.[0]?.title ?? '');
+      .replace(/\{\{produit\}\}/gi, customer.topProducts?.[0]?.title ?? '')
+      .replace(/\{\{lien\}\}/gi, customer.link ?? '');
   }
 
   /** Complete une liste de numeros avec les donnees client connues. */
@@ -683,6 +717,10 @@ export class MarketingService {
       const base = {
         sent: sends.length,
         recipients: phones.size,
+        visits: (campaign as any).visits ?? 0,
+        link: (campaign as any).linkUrl
+          ? this.withTag((campaign as any).linkUrl, (campaign as any).trackingCode ?? '')
+          : null,
         windowDays,
         orders: 0,
         revenue: 0,

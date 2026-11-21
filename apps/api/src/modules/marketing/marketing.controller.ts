@@ -61,6 +61,7 @@ export class MarketingController {
     message: string;
     segmentId?: string;
     storeId?: string;
+    linkUrl?: string;
     recipients?: { phone: string; name?: string }[];
     channel?: string;
     scheduledAt?: string;
