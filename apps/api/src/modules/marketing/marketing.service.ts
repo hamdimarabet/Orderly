@@ -259,6 +259,8 @@ export class MarketingService {
       }
     }
 
+    console.warn(`[marketing] CREATE campaign "${data.name}" store=${data.storeId ?? 'none'}`);
+
     return this.prisma.campaign.create({
       data: {
         name: data.name,
@@ -386,6 +388,7 @@ export class MarketingService {
   }
 
   async deleteCampaign(id: string) {
+    console.warn(`[marketing] DELETE campaign ${id}`);
     return this.prisma.campaign.delete({ where: { id } });
   }
 
