@@ -70,7 +70,7 @@ const TRIGGERS = [
   { key: "ABANDONED", label: "Commande non confirmée", desc: "Relance après tentatives" },
 ];
 
-const VARIABLES = ["{{nom}}", "{{ville}}", "{{commandes}}", "{{valeur}}", "{{produit}}", "{{lien}}"];
+const VARIABLES = ["{{nom}}", "{{ville}}", "{{commandes}}", "{{valeur}}", "{{produit}}"];
 
 const STATUS_STYLE: Record<string, string> = {
   DRAFT: "bg-surface-sunken text-muted",
@@ -278,7 +278,6 @@ function CampaignModal({
   const [newNumber, setNewNumber] = useState("");
   const [newName, setNewName] = useState("");
   const [fileInfo, setFileInfo] = useState("");
-  const [linkUrl, setLinkUrl] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -333,7 +332,6 @@ function CampaignModal({
           name,
           message,
           storeId: storeId || undefined,
-          linkUrl: linkUrl.trim() || undefined,
           segmentId: mode === "segment" ? segmentId : undefined,
           recipients: mode === "manual" ? numbers : undefined,
         }),
@@ -472,20 +470,6 @@ function CampaignModal({
               {count} destinataire{count > 1 ? "s" : ""} recevront ce message
             </p>
           )}
-
-<div>
-            <label className="mb-1 block text-xs font-medium text-muted">
-              Lien (optionnel)
-            </label>
-            <Input
-              value={linkUrl}
-              onChange={(e) => setLinkUrl(e.target.value)}
-              placeholder="https://meday.tn/promo"
-            />
-            <p className="mt-1 text-[11px] text-muted">
-              Insérez {"{{lien}}"} dans le message. Orderly ajoute un tag pour compter les visites.
-            </p>
-          </div>
 
           <div>
             <div className="mb-1 flex items-center justify-between">
@@ -778,14 +762,10 @@ function CampaignDetailModal({
             <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted">
               Résultats — {stats.windowDays} jours après l'envoi
             </p>
-            <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
+            <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
               <div className="rounded-lg bg-surface-sunken px-3 py-2">
                 <p className="text-[10px] text-muted">Destinataires</p>
                 <p className="mt-0.5 text-lg font-bold">{stats.recipients}</p>
-              </div>
-              <div className="rounded-lg bg-surface-sunken px-3 py-2">
-                <p className="text-[10px] text-muted">Visites</p>
-                <p className="mt-0.5 text-lg font-bold">{stats.visits ?? 0}</p>
               </div>
               <div className="rounded-lg bg-primary-soft px-3 py-2">
                 <p className="text-[10px] text-primary">Commandes</p>
