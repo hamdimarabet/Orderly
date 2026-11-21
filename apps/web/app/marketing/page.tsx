@@ -1401,13 +1401,27 @@ function MarketingContent() {
                         </td>
                         <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center gap-1.5">
-                            {(c.status === "DRAFT" || c.status === "SCHEDULED") && (
+                          {["DRAFT", "SCHEDULED", "FAILED"].includes(c.status) ? (
                               <Button size="sm" disabled={sending === c.id} onClick={() => sendCampaign(c.id)}>
                                 <Send className="h-3.5 w-3.5" />
-                                {sending === c.id ? "Envoi..." : "Envoyer"}
+                                {sending === c.id
+                                  ? "Envoi..."
+                                  : c.status === "FAILED"
+                                  ? "Réessayer"
+                                  : "Envoyer"}
                               </Button>
+                            ) : (
+                              <span className="w-[88px]" />
                             )}
-                            <button onClick={() => del("campaigns", c.id)} className="rounded-md p-1.5 text-muted hover:text-status-cancelled">
+                            <button
+                              onClick={() => {
+                                if (window.prompt(`Tapez SUPPRIMER pour supprimer « ${c.name} »`) === "SUPPRIMER") {
+                                  del("campaigns", c.id);
+                                }
+                              }}
+                              className="ml-3 rounded-md p-1.5 text-muted hover:text-status-cancelled"
+                              title="Supprimer définitivement"
+                            >
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
                           </div>
