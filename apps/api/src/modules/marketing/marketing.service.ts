@@ -388,8 +388,8 @@ export class MarketingService {
   }
 
   async deleteCampaign(id: string) {
-    console.warn(`[marketing] DELETE campaign ${id}`);
-    return this.prisma.campaign.delete({ where: { id } });
+    console.warn(`[marketing] DELETE BLOQUE pour ${id}`);
+    throw new Error('Suppression de campagne desactivee temporairement');
   }
 
   private renderTemplate(template: string, customer: any): string {
