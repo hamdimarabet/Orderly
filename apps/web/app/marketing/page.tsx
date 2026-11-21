@@ -656,12 +656,19 @@ function CampaignDetailModal({
   onClose: () => void;
 }) {
   const [rows, setRows] = useState<any[]>([]);
+  const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
       try {
         const h = { Authorization: `Bearer ${getToken()}` };
+
+        fetch(`${API}/marketing/campaigns/${campaign.id}/stats`, { headers: h })
+          .then((r) => r.json())
+          .then((d) => setStats(d))
+          .catch(() => {});
+  
         const sends = await fetch(`${API}/marketing/campaigns/${campaign.id}/sends`, { headers: h })
           .then((r) => r.json());
 
@@ -749,6 +756,43 @@ function CampaignDetailModal({
             )}
           </div>
         </div>
+
+        {stats && campaign.status !== "DRAFT" && (
+          <div className="border-b border-border px-5 py-4">
+            <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted">
+              Résultats — {stats.windowDays} jours après l'envoi
+            </p>
+            <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+              <div className="rounded-lg bg-surface-sunken px-3 py-2">
+                <p className="text-[10px] text-muted">Destinataires</p>
+                <p className="mt-0.5 text-lg font-bold">{stats.recipients}</p>
+              </div>
+              <div className="rounded-lg bg-primary-soft px-3 py-2">
+                <p className="text-[10px] text-primary">Commandes</p>
+                <p className="mt-0.5 text-lg font-bold text-primary">{stats.orders}</p>
+                <p className="text-[10px] text-primary/70">{stats.rate}% des destinataires</p>
+              </div>
+              <div className="rounded-lg bg-status-delivered-bg px-3 py-2">
+                <p className="text-[10px] text-status-delivered">CA commandé</p>
+                <p className="mt-0.5 text-lg font-bold text-status-delivered">
+                  {money(stats.revenue)}
+                </p>
+                <p className="text-[10px] text-status-delivered/70">TND</p>
+              </div>
+              <div className="rounded-lg bg-purple-50 px-3 py-2">
+                <p className="text-[10px] text-purple-600">CA livré</p>
+                <p className="mt-0.5 text-lg font-bold text-purple-600">
+                  {money(stats.deliveredRevenue ?? 0)}
+                </p>
+                <p className="text-[10px] text-purple-600/70">{stats.delivered ?? 0} livrées</p>
+              </div>
+            </div>
+            <p className="mt-2 text-[10px] text-muted-light">
+              Commandes passées par un destinataire, depuis le même numéro, dans les {stats.windowDays} jours.
+              Sur la même période le magasin a reçu {stats.storeOrdersInWindow} commandes au total.
+            </p>
+          </div>
+        )}
 
         <div className="flex-1 overflow-y-auto">
           {loading ? (

@@ -661,4 +661,87 @@ export class MarketingService {
       })),
     };
   }
+    /** Commandes passees par les destinataires dans les jours suivant l'envoi. */
+    async getCampaignStats(id: string, windowDays = 7) {
+      const campaign = await this.prisma.campaign.findUnique({ where: { id } });
+      if (!campaign) return null;
+  
+      const norm = (p?: string | null) => {
+        const d = String(p ?? '').replace(/\D/g, '');
+        return d.length > 8 ? d.slice(-8) : d;
+      };
+  
+      const sends = await this.prisma.campaignSend.findMany({
+        where: { campaignId: id, status: 'SENT' },
+        select: { phone: true },
+      });
+  
+      const phones = new Set(
+        sends.map((s) => norm(s.phone)).filter((p) => p.length >= 6),
+      );
+  
+      const base = {
+        sent: sends.length,
+        recipients: phones.size,
+        windowDays,
+        orders: 0,
+        revenue: 0,
+        rate: 0,
+        list: [] as any[],
+      };
+  
+      if (!campaign.sentAt || phones.size === 0) return base;
+  
+      const from = campaign.sentAt;
+      const to = new Date(from.getTime() + windowDays * 86_400_000);
+      const storeId = (campaign as any).storeId as string | null;
+  
+      const orders = await this.prisma.order.findMany({
+        where: {
+          ...(storeId ? { storeId } : {}),
+          sourceCreatedAt: { gte: from, lte: to },
+          orderStatus: {
+            notIn: ['ANNULE', 'ARCHIVE', 'DUPLIQUE', 'PANIER_ABANDONNE'],
+          },
+        },
+        select: {
+          id: true,
+          orderNumber: true,
+          total: true,
+          orderStatus: true,
+          customerName: true,
+          customerPhone: true,
+          sourceCreatedAt: true,
+        },
+        orderBy: { sourceCreatedAt: 'desc' },
+      });
+  
+      const attributed = orders.filter((o) => phones.has(norm(o.customerPhone)));
+      const revenue = attributed.reduce((s, o) => s + Number(o.total), 0);
+      const delivered = attributed.filter((o) =>
+        ['LIVRE', 'PAYE'].includes(o.orderStatus as string),
+      );
+  
+      return {
+        ...base,
+        orders: attributed.length,
+        revenue: Math.round(revenue),
+        delivered: delivered.length,
+        deliveredRevenue: Math.round(
+          delivered.reduce((s, o) => s + Number(o.total), 0),
+        ),
+        rate: phones.size
+          ? Math.round((attributed.length / phones.size) * 1000) / 10
+          : 0,
+        storeOrdersInWindow: orders.length,
+        list: attributed.slice(0, 200).map((o) => ({
+          orderNumber: o.orderNumber,
+          name: o.customerName,
+          phone: o.customerPhone,
+          total: Number(o.total),
+          status: o.orderStatus,
+          date: o.sourceCreatedAt,
+        })),
+      };
+    }
 }

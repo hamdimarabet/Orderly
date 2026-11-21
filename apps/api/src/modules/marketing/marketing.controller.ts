@@ -73,10 +73,12 @@ export class MarketingController {
     return this.marketing.sendCampaign(id);
   }
 
-  @Get('campaigns/:id/sends')
-  getCampaignSends(@Param('id') id: string) {
-    return this.marketing.getCampaignSends(id);
+  @Get('campaigns/:id/stats')
+  getCampaignStats(@Param('id') id: string, @Query('days') days?: string) {
+    return this.marketing.getCampaignStats(id, days ? parseInt(days) : 7);
   }
+
+  @Get('campaigns/:id/sends')
 
   @Delete('campaigns/:id')
   deleteCampaign(@Param('id') id: string) {
