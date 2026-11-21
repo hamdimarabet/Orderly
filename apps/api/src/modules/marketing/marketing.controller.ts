@@ -61,6 +61,7 @@ export class MarketingController {
     message: string;
     segmentId?: string;
     storeId?: string;
+    linkUrl?: string;
     recipients?: { phone: string; name?: string }[];
     channel?: string;
     scheduledAt?: string;
@@ -79,6 +80,9 @@ export class MarketingController {
   }
 
   @Get('campaigns/:id/sends')
+  getCampaignSends(@Param('id') id: string) {
+    return this.marketing.getCampaignSends(id);
+  }
 
   @Delete('campaigns/:id')
   deleteCampaign(@Param('id') id: string) {

@@ -501,8 +501,11 @@ model Campaign {
   sentCount      Int   @default(0)
   failedCount    Int   @default(0)
 
-   storeId     String?
-  recipients  Json?
+     storeId      String?
+  recipients   Json?
+  linkUrl      String?
+  trackingCode String?  @unique
+  visits       Int      @default(0)
 
   sends       CampaignSend[]
 
